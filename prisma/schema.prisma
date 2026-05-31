@@ -52,9 +52,10 @@ model User {
   password  String
   role      Role      @default(OPERATOR)
   createdAt DateTime  @default(now())
-  reservas  Reserva[]
-  gastos    Gasto[]
-  pagos     Pago[]
+  reservas    Reserva[]
+  gastos      Gasto[]
+  pagos       Pago[]
+  cierresMes  CierreMes[]
 }
 
 model Quinta {
@@ -70,6 +71,7 @@ model Quinta {
   temporadas        TemporadaQuinta[]
   precios           PrecioTemporada[]
   gastos            Gasto[]
+  cierresMes        CierreMes[]
 }
 
 model Cliente {
@@ -175,4 +177,27 @@ model Pago {
   createdAt   DateTime   @default(now())
   reserva     Reserva    @relation(fields: [reservaId], references: [id])
   creadoPor   User       @relation(fields: [creadoPorId], references: [id])
+}
+
+model CierreMes {
+  id                   String   @id @default(cuid())
+  quintaId             String
+  mes                  Int
+  anio                 Int
+  totalIngresos        Decimal  @db.Decimal(10, 2)
+  totalGastos          Decimal  @db.Decimal(10, 2)
+  resultado            Decimal  @db.Decimal(10, 2)
+  parteGraciela        Decimal  @db.Decimal(10, 2)
+  parteMatias          Decimal  @db.Decimal(10, 2)
+  reintegrosGraciela   Decimal  @db.Decimal(10, 2)
+  reintegrosMatias     Decimal  @db.Decimal(10, 2)
+  cobrarGraciela       Decimal  @db.Decimal(10, 2)
+  cobrarMatias         Decimal  @db.Decimal(10, 2)
+  cerradoPorId         String
+  fechaCierre          DateTime
+  createdAt            DateTime @default(now())
+  quinta               Quinta   @relation(fields: [quintaId], references: [id])
+  cerradoPor           User     @relation(fields: [cerradoPorId], references: [id])
+
+  @@unique([quintaId, mes, anio])
 }
