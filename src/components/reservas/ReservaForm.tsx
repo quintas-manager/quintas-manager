@@ -110,12 +110,13 @@ export function ReservaForm({
     precios: Record<string, number>;
   } | null>(null);
 
-  const [quintaId, fechaInicio, fechaFin, tipoAlquiler] = watch([
-    "quintaId", "fechaInicio", "fechaFin", "tipoAlquiler",
+  const [quintaId, fechaInicio, fechaFin, tipoAlquiler, seña] = watch([
+    "quintaId", "fechaInicio", "fechaFin", "tipoAlquiler", "seña",
   ]);
 
   const selectedQuinta = quintas.find((q) => q.id === quintaId);
-  const maxPersonas = selectedQuinta?.capacidadAdultos ?? 10;
+  const maxPersonas    = selectedQuinta?.capacidadAdultos ?? 10;
+  const tieneSeña      = typeof seña === "number" && seña > 0;
 
   // ── Disponibilidad ────────────────────────────────────────────────────────
 
@@ -383,6 +384,37 @@ export function ReservaForm({
             <FieldError msg={errors.seña?.message} />
           </div>
         </div>
+
+        {tieneSeña && mode === "crear" && (
+          <div className="mt-4">
+            <Label>Método de pago de la seña</Label>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mt-1">
+              {(["EFECTIVO", "TRANSFERENCIA", "TARJETA", "MERCADOPAGO"] as const).map((m) => (
+                <label
+                  key={m}
+                  className="flex cursor-pointer items-center gap-2 rounded-lg border-2 border-gray-200 p-2.5 text-sm transition has-[:checked]:border-gray-900 has-[:checked]:bg-gray-50 hover:border-gray-300"
+                >
+                  <input
+                    type="radio"
+                    value={m}
+                    {...register("metodoPagoSeña")}
+                    defaultChecked={m === "EFECTIVO"}
+                    className="sr-only"
+                  />
+                  <span className="font-medium text-gray-900 text-xs">
+                    {m === "EFECTIVO" && "Efectivo"}
+                    {m === "TRANSFERENCIA" && "Transferencia"}
+                    {m === "TARJETA" && "Tarjeta"}
+                    {m === "MERCADOPAGO" && "MercadoPago"}
+                  </span>
+                </label>
+              ))}
+            </div>
+            <p className="mt-1.5 text-xs text-blue-600">
+              La seña se registrará automáticamente como pago al crear la reserva.
+            </p>
+          </div>
+        )}
       </section>
 
       {/* ── Detalles adicionales ─────────────────────────────────────── */}

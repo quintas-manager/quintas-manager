@@ -16,6 +16,7 @@ export const reservaSchema = z
     notas:            z.string().optional(),
     tieneMascota:     z.boolean().optional(),
     cantidadPersonas: z.number().int().min(1).nullable().optional(),
+    metodoPagoSeña:   z.enum(["EFECTIVO", "TRANSFERENCIA", "TARJETA", "MERCADOPAGO"]).optional(),
   })
   .refine((d) => new Date(d.fechaFin) >= new Date(d.fechaInicio), {
     message: "La fecha de fin debe ser igual o posterior a la de inicio",

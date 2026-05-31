@@ -65,22 +65,42 @@ export async function crearReserva(raw: ReservaFormValues): Promise<Result<{ id:
     };
   }
 
-  const reserva = await prisma.reserva.create({
-    data: {
-      quintaId:         data.quintaId,
-      clienteId:        data.clienteId,
-      creadoPorId:      session.user.id,
-      fechaInicio:      inicio,
-      fechaFin:         fin,
-      tipoAlquiler:     data.tipoAlquiler,
-      estado:           data.estado,
-      montoTotal:       data.montoTotal,
-      seña:             data.seña ?? null,
-      motivoEvento:     data.motivoEvento || null,
-      notas:            data.notas || null,
-      tieneMascota:     data.tieneMascota ?? false,
-      cantidadPersonas: data.cantidadPersonas ?? null,
-    },
+  const seña = data.seña ?? null;
+  const now  = new Date();
+
+  const reserva = await prisma.$transaction(async (tx) => {
+    const r = await tx.reserva.create({
+      data: {
+        quintaId:         data.quintaId,
+        clienteId:        data.clienteId,
+        creadoPorId:      session.user.id,
+        fechaInicio:      inicio,
+        fechaFin:         fin,
+        tipoAlquiler:     data.tipoAlquiler,
+        estado:           data.estado,
+        montoTotal:       data.montoTotal,
+        seña,
+        motivoEvento:     data.motivoEvento || null,
+        notas:            data.notas || null,
+        tieneMascota:     data.tieneMascota ?? false,
+        cantidadPersonas: data.cantidadPersonas ?? null,
+      },
+    });
+
+    if (seña && seña > 0) {
+      await tx.pago.create({
+        data: {
+          reservaId:   r.id,
+          creadoPorId: session.user.id,
+          monto:       seña,
+          fecha:       now,
+          metodoPago:  data.metodoPagoSeña ?? "EFECTIVO",
+          notas:       "Seña registrada al crear la reserva",
+        },
+      });
+    }
+
+    return r;
   });
 
   revalidatePath("/reservas");
