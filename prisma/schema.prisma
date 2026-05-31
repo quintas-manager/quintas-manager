@@ -1,0 +1,178 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum Role {
+  ADMIN
+  OPERATOR
+}
+
+enum TipoTemporada {
+  ALTA
+  BAJA
+}
+
+enum TipoAlquiler {
+  DIA
+  FIN_DE_SEMANA
+  SEMANA
+  QUINCENA
+  MES
+}
+
+enum EstadoReserva {
+  PENDIENTE
+  CONFIRMADA
+  CANCELADA
+  COMPLETADA
+}
+
+enum GastoPagador {
+  CAJA
+  GRACIELA
+  MATIAS
+  ROCIO
+}
+
+enum MetodoPago {
+  EFECTIVO
+  TRANSFERENCIA
+  TARJETA
+  MERCADOPAGO
+}
+
+model User {
+  id        String    @id @default(cuid())
+  name      String
+  email     String    @unique
+  password  String
+  role      Role      @default(OPERATOR)
+  createdAt DateTime  @default(now())
+  reservas  Reserva[]
+  gastos    Gasto[]
+  pagos     Pago[]
+}
+
+model Quinta {
+  id                String            @id @default(cuid())
+  nombre            String
+  descripcion       String?
+  capacidadAdultos  Int
+  capacidadNinos    Int               @default(0)
+  colorHex          String            @default("#3b82f6")
+  activa            Boolean           @default(true)
+  createdAt         DateTime          @default(now())
+  reservas          Reserva[]
+  temporadas        TemporadaQuinta[]
+  precios           PrecioTemporada[]
+  gastos            Gasto[]
+}
+
+model Cliente {
+  id        String    @id @default(cuid())
+  nombre    String
+  apellido  String
+  telefono  String
+  email     String?
+  dni       String?
+  notas     String?
+  createdAt DateTime  @default(now())
+  reservas  Reserva[]
+}
+
+model Temporada {
+  id           String            @id @default(cuid())
+  nombre       String
+  tipo         TipoTemporada
+  fechaInicio  DateTime
+  fechaFin     DateTime
+  quintas      TemporadaQuinta[]
+  precios      PrecioTemporada[]
+}
+
+model TemporadaQuinta {
+  temporadaId String
+  quintaId    String
+  temporada   Temporada @relation(fields: [temporadaId], references: [id], onDelete: Cascade)
+  quinta      Quinta    @relation(fields: [quintaId], references: [id], onDelete: Cascade)
+
+  @@id([temporadaId, quintaId])
+}
+
+model Reserva {
+  id             String        @id @default(cuid())
+  quintaId       String
+  clienteId      String
+  creadoPorId    String
+  fechaInicio    DateTime
+  fechaFin       DateTime
+  tipoAlquiler   TipoAlquiler
+  estado         EstadoReserva @default(PENDIENTE)
+  montoTotal     Decimal       @db.Decimal(10, 2)
+  seña           Decimal?      @db.Decimal(10, 2)
+  notas           String?
+  motivoEvento    String?
+  tieneMascota    Boolean       @default(false)
+  cantidadPersonas Int?
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+  quinta          Quinta        @relation(fields: [quintaId], references: [id])
+  cliente         Cliente       @relation(fields: [clienteId], references: [id])
+  creadoPor       User          @relation(fields: [creadoPorId], references: [id])
+  pagos           Pago[]
+}
+
+model PrecioTemporada {
+  id           String       @id @default(cuid())
+  quintaId     String
+  temporadaId  String
+  tipoAlquiler TipoAlquiler
+  precio       Decimal      @db.Decimal(10, 2)
+  quinta       Quinta       @relation(fields: [quintaId], references: [id], onDelete: Cascade)
+  temporada    Temporada    @relation(fields: [temporadaId], references: [id], onDelete: Cascade)
+
+  @@unique([quintaId, temporadaId, tipoAlquiler])
+}
+
+model CategoriaGasto {
+  id     String  @id @default(cuid())
+  nombre String  @unique
+  activa Boolean @default(true)
+  gastos Gasto[]
+}
+
+model Gasto {
+  id              String        @id @default(cuid())
+  quintaId        String
+  categoriaId     String
+  creadoPorId     String
+  descripcion     String
+  monto           Decimal       @db.Decimal(10, 2)
+  fecha           DateTime
+  pagadoPor       GastoPagador
+  reintegrado     Boolean       @default(false)
+  fechaReintegro  DateTime?
+  comprobante     String?
+  notas           String?
+  createdAt       DateTime      @default(now())
+  quinta          Quinta        @relation(fields: [quintaId], references: [id])
+  categoria       CategoriaGasto @relation(fields: [categoriaId], references: [id])
+  creadoPor       User          @relation(fields: [creadoPorId], references: [id])
+}
+
+model Pago {
+  id          String     @id @default(cuid())
+  reservaId   String
+  creadoPorId String
+  monto       Decimal    @db.Decimal(10, 2)
+  fecha       DateTime
+  metodoPago  MetodoPago
+  notas       String?
+  createdAt   DateTime   @default(now())
+  reserva     Reserva    @relation(fields: [reservaId], references: [id])
+  creadoPor   User       @relation(fields: [creadoPorId], references: [id])
+}
