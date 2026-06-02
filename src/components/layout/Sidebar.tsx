@@ -211,8 +211,15 @@ export function DashboardShell({ userName, userRole, children }: DashboardShellP
           </h1>
         </header>
 
-        {/* Page content */}
-        <main className="flex-1 p-4 lg:p-6">{children}</main>
+        {/* Page content — no padding on /calendario so the calendar can go edge-to-edge */}
+        <main
+          className={cn(
+            "flex-1",
+            pathname === "/calendario" ? "" : "overflow-y-auto p-4 lg:p-6",
+          )}
+        >
+          {children}
+        </main>
       </div>
     </div>
   );

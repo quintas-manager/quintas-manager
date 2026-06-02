@@ -646,7 +646,6 @@ export function CalendarioClient({
   const [activeBar, setActiveBar] = useState<ReservaEvento | null>(null);
   const [activeDay, setActiveDay] = useState<string | null>(null);
 
-  const scrollRef        = useRef<HTMLDivElement>(null);
   const blockRefs        = useRef(new Map<string, HTMLDivElement>());
   const fetchedKeys      = useRef(new Set<string>([
     monthKey(shiftMonth(cy, cm, -1).year, shiftMonth(cy, cm, -1).month),
@@ -710,6 +709,10 @@ export function CalendarioClient({
     if (isFetchingPast.current) return;
     isFetchingPast.current = true;
 
+    // Capture scroll state before prepending months
+    const prevScrollY = window.scrollY;
+    const prevHeight  = document.documentElement.scrollHeight;
+
     setMonths((prev) => {
       const first = prev[0];
       const p1    = shiftMonth(first.year, first.month, -2);
@@ -730,28 +733,38 @@ export function CalendarioClient({
       } else {
         isFetchingPast.current = false;
       }
+
+      // Restore scroll after DOM updates so prepended content doesn't jump
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          const delta = document.documentElement.scrollHeight - prevHeight;
+          window.scrollTo(0, prevScrollY + delta);
+        });
+      });
+
       return [...add, ...prev];
     });
   }, [fetchRange]);
 
-  // ── Scroll: lazy load + sticky header update ──────────────────────────────
+  // ── Scroll: lazy load + sticky header update (window scroll) ──────────────
 
   useEffect(() => {
-    const el = scrollRef.current;
-    if (!el) return;
-
     const onScroll = () => {
-      const { scrollTop, scrollHeight, clientHeight } = el;
+      const scrollY      = window.scrollY;
+      const scrollHeight = document.documentElement.scrollHeight;
+      const clientHeight = window.innerHeight;
 
-      if (scrollHeight - scrollTop - clientHeight < 500) loadFuture();
-      if (scrollTop < 300) loadPast();
+      if (scrollHeight - scrollY - clientHeight < 500) loadFuture();
+      if (scrollY < 300) loadPast();
 
-      let bestOffset = -1;
+      // app header = 56px, sticky label ≈ 48px → threshold 110px
+      const threshold = 110;
+      let bestTop = -Infinity;
       let bestKey: string | null = null;
       Array.from(blockRefs.current.entries()).forEach(([key, blockEl]) => {
-        const ot = blockEl.offsetTop;
-        if (ot <= scrollTop + 80 && ot > bestOffset) {
-          bestOffset = ot;
+        const top = blockEl.getBoundingClientRect().top;
+        if (top <= threshold && top > bestTop) {
+          bestTop = top;
           bestKey = key;
         }
       });
@@ -761,8 +774,8 @@ export function CalendarioClient({
       }
     };
 
-    el.addEventListener("scroll", onScroll, { passive: true });
-    return () => el.removeEventListener("scroll", onScroll);
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
   }, [loadFuture, loadPast]);
 
   // ── Initial scroll to current month ──────────────────────────────────────
@@ -770,8 +783,10 @@ export function CalendarioClient({
   useEffect(() => {
     const key     = monthKey(cy, cm);
     const blockEl = blockRefs.current.get(key);
-    if (blockEl && scrollRef.current) {
-      scrollRef.current.scrollTop = blockEl.offsetTop;
+    if (blockEl) {
+      blockEl.scrollIntoView({ behavior: "instant", block: "start" });
+      // Clear app header (56px) + sticky label (≈48px)
+      window.scrollBy(0, -104);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -804,7 +819,6 @@ export function CalendarioClient({
     setActiveBar(null);
   }, []);
 
-  // From day sheet → open reservation detail
   const handleReservaTapFromDay = useCallback((r: ReservaEvento) => {
     setActiveDay(null);
     setActiveBar(r);
@@ -813,27 +827,14 @@ export function CalendarioClient({
   // ── Render ────────────────────────────────────────────────────────────────
 
   return (
-    <div
-      className="-mx-4 -mt-4 flex flex-col lg:-mx-6 lg:-mt-6"
-      style={{ height: "calc(100dvh - 56px)", touchAction: "pan-y" }}
-    >
-      {/* Fixed month/year label */}
-      <div className="shrink-0 border-b border-gray-200 bg-white px-4 py-3">
+    <>
+      {/* Sticky month/year label — clears 56px app header */}
+      <div className="sticky top-14 z-10 border-b border-gray-200 bg-white px-4 py-3">
         <p className="text-base font-semibold text-gray-900">{headerLabel}</p>
       </div>
 
-      {/* Scrollable month list */}
-      <div
-        ref={scrollRef}
-        className="flex-1 bg-white"
-        style={{
-          height:                    "100%",
-          overflowY:                 "scroll",
-          WebkitOverflowScrolling:   "touch",
-          overscrollBehavior:        "contain",
-          overflowAnchor:            "auto",
-        } as React.CSSProperties}
-      >
+      {/* Month list — grows naturally, window handles scroll */}
+      <div className="flex flex-col">
         {months.map(({ year, month }) => (
           <MonthBlock
             key={monthKey(year, month)}
@@ -867,6 +868,6 @@ export function CalendarioClient({
           />
         )}
       </BottomSheet>
-    </div>
+    </>
   );
 }
