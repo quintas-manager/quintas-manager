@@ -574,7 +574,7 @@ export function CalendarioClient({
   return (
     <div
       className="-mx-4 -mt-4 flex flex-col lg:-mx-6 lg:-mt-6"
-      style={{ height: "calc(100dvh - 56px)" }}
+      style={{ height: "calc(100dvh - 56px)", touchAction: "pan-y" }}
     >
       {/* Fixed month/year label */}
       <div className="shrink-0 border-b border-gray-200 bg-white px-4 py-3">
@@ -584,8 +584,14 @@ export function CalendarioClient({
       {/* Scrollable month list */}
       <div
         ref={scrollRef}
-        className="flex-1 overflow-y-auto bg-white"
-        style={{ overflowAnchor: "auto" } as React.CSSProperties}
+        className="flex-1 bg-white"
+        style={{
+          height: "100%",
+          overflowY: "scroll",
+          WebkitOverflowScrolling: "touch",
+          overscrollBehavior: "contain",
+          overflowAnchor: "auto",
+        } as React.CSSProperties}
       >
         {months.map(({ year, month }) => (
           <MonthBlock
