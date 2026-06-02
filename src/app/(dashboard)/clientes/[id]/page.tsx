@@ -123,13 +123,16 @@ export default async function ClienteDetallePage({ params }: PageProps) {
       <div className="rounded-2xl border border-gray-200 bg-white p-6">
         <EditarClienteForm
           cliente={{
-            id:       cliente.id,
-            nombre:   cliente.nombre,
-            apellido: cliente.apellido,
-            telefono: cliente.telefono,
-            email:    cliente.email,
-            dni:      cliente.dni,
-            notas:    cliente.notas,
+            id:              cliente.id,
+            nombre:          cliente.nombre,
+            apellido:        cliente.apellido,
+            telefono:        cliente.telefono,
+            email:           cliente.email,
+            dni:             cliente.dni,
+            notas:           cliente.notas,
+            fechaCumpleanos: cliente.fechaCumpleanos
+              ? cliente.fechaCumpleanos.toISOString().split("T")[0]
+              : null,
           }}
         />
       </div>

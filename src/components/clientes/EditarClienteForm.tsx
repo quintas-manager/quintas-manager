@@ -17,6 +17,7 @@ interface Cliente {
   email?: string | null;
   dni?: string | null;
   notas?: string | null;
+  fechaCumpleanos?: string | null;
 }
 
 function Field({
@@ -60,12 +61,13 @@ export function EditarClienteForm({ cliente }: { cliente: Cliente }) {
   } = useForm<ClienteFormValues>({
     resolver: zodResolver(clienteSchema),
     defaultValues: {
-      nombre:   cliente.nombre,
-      apellido: cliente.apellido,
-      telefono: cliente.telefono,
-      email:    cliente.email ?? "",
-      dni:      cliente.dni ?? "",
-      notas:    cliente.notas ?? "",
+      nombre:          cliente.nombre,
+      apellido:        cliente.apellido,
+      telefono:        cliente.telefono,
+      email:           cliente.email ?? "",
+      dni:             cliente.dni ?? "",
+      notas:           cliente.notas ?? "",
+      fechaCumpleanos: cliente.fechaCumpleanos ?? "",
     },
   });
 
@@ -119,6 +121,17 @@ export function EditarClienteForm({ cliente }: { cliente: Cliente }) {
             <dt className="text-xs text-gray-500">DNI</dt>
             <dd className="mt-0.5 text-sm text-gray-900">{cliente.dni || "—"}</dd>
           </div>
+          {cliente.fechaCumpleanos && (
+            <div>
+              <dt className="text-xs text-gray-500">Cumpleaños</dt>
+              <dd className="mt-0.5 text-sm text-gray-900">
+                {new Date(cliente.fechaCumpleanos + "T00:00:00").toLocaleDateString("es-AR", {
+                  day: "numeric",
+                  month: "long",
+                })}
+              </dd>
+            </div>
+          )}
           {cliente.notas && (
             <div className="sm:col-span-2">
               <dt className="text-xs text-gray-500">Notas</dt>
@@ -174,6 +187,17 @@ export function EditarClienteForm({ cliente }: { cliente: Cliente }) {
             rows={3}
             className={cn(inputCls(errors.notas?.message), "resize-none")}
           />
+        </Field>
+
+        <Field label="Fecha de cumpleaños" error={errors.fechaCumpleanos?.message}>
+          <input
+            {...register("fechaCumpleanos")}
+            type="date"
+            className={inputCls(errors.fechaCumpleanos?.message)}
+          />
+          <p className="mt-1 text-xs text-gray-400">
+            Opcional — se usará para mostrar alertas en el dashboard
+          </p>
         </Field>
 
         <div className="flex justify-end">

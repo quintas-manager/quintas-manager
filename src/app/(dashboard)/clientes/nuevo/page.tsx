@@ -131,6 +131,17 @@ export default function NuevoClientePage() {
             />
           </Field>
 
+          <Field label="Fecha de cumpleaños" error={errors.fechaCumpleanos?.message}>
+            <input
+              {...register("fechaCumpleanos")}
+              type="date"
+              className={inputCls(errors.fechaCumpleanos?.message)}
+            />
+            <p className="mt-1 text-xs text-gray-400">
+              Opcional — se usará para mostrar alertas en el dashboard
+            </p>
+          </Field>
+
           <div className="flex gap-2 pt-2">
             <Link
               href="/clientes"

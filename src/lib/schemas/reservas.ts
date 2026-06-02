@@ -31,11 +31,12 @@ export const cancelarSchema = z.object({
 export type CancelarFormValues = z.infer<typeof cancelarSchema>;
 
 export const clienteSchema = z.object({
-  nombre:   z.string().min(1, "El nombre es requerido"),
-  apellido: z.string().min(1, "El apellido es requerido"),
-  telefono: z.string().min(1, "El teléfono es requerido"),
-  email:    z.string().email("Email inválido").optional().or(z.literal("")),
-  dni:      z.string().optional(),
-  notas:    z.string().optional(),
+  nombre:          z.string().min(1, "El nombre es requerido"),
+  apellido:        z.string().min(1, "El apellido es requerido"),
+  telefono:        z.string().min(1, "El teléfono es requerido"),
+  email:           z.string().email("Email inválido").optional().or(z.literal("")),
+  dni:             z.string().optional(),
+  notas:           z.string().optional(),
+  fechaCumpleanos: z.string().optional(),
 });
 export type ClienteFormValues = z.infer<typeof clienteSchema>;

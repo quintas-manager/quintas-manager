@@ -29,9 +29,13 @@ export async function crearCliente(raw: ClienteFormValues): Promise<
       fieldErrors: parsed.error.flatten().fieldErrors as Record<string, string[]>,
     };
   }
-  const { email, ...rest } = parsed.data;
+  const { email, fechaCumpleanos, ...rest } = parsed.data;
   const cliente = await prisma.cliente.create({
-    data: { ...rest, email: email || null },
+    data: {
+      ...rest,
+      email: email || null,
+      fechaCumpleanos: fechaCumpleanos ? new Date(fechaCumpleanos) : null,
+    },
     select: { id: true, nombre: true, apellido: true, telefono: true },
   });
   revalidatePath("/clientes");
@@ -53,10 +57,14 @@ export async function actualizarCliente(
       fieldErrors: parsed.error.flatten().fieldErrors as Record<string, string[]>,
     };
   }
-  const { email, ...rest } = parsed.data;
+  const { email, fechaCumpleanos, ...rest } = parsed.data;
   await prisma.cliente.update({
     where: { id },
-    data: { ...rest, email: email || null },
+    data: {
+      ...rest,
+      email: email || null,
+      fechaCumpleanos: fechaCumpleanos ? new Date(fechaCumpleanos) : null,
+    },
   });
   revalidatePath("/clientes");
   revalidatePath(`/clientes/${id}`);

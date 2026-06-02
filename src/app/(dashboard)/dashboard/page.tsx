@@ -11,6 +11,8 @@ import {
   ChevronRight,
   Receipt,
   ArrowDownLeft,
+  Cake,
+  Home,
 } from "lucide-react";
 import { GastoPagador } from "@prisma/client";
 
@@ -70,7 +72,7 @@ export default async function DashboardPage() {
   const PERSONAS_PAGADOR = ["GRACIELA", "MATIAS", "ROCIO"] as const;
   const PERSONA_NOMBRE: Record<string, string> = { GRACIELA: "Graciela", MATIAS: "Matías", ROCIO: "Rocío" };
 
-  const [quintas, reservasMes, proximasReservas, pendientes, reservasMiniCal, gastosMes, reintegrosPendientes] =
+  const [quintas, reservasMes, proximasReservas, pendientes, reservasMiniCal, gastosMes, reintegrosPendientes, clientesConCumple] =
     await Promise.all([
       prisma.quinta.findMany({
         where: { activa: true },
@@ -156,6 +158,25 @@ export default async function DashboardPage() {
         },
         select: { pagadoPor: true, monto: true },
       }),
+
+      // Cumpleaños
+      prisma.cliente.findMany({
+        where: { fechaCumpleanos: { not: null } },
+        select: {
+          id:              true,
+          nombre:          true,
+          apellido:        true,
+          fechaCumpleanos: true,
+          reservas: {
+            where: {
+              estado:    { in: ["PENDIENTE", "CONFIRMADA"] },
+              fechaFin:  { gte: today },
+            },
+            select: { quinta: { select: { nombre: true, colorHex: true } } },
+            take: 1,
+          },
+        },
+      }),
     ]);
 
   // ── estadísticas ──────────────────────────────────────────────────────────
@@ -223,6 +244,18 @@ export default async function DashboardPage() {
   })).filter((p) => p.total > 0);
 
   const totalReintegrosPendientes = reintegrosPorPersona.reduce((s, p) => s + p.total, 0);
+
+  // ── cumpleaños este mes ───────────────────────────────────────────────────
+
+  const cumplesMes = clientesConCumple
+    .filter((c) => c.fechaCumpleanos!.getUTCMonth() === now.getMonth())
+    .sort((a, b) => a.fechaCumpleanos!.getUTCDate() - b.fechaCumpleanos!.getUTCDate());
+
+  const esCumpleHoy = (d: Date) =>
+    d.getUTCDate() === today.getDate() && d.getUTCMonth() === today.getMonth();
+
+  const fmtCumple = (d: Date) =>
+    `${d.getUTCDate()} de ${d.toLocaleString("es-AR", { month: "long", timeZone: "UTC" })}`;
 
   // ── mini calendario ───────────────────────────────────────────────────────
 
@@ -483,6 +516,60 @@ export default async function DashboardPage() {
             </>
           )}
         </div>
+      </div>
+
+      {/* ── Cumpleaños este mes ── */}
+      <div className="rounded-2xl border border-gray-200 bg-white overflow-hidden">
+        <div className="flex items-center gap-2 border-b border-gray-100 px-5 py-4">
+          <Cake className="h-4 w-4 text-pink-400" />
+          <h2 className="text-sm font-semibold text-gray-700">Cumpleaños este mes</h2>
+          {cumplesMes.length > 0 && (
+            <span className="ml-1 inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-pink-100 px-1.5 text-[10px] font-bold text-pink-600">
+              {cumplesMes.length}
+            </span>
+          )}
+        </div>
+
+        {cumplesMes.length === 0 ? (
+          <p className="px-5 py-8 text-center text-sm text-gray-400">Sin cumpleaños este mes.</p>
+        ) : (
+          <div className="divide-y divide-gray-50">
+            {cumplesMes.map((c) => {
+              const hoy    = esCumpleHoy(c.fechaCumpleanos!);
+              const quinta = c.reservas[0]?.quinta ?? null;
+              return (
+                <div key={c.id} className="flex items-center gap-3 px-5 py-3">
+                  <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-pink-50 text-base">
+                    🎂
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium text-gray-900">
+                      {c.nombre} {c.apellido}
+                    </p>
+                    <p className="text-xs text-gray-500">{fmtCumple(c.fechaCumpleanos!)}</p>
+                  </div>
+                  <div className="flex items-center gap-2 shrink-0">
+                    {quinta && (
+                      <span
+                        className="flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium text-white"
+                        style={{ backgroundColor: quinta.colorHex }}
+                        title={`Reserva activa en ${quinta.nombre}`}
+                      >
+                        <Home className="h-3 w-3" />
+                        {quinta.nombre}
+                      </span>
+                    )}
+                    {hoy && (
+                      <span className="rounded-full bg-pink-500 px-2.5 py-0.5 text-xs font-bold text-white">
+                        ¡Hoy!
+                      </span>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
       </div>
 
       {/* ── Fila: próximas reservas + mini calendario ── */}
