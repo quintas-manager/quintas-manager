@@ -425,7 +425,7 @@ export function CalendarioClient({
         }
       });
       if (bestKey) {
-        const [yr, mo] = bestKey.split("-").map(Number);
+        const [yr, mo] = (bestKey as string).split("-").map(Number);
         setHeaderLabel(`${MONTH_NAMES[mo - 1].toUpperCase()} ${yr}`);
       }
     };
