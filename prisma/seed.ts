@@ -167,6 +167,35 @@ async function main() {
   }
 
   console.log(`  ✔ Categorías de gasto: ${categorias.length} creadas`);
+
+  // ── Lugares de limpieza ───────────────────────────────────────────────────
+  const lugaresData = [
+    { id: "lugar-el-descanso",   nombre: "El Descanso",   orden: 1 },
+    { id: "lugar-la-tranquila",  nombre: "La Tranquila",  orden: 2 },
+    { id: "lugar-casa-graciela", nombre: "Casa Graciela", orden: 3 },
+    { id: "lugar-casa-matias",   nombre: "Casa Matías",   orden: 4 },
+    { id: "lugar-casa-german",   nombre: "Casa Germán",   orden: 5 },
+    { id: "lugar-casa-martin",   nombre: "Casa Martín",   orden: 6 },
+  ];
+
+  for (const l of lugaresData) {
+    await prisma.lugarLimpieza.upsert({
+      where: { id: l.id },
+      update: {},
+      create: { id: l.id, nombre: l.nombre, orden: l.orden, activo: true },
+    });
+  }
+
+  console.log(`  ✔ Lugares de limpieza: ${lugaresData.length} creados`);
+
+  // ── Configuración app ─────────────────────────────────────────────────────
+  await prisma.configuracionApp.upsert({
+    where: { clave: "whatsapp_silvana" },
+    update: {},
+    create: { clave: "whatsapp_silvana", valor: "" },
+  });
+
+  console.log("  ✔ Configuración inicial creada");
   console.log("\n✅ Seed completado exitosamente");
 }
 

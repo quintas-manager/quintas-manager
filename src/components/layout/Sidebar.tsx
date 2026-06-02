@@ -13,6 +13,7 @@ import {
   LogOut,
   Menu,
   X,
+  Sparkles,
   ChevronRight,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -31,6 +32,7 @@ const NAV_ITEMS: NavItem[] = [
   { label: "Reservas",      href: "/reservas",      icon: BookOpen },
   { label: "Finanzas",      href: "/finanzas",      icon: BarChart3 },
   { label: "Clientes",      href: "/clientes",      icon: Users },
+  { label: "Limpieza",      href: "/limpieza",      icon: Sparkles },
   { label: "Configuración", href: "/configuracion", icon: Settings, adminOnly: true },
 ];
 
@@ -41,6 +43,7 @@ const PAGE_TITLES: Record<string, string> = {
   "/finanzas":      "Finanzas",
   "/gastos":        "Gastos",
   "/clientes":      "Clientes",
+  "/limpieza":      "Limpieza",
   "/configuracion": "Configuración",
 };
 

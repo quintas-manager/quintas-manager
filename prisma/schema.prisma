@@ -48,16 +48,17 @@ enum MetodoPago {
 }
 
 model User {
-  id        String    @id @default(cuid())
-  name      String
-  email     String    @unique
-  password  String
-  role      Role      @default(OPERATOR)
-  createdAt DateTime  @default(now())
+  id          String               @id @default(cuid())
+  name        String
+  email       String               @unique
+  password    String
+  role        Role                 @default(OPERATOR)
+  createdAt   DateTime             @default(now())
   reservas    Reserva[]
   gastos      Gasto[]
   pagos       Pago[]
   cierresMes  CierreMes[]
+  cronogramas CronogramaLimpieza[]
 }
 
 model Quinta {
@@ -203,4 +204,41 @@ model CierreMes {
   cerradoPor           User     @relation(fields: [cerradoPorId], references: [id])
 
   @@unique([quintaId, mes, anio])
+}
+
+model LugarLimpieza {
+  id             String          @id @default(cuid())
+  nombre         String
+  activo         Boolean         @default(true)
+  orden          Int
+  diasPrincipal  DiaCronograma[] @relation("LugarPrincipal")
+  diasSecundario DiaCronograma[] @relation("LugarSecundario")
+}
+
+model CronogramaLimpieza {
+  id           String          @id @default(cuid())
+  semanaInicio DateTime
+  creadoPorId  String
+  enviado      Boolean         @default(false)
+  fechaEnvio   DateTime?
+  createdAt    DateTime        @default(now())
+  creadoPor    User            @relation(fields: [creadoPorId], references: [id])
+  dias         DiaCronograma[]
+}
+
+model DiaCronograma {
+  id                String              @id @default(cuid())
+  cronogramaId      String
+  diaSemana         Int
+  lugarPrincipalId  String
+  lugarSecundarioId String?
+  cronograma        CronogramaLimpieza  @relation(fields: [cronogramaId], references: [id], onDelete: Cascade)
+  lugarPrincipal    LugarLimpieza       @relation("LugarPrincipal", fields: [lugarPrincipalId], references: [id])
+  lugarSecundario   LugarLimpieza?      @relation("LugarSecundario", fields: [lugarSecundarioId], references: [id])
+}
+
+model ConfiguracionApp {
+  id    String @id @default(cuid())
+  clave String @unique
+  valor String
 }
