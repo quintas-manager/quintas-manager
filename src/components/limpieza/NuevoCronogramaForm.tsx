@@ -176,7 +176,7 @@ export function NuevoCronogramaForm({
                 <div className="flex items-center gap-2">
                   <span className="text-sm font-medium text-gray-700">{nombre}</span>
                   {isDup && (
-                    <AlertTriangle className="h-3.5 w-3.5 text-orange-400 shrink-0" title="Lugar repetido" />
+                    <AlertTriangle className="h-3.5 w-3.5 text-orange-400 shrink-0" />
                   )}
                 </div>
                 <div>
