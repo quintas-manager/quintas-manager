@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { CONTACTOS_KEYS } from "@/lib/limpieza-config";
+import type { ContactoConfig } from "@/lib/limpieza-config";
 export type { ContactoConfig } from "@/lib/limpieza-config";
 
 type Ok<T> = { success: true; data: T };
