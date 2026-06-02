@@ -4,6 +4,17 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { format, parseISO } from "date-fns";
 import { es } from "date-fns/locale";
+import {
+  CalendarPlus,
+  Clock,
+  X,
+  Calendar,
+  Users,
+  PawPrint,
+  Banknote,
+  FileText,
+  ChevronRight,
+} from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { QuintaBasic, ReservaEvento } from "@/types/calendario";
 
@@ -35,9 +46,24 @@ function todayStr() {
   return toIso(n.getFullYear(), n.getMonth(), n.getDate());
 }
 
-// Timezone-safe comparison (UTC-X servers like Argentina)
+// Timezone-safe date comparison (UTC-X servers like Argentina)
 function coversDia(r: ReservaEvento, iso: string): boolean {
   return iso >= r.fechaInicio.substring(0, 10) && iso <= r.fechaFin.substring(0, 10);
+}
+
+// Format "vie 4 jul" using local date to avoid UTC shift
+function fmtDateShort(isoStr: string) {
+  const [y, m, d] = isoStr.substring(0, 10).split("-").map(Number);
+  return format(new Date(y, m - 1, d), "EEE d MMM", { locale: es });
+}
+
+function fmtPeso(n: number) {
+  return new Intl.NumberFormat("es-AR", {
+    style: "currency",
+    currency: "ARS",
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 0,
+  }).format(n);
 }
 
 // ── Constants ─────────────────────────────────────────────────────────────────
@@ -50,11 +76,11 @@ const MONTH_NAMES = [
 ];
 
 const TIPO_LABELS: Record<string, string> = {
-  DIA:          "Por día",
-  FIN_DE_SEMANA:"Fin de semana",
-  SEMANA:       "Semana",
-  QUINCENA:     "Quincena",
-  MES:          "Mes completo",
+  DIA:           "Por día",
+  FIN_DE_SEMANA: "Fin de semana",
+  SEMANA:        "Semana",
+  QUINCENA:      "Quincena",
+  MES:           "Mes completo",
 };
 
 const ESTADO_CONFIG: Record<string, { label: string; cls: string }> = {
@@ -79,6 +105,7 @@ interface EventBar {
   isPendiente:     boolean;
   startsHere:      boolean;
   endsHere:        boolean;
+  reserva:         ReservaEvento;
 }
 
 const MAX_LANES = 3;
@@ -90,7 +117,6 @@ function computeWeekBars(week: Cell[], reservas: ReservaEvento[]): EventBar[] {
     const rStart = r.fechaInicio.substring(0, 10);
     const rEnd   = r.fechaFin.substring(0, 10);
 
-    // Only consider current-month cells covered by this reservation
     const coveredCols = week
       .map((cell, col) => ({ cell, col }))
       .filter(({ cell }) => cell.current && cell.iso >= rStart && cell.iso <= rEnd)
@@ -109,20 +135,18 @@ function computeWeekBars(week: Cell[], reservas: ReservaEvento[]): EventBar[] {
       clienteNombre:   r.clienteNombre,
       clienteApellido: r.clienteApellido,
       isPendiente:     r.estado === "PENDIENTE",
-      // rounded ends only where the reservation actually starts/ends
-      startsHere: week[startCol].iso === rStart,
-      endsHere:   week[endCol].iso   === rEnd,
+      startsHere:      week[startCol].iso === rStart,
+      endsHere:        week[endCol].iso   === rEnd,
+      reserva:         r,
     });
   }
 
-  // Sort: earlier start first, then longer span first
   candidates.sort(
     (a, b) =>
       a.startCol - b.startCol ||
       (b.endCol - b.startCol) - (a.endCol - a.startCol),
   );
 
-  // Greedy lane assignment
   const laneEnds: number[] = [];
   const result: EventBar[]  = [];
 
@@ -137,14 +161,180 @@ function computeWeekBars(week: Cell[], reservas: ReservaEvento[]): EventBar[] {
   return result;
 }
 
-// ── DayPanel ──────────────────────────────────────────────────────────────────
+// ── BottomSheet ───────────────────────────────────────────────────────────────
 
-function DayPanel({
+function BottomSheet({
+  open,
+  onClose,
+  children,
+}: {
+  open:     boolean;
+  onClose:  () => void;
+  children: React.ReactNode;
+}) {
+  return (
+    <>
+      {/* Backdrop */}
+      <div
+        className={cn(
+          "fixed inset-0 z-40 bg-black/60 transition-opacity duration-300",
+          open ? "opacity-100" : "pointer-events-none opacity-0",
+        )}
+        onClick={onClose}
+      />
+      {/* Sheet — full width on mobile, centred max-w on desktop */}
+      <div
+        className={cn(
+          "fixed bottom-0 left-0 right-0 z-50 mx-auto max-w-xl rounded-t-2xl bg-white shadow-2xl",
+          "transition-transform duration-300 ease-out",
+          open ? "translate-y-0" : "translate-y-full",
+        )}
+        style={{ maxHeight: "85dvh", overflowY: "auto" }}
+        // Prevent taps inside the sheet from closing it
+        onClick={(e) => e.stopPropagation()}
+      >
+        {children}
+      </div>
+    </>
+  );
+}
+
+// ── ReservationSheet ──────────────────────────────────────────────────────────
+
+function ReservationSheet({
+  reserva,
+  onClose,
+}: {
+  reserva: ReservaEvento;
+  onClose: () => void;
+}) {
+  const router = useRouter();
+  const estado = ESTADO_CONFIG[reserva.estado] ?? ESTADO_CONFIG.PENDIENTE;
+
+  return (
+    <div className="px-4 pb-10 pt-3">
+      {/* Drag handle */}
+      <div className="mx-auto mb-4 h-1 w-12 rounded-full bg-gray-200" />
+
+      {/* Name + close */}
+      <div className="mb-4 flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <p className="text-xl font-semibold text-gray-900">
+            {reserva.clienteNombre} {reserva.clienteApellido}
+          </p>
+          <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
+            <span
+              className="rounded-full px-2.5 py-0.5 text-xs font-medium text-white"
+              style={{ backgroundColor: reserva.quintaColor }}
+            >
+              {reserva.quintaNombre}
+            </span>
+            <span className={cn("rounded-full px-2.5 py-0.5 text-xs font-medium", estado.cls)}>
+              {estado.label}
+            </span>
+          </div>
+        </div>
+        <button
+          onClick={onClose}
+          className="shrink-0 rounded-lg p-2 text-gray-400 transition hover:bg-gray-100 hover:text-gray-600"
+        >
+          <X className="h-5 w-5" />
+        </button>
+      </div>
+
+      {/* Detail rows */}
+      <div className="space-y-3 rounded-2xl border border-gray-100 bg-gray-50 p-4">
+        {/* Dates */}
+        <div className="flex items-center gap-3">
+          <Calendar className="h-4 w-4 shrink-0 text-gray-400" />
+          <p className="text-sm text-gray-700">
+            <span className="font-medium capitalize">
+              {fmtDateShort(reserva.fechaInicio.substring(0, 10))}
+            </span>
+            {" → "}
+            <span className="font-medium capitalize">
+              {fmtDateShort(reserva.fechaFin.substring(0, 10))}
+            </span>
+            <span className="ml-2 text-gray-400">
+              · {TIPO_LABELS[reserva.tipoAlquiler] ?? reserva.tipoAlquiler}
+            </span>
+          </p>
+        </div>
+
+        {/* Personas + mascota */}
+        {(reserva.cantidadPersonas || reserva.tieneMascota) && (
+          <div className="flex items-center gap-3">
+            <Users className="h-4 w-4 shrink-0 text-gray-400" />
+            <p className="flex items-center gap-2 text-sm text-gray-700">
+              {reserva.cantidadPersonas
+                ? `${reserva.cantidadPersonas} persona${reserva.cantidadPersonas !== 1 ? "s" : ""}`
+                : null}
+              {reserva.tieneMascota && (
+                <span className="inline-flex items-center gap-1 text-amber-600">
+                  <PawPrint className="h-3.5 w-3.5" />
+                  Con mascota
+                </span>
+              )}
+            </p>
+          </div>
+        )}
+
+        {/* Monto */}
+        {reserva.montoTotal > 0 && (
+          <div className="flex items-center gap-3">
+            <Banknote className="h-4 w-4 shrink-0 text-gray-400" />
+            <p className="text-sm text-gray-700">
+              <span className="font-medium">{fmtPeso(reserva.montoTotal)}</span>
+              {reserva.sena != null && reserva.sena > 0 && (
+                <span className="ml-2 text-gray-400">
+                  · seña {fmtPeso(reserva.sena)}
+                </span>
+              )}
+            </p>
+          </div>
+        )}
+
+        {/* Notas */}
+        {reserva.notas && (
+          <div className="flex items-start gap-3">
+            <FileText className="mt-0.5 h-4 w-4 shrink-0 text-gray-400" />
+            <p className="text-sm text-gray-600">{reserva.notas}</p>
+          </div>
+        )}
+      </div>
+
+      {/* Actions */}
+      <div className="mt-4 flex gap-2">
+        <button
+          onClick={() => { router.push(`/reservas/${reserva.id}`); onClose(); }}
+          className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-gray-900 py-3 text-sm font-medium text-white transition hover:bg-gray-700"
+        >
+          Ver reserva completa
+          <ChevronRight className="h-4 w-4" />
+        </button>
+        <button
+          onClick={() => { router.push(`/reservas/${reserva.id}/editar`); onClose(); }}
+          className="flex items-center justify-center rounded-xl border border-gray-200 px-4 py-3 text-sm font-medium text-gray-700 transition hover:bg-gray-50"
+        >
+          Editar
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// ── DaySheet ──────────────────────────────────────────────────────────────────
+
+function DaySheet({
   dateIso,
   reservas,
+  onClose,
+  onReservaTap,
 }: {
-  dateIso:  string;
-  reservas: ReservaEvento[];
+  dateIso:      string;
+  reservas:     ReservaEvento[];
+  onClose:      () => void;
+  onReservaTap: (r: ReservaEvento) => void;
 }) {
   const router = useRouter();
 
@@ -157,60 +347,76 @@ function DayPanel({
   const label = format(new Date(y, m - 1, d), "EEEE d 'de' MMMM", { locale: es });
 
   return (
-    <div className="border-t border-gray-200 bg-gray-50/80 px-4 pb-4 pt-4">
-      <p className="mb-3 capitalize text-xs font-semibold uppercase tracking-wider text-gray-400">
-        {label}
-      </p>
+    <div className="px-4 pb-10 pt-3">
+      {/* Drag handle */}
+      <div className="mx-auto mb-4 h-1 w-12 rounded-full bg-gray-200" />
 
-      {dayReservas.length === 0 ? (
-        <p className="py-2 text-sm text-gray-400">Sin reservas para este día</p>
-      ) : (
-        <div className="space-y-2">
-          {dayReservas.map((r) => {
-            const estado = ESTADO_CONFIG[r.estado] ?? ESTADO_CONFIG.PENDIENTE;
-            return (
-              <div
-                key={r.id}
-                className="rounded-xl border border-gray-200 bg-white p-3 shadow-sm"
-              >
-                <div className="flex items-start justify-between gap-3">
+      {/* Date label */}
+      <p className="mb-4 capitalize text-base font-semibold text-gray-900">{label}</p>
+
+      {/* Create options */}
+      <div className="mb-4 space-y-2">
+        <button
+          onClick={() => { onClose(); router.push(`/reservas/nueva?fecha=${dateIso}`); }}
+          className="flex w-full items-center gap-3 rounded-xl border border-gray-200 bg-white px-4 py-3 text-left transition hover:bg-gray-50 active:bg-gray-50"
+        >
+          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-green-100">
+            <CalendarPlus className="h-5 w-5 text-green-700" />
+          </span>
+          <span>
+            <p className="text-sm font-medium text-gray-900">Nueva Reserva</p>
+            <p className="text-xs text-gray-400">Se creará como confirmada</p>
+          </span>
+        </button>
+
+        <button
+          onClick={() => { onClose(); router.push(`/reservas/pendiente?fecha=${dateIso}`); }}
+          className="flex w-full items-center gap-3 rounded-xl border border-gray-200 bg-white px-4 py-3 text-left transition hover:bg-gray-50 active:bg-gray-50"
+        >
+          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-amber-100">
+            <Clock className="h-5 w-5 text-amber-600" />
+          </span>
+          <span>
+            <p className="text-sm font-medium text-gray-900">Reserva Pendiente</p>
+            <p className="text-xs text-gray-400">Se confirmará después</p>
+          </span>
+        </button>
+      </div>
+
+      {/* Existing reservations for this day */}
+      {dayReservas.length > 0 && (
+        <>
+          <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-gray-400">
+            Reservas activas · {dayReservas.length}
+          </p>
+          <div className="space-y-2">
+            {dayReservas.map((r) => {
+              const estado = ESTADO_CONFIG[r.estado] ?? ESTADO_CONFIG.PENDIENTE;
+              return (
+                <button
+                  key={r.id}
+                  onClick={() => onReservaTap(r)}
+                  className="flex w-full items-center gap-3 rounded-xl border border-gray-200 bg-white p-3 text-left transition hover:bg-gray-50 active:bg-gray-50"
+                >
+                  <div
+                    className="h-9 w-1.5 shrink-0 rounded-full"
+                    style={{ backgroundColor: r.quintaColor }}
+                  />
                   <div className="min-w-0 flex-1">
-                    <p className="truncate text-sm font-semibold text-gray-900">
+                    <p className="truncate text-sm font-medium text-gray-900">
                       {r.clienteNombre} {r.clienteApellido}
                     </p>
-                    <p className="mt-0.5 text-xs text-gray-500">
-                      {format(parseISO(r.fechaInicio), "d/MM/yy")} →{" "}
-                      {format(parseISO(r.fechaFin), "d/MM/yy")} ·{" "}
-                      {TIPO_LABELS[r.tipoAlquiler] ?? r.tipoAlquiler}
-                    </p>
+                    <p className="text-xs text-gray-500">{r.quintaNombre}</p>
                   </div>
-                  <button
-                    onClick={() => router.push(`/reservas/${r.id}`)}
-                    className="shrink-0 rounded-lg bg-gray-900 px-3 py-1.5 text-xs font-medium text-white transition hover:bg-gray-700"
-                  >
-                    Ver →
-                  </button>
-                </div>
-                <div className="mt-2 flex flex-wrap items-center gap-1.5">
-                  <span
-                    className="rounded-full px-2.5 py-0.5 text-xs font-medium text-white"
-                    style={{ backgroundColor: r.quintaColor }}
-                  >
-                    {r.quintaNombre}
-                  </span>
-                  <span
-                    className={cn(
-                      "rounded-full px-2.5 py-0.5 text-xs font-medium",
-                      estado.cls,
-                    )}
-                  >
+                  <span className={cn("shrink-0 rounded-full px-2 py-0.5 text-xs font-medium", estado.cls)}>
                     {estado.label}
                   </span>
-                </div>
-              </div>
-            );
-          })}
-        </div>
+                  <ChevronRight className="h-4 w-4 shrink-0 text-gray-300" />
+                </button>
+              );
+            })}
+          </div>
+        </>
       )}
     </div>
   );
@@ -223,7 +429,8 @@ interface MonthBlockProps {
   month:        number;
   reservas:     ReservaEvento[];
   selectedDate: string | null;
-  onSelectDate: (iso: string | null) => void;
+  onDayTap:     (iso: string) => void;
+  onBarTap:     (reserva: ReservaEvento) => void;
   onRef:        (el: HTMLDivElement | null) => void;
 }
 
@@ -232,14 +439,30 @@ function MonthBlock({
   month,
   reservas,
   selectedDate,
-  onSelectDate,
+  onDayTap,
+  onBarTap,
   onRef,
 }: MonthBlockProps) {
   const today   = todayStr();
   const firstWd = firstWeekday(year, month);
   const numDays = daysInMonth(year, month);
 
-  // Build flat cell array (prev-month padding + current month + next-month trailing)
+  // Tap detection: pointer position at pointerdown, cleared on pointerup/cancel
+  const tapStart = useRef<{ x: number; y: number } | null>(null);
+
+  function onPointerDown(e: React.PointerEvent) {
+    tapStart.current = { x: e.clientX, y: e.clientY };
+  }
+  function onPointerCancel() {
+    tapStart.current = null;
+  }
+  function isTap(e: React.PointerEvent): boolean {
+    if (!tapStart.current) return false;
+    const moved = Math.abs(e.clientX - tapStart.current.x) + Math.abs(e.clientY - tapStart.current.y);
+    tapStart.current = null;
+    return moved < 10;
+  }
+
   const cells = useMemo<Cell[]>(() => {
     const out: Cell[] = [];
     const pm       = shiftMonth(year, month, -1);
@@ -260,21 +483,16 @@ function MonthBlock({
     return out;
   }, [year, month, firstWd, numDays]);
 
-  // Split into rows of 7
   const weeks = useMemo<Cell[][]>(() => {
     const result: Cell[][] = [];
     for (let i = 0; i < cells.length; i += 7) result.push(cells.slice(i, i + 7));
     return result;
   }, [cells]);
 
-  // Event bars per week
   const weekBars = useMemo<EventBar[][]>(
     () => weeks.map((w) => computeWeekBars(w, reservas)),
     [weeks, reservas],
   );
-
-  const mPrefix      = `${year}-${String(month + 1).padStart(2, "0")}`;
-  const selectedHere = selectedDate?.startsWith(mPrefix) ? selectedDate : null;
 
   return (
     <div ref={onRef}>
@@ -307,25 +525,25 @@ function MonthBlock({
 
         return (
           <div key={wi} className="border-b border-gray-100 last:border-b-0">
-            {/* Day numbers */}
+            {/* Day number cells */}
             <div className="grid grid-cols-7">
               {week.map((cell, col) => {
                 const isToday    = cell.current && cell.iso === today;
                 const isSelected = cell.current && cell.iso === selectedDate;
                 return (
-                  <button
+                  <div
                     key={col}
-                    type="button"
-                    disabled={!cell.current}
-                    onClick={() => onSelectDate(isSelected ? null : cell.iso)}
+                    onPointerDown={cell.current ? onPointerDown : undefined}
+                    onPointerUp={cell.current ? (e) => { if (isTap(e)) onDayTap(cell.iso); } : undefined}
+                    onPointerCancel={onPointerCancel}
                     className={cn(
-                      "flex min-h-[40px] items-start justify-center pt-1.5 transition-colors",
+                      "flex min-h-[40px] cursor-pointer select-none items-start justify-center pt-1.5",
                       col < 6 && "border-r border-gray-100",
                       !cell.current
                         ? "pointer-events-none bg-gray-50/70"
                         : isSelected
-                        ? "bg-blue-50/40 hover:bg-blue-50/60"
-                        : "bg-white hover:bg-gray-50/60",
+                        ? "bg-blue-50/40"
+                        : "bg-white",
                     )}
                   >
                     <span
@@ -340,7 +558,7 @@ function MonthBlock({
                     >
                       {cell.day}
                     </span>
-                  </button>
+                  </div>
                 );
               })}
             </div>
@@ -351,7 +569,7 @@ function MonthBlock({
                 className="relative"
                 style={{ height: `${numLanes * 22 + 4}px` }}
               >
-                {/* Column dividers continuing through events area */}
+                {/* Column dividers */}
                 <div className="pointer-events-none absolute inset-0 grid grid-cols-7">
                   {[0, 1, 2, 3, 4, 5].map((i) => (
                     <div key={i} className="h-full border-r border-gray-100" />
@@ -359,15 +577,14 @@ function MonthBlock({
                   <div className="h-full" />
                 </div>
 
+                {/* Bars */}
                 {bars.map((bar) => (
                   <div
                     key={`${bar.id}-${bar.lane}`}
-                    className="absolute flex items-center overflow-hidden"
+                    className="absolute flex cursor-pointer select-none items-center overflow-hidden"
                     style={{
-                      // Starts flush with cell edge for continuation bars,
-                      // 2 px inset when the reservation actually starts here
-                      left:  `calc(${bar.startCol} / 7 * 100% + ${bar.startsHere ? 2 : 0}px)`,
-                      right: `calc(${6 - bar.endCol} / 7 * 100% + ${bar.endsHere  ? 2 : 0}px)`,
+                      left:   `calc(${bar.startCol} / 7 * 100% + ${bar.startsHere ? 2 : 0}px)`,
+                      right:  `calc(${6 - bar.endCol} / 7 * 100% + ${bar.endsHere  ? 2 : 0}px)`,
                       top:    `${bar.lane * 22 + 2}px`,
                       height: "20px",
                       backgroundColor: bar.color,
@@ -379,6 +596,11 @@ function MonthBlock({
                         bar.startsHere ? 3 : 0,
                       ].map((v) => `${v}px`).join(" "),
                     }}
+                    onPointerDown={onPointerDown}
+                    onPointerUp={(e) => {
+                      if (isTap(e)) onBarTap(bar.reserva);
+                    }}
+                    onPointerCancel={onPointerCancel}
                   >
                     <span className="truncate whitespace-nowrap px-1.5 text-[11px] font-medium leading-none text-white">
                       {bar.clienteNombre} {bar.clienteApellido}
@@ -392,11 +614,6 @@ function MonthBlock({
           </div>
         );
       })}
-
-      {/* Day detail panel */}
-      {selectedHere && (
-        <DayPanel dateIso={selectedHere} reservas={reservas} />
-      )}
     </div>
   );
 }
@@ -417,17 +634,17 @@ export function CalendarioClient({
   const cy  = now.getFullYear();
   const cm  = now.getMonth();
 
-  const [months, setMonths] = useState<MonthEntry[]>(() => [
+  const [months,      setMonths]      = useState<MonthEntry[]>(() => [
     shiftMonth(cy, cm, -1),
     { year: cy, month: cm },
     shiftMonth(cy, cm, 1),
   ]);
+  const [reservas,    setReservas]    = useState(initialReservas);
+  const [headerLabel, setHeaderLabel] = useState(`${MONTH_NAMES[cm].toUpperCase()} ${cy}`);
 
-  const [reservas,     setReservas]     = useState(initialReservas);
-  const [selectedDate, setSelectedDate] = useState<string | null>(null);
-  const [headerLabel,  setHeaderLabel]  = useState(
-    `${MONTH_NAMES[cm].toUpperCase()} ${cy}`,
-  );
+  // Sheet state
+  const [activeBar, setActiveBar] = useState<ReservaEvento | null>(null);
+  const [activeDay, setActiveDay] = useState<string | null>(null);
 
   const scrollRef        = useRef<HTMLDivElement>(null);
   const blockRefs        = useRef(new Map<string, HTMLDivElement>());
@@ -569,6 +786,30 @@ export function CalendarioClient({
     [],
   );
 
+  // ── Sheet handlers ────────────────────────────────────────────────────────
+
+  const handleDayTap = useCallback((iso: string) => {
+    setActiveDay(iso);
+  }, []);
+
+  const handleBarTap = useCallback((reserva: ReservaEvento) => {
+    setActiveBar(reserva);
+  }, []);
+
+  const closeDaySheet = useCallback(() => {
+    setActiveDay(null);
+  }, []);
+
+  const closeBarSheet = useCallback(() => {
+    setActiveBar(null);
+  }, []);
+
+  // From day sheet → open reservation detail
+  const handleReservaTapFromDay = useCallback((r: ReservaEvento) => {
+    setActiveDay(null);
+    setActiveBar(r);
+  }, []);
+
   // ── Render ────────────────────────────────────────────────────────────────
 
   return (
@@ -586,11 +827,11 @@ export function CalendarioClient({
         ref={scrollRef}
         className="flex-1 bg-white"
         style={{
-          height: "100%",
-          overflowY: "scroll",
-          WebkitOverflowScrolling: "touch",
-          overscrollBehavior: "contain",
-          overflowAnchor: "auto",
+          height:                    "100%",
+          overflowY:                 "scroll",
+          WebkitOverflowScrolling:   "touch",
+          overscrollBehavior:        "contain",
+          overflowAnchor:            "auto",
         } as React.CSSProperties}
       >
         {months.map(({ year, month }) => (
@@ -599,13 +840,33 @@ export function CalendarioClient({
             year={year}
             month={month}
             reservas={reservas}
-            selectedDate={selectedDate}
-            onSelectDate={setSelectedDate}
+            selectedDate={activeDay}
+            onDayTap={handleDayTap}
+            onBarTap={handleBarTap}
             onRef={makeOnRef(monthKey(year, month))}
           />
         ))}
         <div className="h-20" />
       </div>
+
+      {/* Reservation detail bottom sheet */}
+      <BottomSheet open={activeBar !== null} onClose={closeBarSheet}>
+        {activeBar && (
+          <ReservationSheet reserva={activeBar} onClose={closeBarSheet} />
+        )}
+      </BottomSheet>
+
+      {/* Day options bottom sheet */}
+      <BottomSheet open={activeDay !== null} onClose={closeDaySheet}>
+        {activeDay && (
+          <DaySheet
+            dateIso={activeDay}
+            reservas={reservas}
+            onClose={closeDaySheet}
+            onReservaTap={handleReservaTapFromDay}
+          />
+        )}
+      </BottomSheet>
     </div>
   );
 }

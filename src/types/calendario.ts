@@ -13,6 +13,8 @@ export type ReservaEvento = {
   sena: number | null;
   notas: string | null;
   motivoEvento: string | null;
+  cantidadPersonas: number | null;
+  tieneMascota: boolean;
 };
 
 export type QuintaBasic = {

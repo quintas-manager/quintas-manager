@@ -45,6 +45,8 @@ export async function GET(request: NextRequest) {
     sena: r.sena ? Number(r.sena) : null,
     notas: r.notas,
     motivoEvento: r.motivoEvento,
+    cantidadPersonas: r.cantidadPersonas,
+    tieneMascota: r.tieneMascota,
   }));
 
   return NextResponse.json(result);
