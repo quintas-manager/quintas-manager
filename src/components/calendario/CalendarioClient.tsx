@@ -35,7 +35,7 @@ function todayStr() {
   return toIso(n.getFullYear(), n.getMonth(), n.getDate());
 }
 
-// Date-string comparison (timezone-safe for UTC-X servers like Argentina)
+// Timezone-safe comparison (UTC-X servers like Argentina)
 function coversDia(r: ReservaEvento, iso: string): boolean {
   return iso >= r.fechaInicio.substring(0, 10) && iso <= r.fechaFin.substring(0, 10);
 }
@@ -50,19 +50,92 @@ const MONTH_NAMES = [
 ];
 
 const TIPO_LABELS: Record<string, string> = {
-  DIA: "Por día",
-  FIN_DE_SEMANA: "Fin de semana",
-  SEMANA: "Semana",
-  QUINCENA: "Quincena",
-  MES: "Mes completo",
+  DIA:          "Por día",
+  FIN_DE_SEMANA:"Fin de semana",
+  SEMANA:       "Semana",
+  QUINCENA:     "Quincena",
+  MES:          "Mes completo",
 };
 
 const ESTADO_CONFIG: Record<string, { label: string; cls: string }> = {
   PENDIENTE:  { label: "Pendiente",  cls: "bg-amber-100 text-amber-800" },
   CONFIRMADA: { label: "Confirmada", cls: "bg-green-100 text-green-800" },
-  CANCELADA:  { label: "Cancelada",  cls: "bg-red-100 text-red-700" },
-  COMPLETADA: { label: "Completada", cls: "bg-blue-100 text-blue-700" },
+  CANCELADA:  { label: "Cancelada",  cls: "bg-red-100 text-red-700"    },
+  COMPLETADA: { label: "Completada", cls: "bg-blue-100 text-blue-700"  },
 };
+
+// ── Event bar types & computation ─────────────────────────────────────────────
+
+type Cell = { day: number; iso: string; current: boolean };
+
+interface EventBar {
+  id:              string;
+  startCol:        number;
+  endCol:          number;
+  lane:            number;
+  color:           string;
+  clienteNombre:   string;
+  clienteApellido: string;
+  isPendiente:     boolean;
+  startsHere:      boolean;
+  endsHere:        boolean;
+}
+
+const MAX_LANES = 3;
+
+function computeWeekBars(week: Cell[], reservas: ReservaEvento[]): EventBar[] {
+  const candidates: Omit<EventBar, "lane">[] = [];
+
+  for (const r of reservas) {
+    const rStart = r.fechaInicio.substring(0, 10);
+    const rEnd   = r.fechaFin.substring(0, 10);
+
+    // Only consider current-month cells covered by this reservation
+    const coveredCols = week
+      .map((cell, col) => ({ cell, col }))
+      .filter(({ cell }) => cell.current && cell.iso >= rStart && cell.iso <= rEnd)
+      .map(({ col }) => col);
+
+    if (coveredCols.length === 0) continue;
+
+    const startCol = coveredCols[0];
+    const endCol   = coveredCols[coveredCols.length - 1];
+
+    candidates.push({
+      id:              r.id,
+      startCol,
+      endCol,
+      color:           r.quintaColor,
+      clienteNombre:   r.clienteNombre,
+      clienteApellido: r.clienteApellido,
+      isPendiente:     r.estado === "PENDIENTE",
+      // rounded ends only where the reservation actually starts/ends
+      startsHere: week[startCol].iso === rStart,
+      endsHere:   week[endCol].iso   === rEnd,
+    });
+  }
+
+  // Sort: earlier start first, then longer span first
+  candidates.sort(
+    (a, b) =>
+      a.startCol - b.startCol ||
+      (b.endCol - b.startCol) - (a.endCol - a.startCol),
+  );
+
+  // Greedy lane assignment
+  const laneEnds: number[] = [];
+  const result: EventBar[]  = [];
+
+  for (const bar of candidates) {
+    let lane = laneEnds.findIndex((end) => end < bar.startCol);
+    if (lane === -1) lane = laneEnds.length;
+    if (lane >= MAX_LANES) continue;
+    laneEnds[lane] = bar.endCol;
+    result.push({ ...bar, lane });
+  }
+
+  return result;
+}
 
 // ── DayPanel ──────────────────────────────────────────────────────────────────
 
@@ -70,7 +143,7 @@ function DayPanel({
   dateIso,
   reservas,
 }: {
-  dateIso: string;
+  dateIso:  string;
   reservas: ReservaEvento[];
 }) {
   const router = useRouter();
@@ -84,8 +157,8 @@ function DayPanel({
   const label = format(new Date(y, m - 1, d), "EEEE d 'de' MMMM", { locale: es });
 
   return (
-    <div className="mt-1 border-t border-gray-100 bg-gray-50/80 px-0 pb-3 pt-4">
-      <p className="mb-3 text-xs font-semibold uppercase tracking-wider text-gray-400 capitalize">
+    <div className="border-t border-gray-200 bg-gray-50/80 px-4 pb-4 pt-4">
+      <p className="mb-3 capitalize text-xs font-semibold uppercase tracking-wider text-gray-400">
         {label}
       </p>
 
@@ -146,12 +219,12 @@ function DayPanel({
 // ── MonthBlock ────────────────────────────────────────────────────────────────
 
 interface MonthBlockProps {
-  year: number;
-  month: number;
-  reservas: ReservaEvento[];
+  year:         number;
+  month:        number;
+  reservas:     ReservaEvento[];
   selectedDate: string | null;
   onSelectDate: (iso: string | null) => void;
-  onRef: (el: HTMLDivElement | null) => void;
+  onRef:        (el: HTMLDivElement | null) => void;
 }
 
 function MonthBlock({
@@ -166,24 +239,20 @@ function MonthBlock({
   const firstWd = firstWeekday(year, month);
   const numDays = daysInMonth(year, month);
 
-  type Cell = { day: number; iso: string; current: boolean };
-
+  // Build flat cell array (prev-month padding + current month + next-month trailing)
   const cells = useMemo<Cell[]>(() => {
     const out: Cell[] = [];
-    const pm = shiftMonth(year, month, -1);
-    const nm = shiftMonth(year, month, 1);
+    const pm       = shiftMonth(year, month, -1);
+    const nm       = shiftMonth(year, month, 1);
     const prevDays = daysInMonth(pm.year, pm.month);
 
-    // Leading blanks from previous month
     for (let i = firstWd - 1; i >= 0; i--) {
       const d = prevDays - i;
       out.push({ day: d, iso: toIso(pm.year, pm.month, d), current: false });
     }
-    // This month
     for (let d = 1; d <= numDays; d++) {
       out.push({ day: d, iso: toIso(year, month, d), current: true });
     }
-    // Trailing blanks from next month
     const trailing = out.length % 7 === 0 ? 0 : 7 - (out.length % 7);
     for (let d = 1; d <= trailing; d++) {
       out.push({ day: d, iso: toIso(nm.year, nm.month, d), current: false });
@@ -191,94 +260,140 @@ function MonthBlock({
     return out;
   }, [year, month, firstWd, numDays]);
 
-  // Build dot map: iso → [color, ...] for each day that has reservations
-  const dotsMap = useMemo(() => {
-    const map: Record<string, string[]> = {};
-    for (let d = 1; d <= numDays; d++) {
-      const iso = toIso(year, month, d);
-      const colors: string[] = [];
-      const seen = new Set<string>();
-      for (const r of reservas) {
-        if (!seen.has(r.quintaColor) && coversDia(r, iso)) {
-          seen.add(r.quintaColor);
-          colors.push(r.quintaColor);
-          if (colors.length === 2) break;
-        }
-      }
-      if (colors.length > 0) map[iso] = colors;
-    }
-    return map;
-  }, [year, month, numDays, reservas]);
+  // Split into rows of 7
+  const weeks = useMemo<Cell[][]>(() => {
+    const result: Cell[][] = [];
+    for (let i = 0; i < cells.length; i += 7) result.push(cells.slice(i, i + 7));
+    return result;
+  }, [cells]);
 
-  const mPrefix = `${year}-${String(month + 1).padStart(2, "0")}`;
+  // Event bars per week
+  const weekBars = useMemo<EventBar[][]>(
+    () => weeks.map((w) => computeWeekBars(w, reservas)),
+    [weeks, reservas],
+  );
+
+  const mPrefix      = `${year}-${String(month + 1).padStart(2, "0")}`;
   const selectedHere = selectedDate?.startsWith(mPrefix) ? selectedDate : null;
 
   return (
-    <div ref={onRef} className="px-4 pb-4">
+    <div ref={onRef}>
       {/* Month heading */}
-      <h2 className="pb-2 pt-6 text-xl font-semibold tracking-tight text-gray-900">
-        {MONTH_NAMES[month].toUpperCase()} {year}
-      </h2>
+      <div className="border-b border-gray-200 bg-gray-50 px-4 pb-2.5 pt-5">
+        <h2 className="text-sm font-bold uppercase tracking-widest text-gray-600">
+          {MONTH_NAMES[month]} {year}
+        </h2>
+      </div>
 
       {/* Weekday labels */}
-      <div className="mb-1 grid grid-cols-7 text-center">
-        {WEEKDAYS.map((w) => (
+      <div className="grid grid-cols-7 border-b border-gray-200 bg-gray-50">
+        {WEEKDAYS.map((w, i) => (
           <div
             key={w}
-            className="py-1 text-[11px] font-medium uppercase tracking-wide text-gray-400"
+            className={cn(
+              "py-1.5 text-center text-[10px] font-semibold uppercase tracking-wider text-gray-400",
+              i < 6 && "border-r border-gray-100",
+            )}
           >
             {w}
           </div>
         ))}
       </div>
 
-      {/* Day grid */}
-      <div className="grid grid-cols-7">
-        {cells.map((cell, idx) => {
-          const isToday    = cell.current && cell.iso === today;
-          const isSelected = cell.current && cell.iso === selectedDate;
-          const dots       = cell.current ? (dotsMap[cell.iso] ?? []) : [];
+      {/* Week rows */}
+      {weeks.map((week, wi) => {
+        const bars     = weekBars[wi];
+        const numLanes = bars.length > 0 ? Math.max(...bars.map((b) => b.lane)) + 1 : 0;
 
-          return (
-            <button
-              key={idx}
-              type="button"
-              disabled={!cell.current}
-              onClick={() => onSelectDate(isSelected ? null : cell.iso)}
-              className={cn(
-                "flex min-h-[44px] flex-col items-center justify-start pt-0.5 pb-1",
-                !cell.current && "pointer-events-none",
-              )}
-            >
-              <span
-                className={cn(
-                  "flex h-9 w-9 items-center justify-center rounded-full text-[15px] font-normal leading-none transition-colors",
-                  isToday && !isSelected && "bg-red-500 font-semibold text-white",
-                  isSelected && !isToday  && "bg-gray-700 text-white",
-                  isSelected && isToday   && "bg-red-500 text-white ring-2 ring-red-300",
-                  !isToday && !isSelected && cell.current  && "text-gray-900",
-                  !cell.current && "text-gray-300",
-                )}
-              >
-                {cell.day}
-              </span>
-              {dots.length > 0 && (
-                <div className="mt-0.5 flex gap-0.5">
-                  {dots.map((color, di) => (
+        return (
+          <div key={wi} className="border-b border-gray-100 last:border-b-0">
+            {/* Day numbers */}
+            <div className="grid grid-cols-7">
+              {week.map((cell, col) => {
+                const isToday    = cell.current && cell.iso === today;
+                const isSelected = cell.current && cell.iso === selectedDate;
+                return (
+                  <button
+                    key={col}
+                    type="button"
+                    disabled={!cell.current}
+                    onClick={() => onSelectDate(isSelected ? null : cell.iso)}
+                    className={cn(
+                      "flex min-h-[40px] items-start justify-center pt-1.5 transition-colors",
+                      col < 6 && "border-r border-gray-100",
+                      !cell.current
+                        ? "pointer-events-none bg-gray-50/70"
+                        : isSelected
+                        ? "bg-blue-50/40 hover:bg-blue-50/60"
+                        : "bg-white hover:bg-gray-50/60",
+                    )}
+                  >
                     <span
-                      key={di}
-                      className="h-[5px] w-[5px] rounded-full"
-                      style={{ backgroundColor: color }}
-                    />
-                  ))}
-                </div>
-              )}
-            </button>
-          );
-        })}
-      </div>
+                      className={cn(
+                        "flex h-7 w-7 items-center justify-center rounded-full leading-none transition-colors",
+                        isToday && !isSelected && "bg-red-500 text-sm font-bold text-white",
+                        isSelected && !isToday  && "bg-gray-800 text-sm font-semibold text-white",
+                        isSelected && isToday   && "bg-red-500 text-sm font-bold text-white",
+                        !isToday && !isSelected && cell.current  && "text-sm text-gray-900",
+                        !cell.current && "text-xs text-gray-300",
+                      )}
+                    >
+                      {cell.day}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
 
-      {/* Day detail panel — appears below this month's grid when a day here is selected */}
+            {/* Event bars lane */}
+            {numLanes > 0 ? (
+              <div
+                className="relative"
+                style={{ height: `${numLanes * 22 + 4}px` }}
+              >
+                {/* Column dividers continuing through events area */}
+                <div className="pointer-events-none absolute inset-0 grid grid-cols-7">
+                  {[0, 1, 2, 3, 4, 5].map((i) => (
+                    <div key={i} className="h-full border-r border-gray-100" />
+                  ))}
+                  <div className="h-full" />
+                </div>
+
+                {bars.map((bar) => (
+                  <div
+                    key={`${bar.id}-${bar.lane}`}
+                    className="absolute flex items-center overflow-hidden"
+                    style={{
+                      // Starts flush with cell edge for continuation bars,
+                      // 2 px inset when the reservation actually starts here
+                      left:  `calc(${bar.startCol} / 7 * 100% + ${bar.startsHere ? 2 : 0}px)`,
+                      right: `calc(${6 - bar.endCol} / 7 * 100% + ${bar.endsHere  ? 2 : 0}px)`,
+                      top:    `${bar.lane * 22 + 2}px`,
+                      height: "20px",
+                      backgroundColor: bar.color,
+                      opacity:         bar.isPendiente ? 0.5 : 1,
+                      borderRadius: [
+                        bar.startsHere ? 3 : 0,
+                        bar.endsHere   ? 3 : 0,
+                        bar.endsHere   ? 3 : 0,
+                        bar.startsHere ? 3 : 0,
+                      ].map((v) => `${v}px`).join(" "),
+                    }}
+                  >
+                    <span className="truncate whitespace-nowrap px-1.5 text-[11px] font-medium leading-none text-white">
+                      {bar.clienteNombre} {bar.clienteApellido}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="h-1.5" />
+            )}
+          </div>
+        );
+      })}
+
+      {/* Day detail panel */}
       {selectedHere && (
         <DayPanel dateIso={selectedHere} reservas={reservas} />
       )}
@@ -290,7 +405,7 @@ function MonthBlock({
 
 interface CalendarioClientProps {
   initialReservas: ReservaEvento[];
-  quintas: QuintaBasic[];
+  quintas:         QuintaBasic[];
 }
 
 type MonthEntry = { year: number; month: number };
@@ -314,9 +429,9 @@ export function CalendarioClient({
     `${MONTH_NAMES[cm].toUpperCase()} ${cy}`,
   );
 
-  const scrollRef   = useRef<HTMLDivElement>(null);
-  const blockRefs   = useRef(new Map<string, HTMLDivElement>());
-  const fetchedKeys = useRef(new Set<string>([
+  const scrollRef        = useRef<HTMLDivElement>(null);
+  const blockRefs        = useRef(new Map<string, HTMLDivElement>());
+  const fetchedKeys      = useRef(new Set<string>([
     monthKey(shiftMonth(cy, cm, -1).year, shiftMonth(cy, cm, -1).month),
     monthKey(cy, cm),
     monthKey(shiftMonth(cy, cm, 1).year, shiftMonth(cy, cm, 1).month),
@@ -402,7 +517,7 @@ export function CalendarioClient({
     });
   }, [fetchRange]);
 
-  // ── Scroll event: lazy load + header update ───────────────────────────────
+  // ── Scroll: lazy load + sticky header update ──────────────────────────────
 
   useEffect(() => {
     const el = scrollRef.current;
@@ -414,7 +529,6 @@ export function CalendarioClient({
       if (scrollHeight - scrollTop - clientHeight < 500) loadFuture();
       if (scrollTop < 300) loadPast();
 
-      // Find the month block with the highest offsetTop still ≤ scrollTop + 80px
       let bestOffset = -1;
       let bestKey: string | null = null;
       Array.from(blockRefs.current.entries()).forEach(([key, blockEl]) => {
@@ -434,7 +548,7 @@ export function CalendarioClient({
     return () => el.removeEventListener("scroll", onScroll);
   }, [loadFuture, loadPast]);
 
-  // ── Initial scroll to current month (no animation) ────────────────────────
+  // ── Initial scroll to current month ──────────────────────────────────────
 
   useEffect(() => {
     const key     = monthKey(cy, cm);
@@ -463,7 +577,7 @@ export function CalendarioClient({
       style={{ height: "calc(100dvh - 56px)" }}
     >
       {/* Fixed month/year label */}
-      <div className="shrink-0 border-b border-gray-100 bg-white px-4 py-3">
+      <div className="shrink-0 border-b border-gray-200 bg-white px-4 py-3">
         <p className="text-base font-semibold text-gray-900">{headerLabel}</p>
       </div>
 
@@ -471,7 +585,6 @@ export function CalendarioClient({
       <div
         ref={scrollRef}
         className="flex-1 overflow-y-auto bg-white"
-        // overflow-anchor keeps scroll position stable when prepending months
         style={{ overflowAnchor: "auto" } as React.CSSProperties}
       >
         {months.map(({ year, month }) => (
