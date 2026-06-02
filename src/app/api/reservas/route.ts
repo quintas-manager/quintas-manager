@@ -10,8 +10,10 @@ export async function GET(request: NextRequest) {
   }
 
   const { searchParams } = request.nextUrl;
-  const desde = searchParams.get("desde");
-  const hasta = searchParams.get("hasta");
+  const desde     = searchParams.get("desde");
+  const hasta     = searchParams.get("hasta");
+  const quintaId  = searchParams.get("quintaId");
+  const excludeId = searchParams.get("excludeId");
 
   if (!desde || !hasta) {
     return NextResponse.json({ error: "Parámetros requeridos: desde, hasta" }, { status: 400 });
@@ -22,6 +24,8 @@ export async function GET(request: NextRequest) {
       estado: { in: ["CONFIRMADA", "PENDIENTE"] },
       fechaInicio: { lte: new Date(hasta) },
       fechaFin: { gte: new Date(desde) },
+      ...(quintaId  ? { quintaId }              : {}),
+      ...(excludeId ? { id: { not: excludeId } } : {}),
     },
     include: {
       quinta: { select: { id: true, nombre: true, colorHex: true } },

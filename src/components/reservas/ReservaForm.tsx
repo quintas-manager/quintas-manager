@@ -5,59 +5,45 @@ import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { Loader2, CheckCircle2, XCircle, Info } from "lucide-react";
+import { Loader2, CheckCircle2, XCircle } from "lucide-react";
 import { format, parseISO } from "date-fns";
 import { es } from "date-fns/locale";
 import { cn } from "@/lib/utils";
 import { reservaSchema, type ReservaFormValues } from "@/lib/schemas/reservas";
 import { crearReserva, actualizarReserva } from "@/lib/actions/reservas";
 import { ClienteSearch, type ClienteOption } from "@/components/clientes/ClienteSearch";
+import { DateRangePicker, type BlockedRange } from "@/components/reservas/DateRangePicker";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
 interface QuintaOption {
-  id: string;
-  nombre: string;
-  colorHex: string;
+  id:               string;
+  nombre:           string;
+  colorHex:         string;
   capacidadAdultos: number;
-  capacidadNinos: number;
+  capacidadNinos:   number;
 }
 
 interface ReservaFormProps {
-  quintas: QuintaOption[];
-  clientes: ClienteOption[];
+  quintas:       QuintaOption[];
+  clientes:      ClienteOption[];
   defaultValues?: Partial<ReservaFormValues> & { id?: string };
-  mode: "crear" | "editar";
-  forceEstado?: "CONFIRMADA" | "PENDIENTE";
+  mode:          "crear" | "editar";
+  forceEstado?:  "CONFIRMADA" | "PENDIENTE";
 }
 
-// ── Constants ────────────────────────────────────────────────────────────────
-
-const TIPO_OPTIONS = [
-  { value: "DIA",           label: "Por día" },
-  { value: "FIN_DE_SEMANA", label: "Fin de semana" },
-  { value: "SEMANA",        label: "Semana" },
-  { value: "QUINCENA",      label: "Quincena" },
-  { value: "MES",           label: "Mes completo" },
-] as const;
-
 const ESTADO_OPTIONS = [
-  { value: "PENDIENTE",  label: "Pendiente" },
+  { value: "PENDIENTE",  label: "Pendiente"  },
   { value: "CONFIRMADA", label: "Confirmada" },
-  { value: "CANCELADA",  label: "Cancelada" },
+  { value: "CANCELADA",  label: "Cancelada"  },
   { value: "COMPLETADA", label: "Completada" },
 ] as const;
 
-const formatMonto = (n: number) =>
-  new Intl.NumberFormat("es-AR", {
-    style: "currency", currency: "ARS", maximumFractionDigits: 0,
-  }).format(n);
-
-// ── Helpers ───────────────────────────────────────────────────────────────────
+// ── Field helpers ─────────────────────────────────────────────────────────────
 
 function Label({ children, required }: { children: React.ReactNode; required?: boolean }) {
   return (
-    <label className="block text-xs font-medium text-gray-700 mb-1.5">
+    <label className="mb-1.5 block text-xs font-medium text-gray-700">
       {children} {required && <span className="text-red-500">*</span>}
     </label>
   );
@@ -74,10 +60,10 @@ const inputCls = (err?: string) =>
     inputBase,
     err
       ? "border-red-400 focus:ring-red-200"
-      : "border-gray-300 focus:border-gray-400 focus:ring-gray-200"
+      : "border-gray-300 focus:border-gray-400 focus:ring-gray-200",
   );
 
-// ── Main ──────────────────────────────────────────────────────────────────────
+// ── Component ─────────────────────────────────────────────────────────────────
 
 export function ReservaForm({
   quintas,
@@ -97,30 +83,56 @@ export function ReservaForm({
     setValue,
     formState: { errors, isSubmitting },
   } = useForm<ReservaFormValues>({
-    resolver: zodResolver(reservaSchema),
-    defaultValues: { estado: "PENDIENTE" as const, tieneMascota: false, ...defaultValues, ...(forceEstado ? { estado: forceEstado } : {}) },
+    resolver:      zodResolver(reservaSchema),
+    defaultValues: {
+      estado:       "PENDIENTE" as const,
+      tieneMascota: false,
+      ...defaultValues,
+      ...(forceEstado ? { estado: forceEstado } : {}),
+    },
   });
 
   const [disponibilidad, setDisponibilidad] = useState<
     null | "checking" | "disponible" | "ocupado"
   >(null);
   const [conflictoInfo, setConflictoInfo] = useState<string | null>(null);
+  const [blockedRanges, setBlockedRanges] = useState<BlockedRange[]>([]);
 
-  const [temporadaInfo, setTemporadaInfo] = useState<{
-    nombre: string;
-    tipo: string;
-    precios: Record<string, number>;
-  } | null>(null);
-
-  const [quintaId, fechaInicio, fechaFin, tipoAlquiler, sena] = watch([
-    "quintaId", "fechaInicio", "fechaFin", "tipoAlquiler", "sena",
+  const [quintaId, fechaInicio, fechaFin, sena] = watch([
+    "quintaId", "fechaInicio", "fechaFin", "sena",
   ]);
 
   const selectedQuinta = quintas.find((q) => q.id === quintaId);
-  const maxPersonas    = selectedQuinta?.capacidadAdultos ?? 10;
+  const quintaColor    = selectedQuinta?.colorHex ?? "#9ca3af";
+  const maxPersonas    = selectedQuinta?.capacidadAdultos ?? 20;
   const tieneSeña      = typeof sena === "number" && sena > 0;
 
-  // ── Disponibilidad ────────────────────────────────────────────────────────
+  // ── Fetch blocked ranges when quinta changes ───────────────────────────────
+
+  useEffect(() => {
+    if (!quintaId) { setBlockedRanges([]); return; }
+
+    const desde = new Date(Date.now() - 365 * 86400000).toISOString();
+    const hasta = new Date(Date.now() + 365 * 86400000).toISOString();
+    const params = new URLSearchParams({
+      quintaId, desde, hasta,
+      ...(reservaId ? { excludeId: reservaId } : {}),
+    });
+
+    fetch(`/api/reservas?${params}`)
+      .then((r) => r.json())
+      .then((data: { fechaInicio: string; fechaFin: string }[]) => {
+        setBlockedRanges(
+          data.map((r) => ({
+            start: r.fechaInicio.substring(0, 10),
+            end:   r.fechaFin.substring(0, 10),
+          })),
+        );
+      })
+      .catch(() => setBlockedRanges([]));
+  }, [quintaId, reservaId]);
+
+  // ── Disponibilidad check ──────────────────────────────────────────────────
 
   const checkDisponibilidad = useCallback(
     async (qId: string, fi: string, ff: string) => {
@@ -150,36 +162,16 @@ export function ReservaForm({
     [reservaId],
   );
 
-  const fetchTemporada = useCallback(async (qId: string, fi: string) => {
-    if (!qId || !fi) { setTemporadaInfo(null); return; }
-    try {
-      const res  = await fetch(`/api/temporadas?quintaId=${qId}&fechaInicio=${fi}`);
-      const data = await res.json();
-      setTemporadaInfo(data.temporada ?? null);
-    } catch {
-      setTemporadaInfo(null);
-    }
-  }, []);
-
   useEffect(() => {
     const t = setTimeout(() => {
       if (quintaId && fechaInicio && fechaFin) {
         checkDisponibilidad(quintaId, fechaInicio, fechaFin);
-        fetchTemporada(quintaId, fechaInicio);
       } else {
         setDisponibilidad(null);
-        setTemporadaInfo(null);
       }
     }, 400);
     return () => clearTimeout(t);
-  }, [quintaId, fechaInicio, fechaFin, checkDisponibilidad, fetchTemporada]);
-
-  useEffect(() => {
-    if (temporadaInfo && tipoAlquiler) {
-      const precio = temporadaInfo.precios[tipoAlquiler];
-      if (precio) setValue("montoTotal", precio);
-    }
-  }, [tipoAlquiler, temporadaInfo, setValue]);
+  }, [quintaId, fechaInicio, fechaFin, checkDisponibilidad]);
 
   // ── Submit ────────────────────────────────────────────────────────────────
 
@@ -205,10 +197,11 @@ export function ReservaForm({
 
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
-      {/* ── Quinta ──────────────────────────────────────────────────── */}
+
+      {/* ── 1. Quinta ──────────────────────────────────────────────── */}
       <section className="rounded-xl border border-gray-200 bg-white p-5">
-        <h2 className="text-sm font-semibold text-gray-900 mb-4">Quinta</h2>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <h2 className="mb-4 text-sm font-semibold text-gray-900">Quinta</h2>
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           {quintas.map((q) => (
             <label
               key={q.id}
@@ -216,24 +209,15 @@ export function ReservaForm({
                 "flex cursor-pointer items-start gap-3 rounded-xl border-2 p-4 transition",
                 quintaId === q.id
                   ? "border-gray-900 bg-gray-50"
-                  : "border-gray-200 hover:border-gray-300"
+                  : "border-gray-200 hover:border-gray-300",
               )}
             >
-              <input
-                type="radio"
-                value={q.id}
-                {...register("quintaId")}
-                className="sr-only"
-              />
-              <span
-                className="mt-0.5 h-4 w-4 rounded-full shrink-0"
-                style={{ backgroundColor: q.colorHex }}
-              />
+              <input type="radio" value={q.id} {...register("quintaId")} className="sr-only" />
+              <span className="mt-0.5 h-4 w-4 shrink-0 rounded-full" style={{ backgroundColor: q.colorHex }} />
               <div>
                 <p className="text-sm font-semibold text-gray-900">{q.nombre}</p>
-                <p className="text-xs text-gray-500 mt-0.5">
-                  {q.capacidadAdultos} adultos
-                  {q.capacidadNinos > 0 ? ` · ${q.capacidadNinos} niños` : ""}
+                <p className="mt-0.5 text-xs text-gray-500">
+                  {q.capacidadAdultos} adultos{q.capacidadNinos > 0 ? ` · ${q.capacidadNinos} niños` : ""}
                 </p>
               </div>
               {quintaId === q.id && (
@@ -245,9 +229,9 @@ export function ReservaForm({
         <FieldError msg={errors.quintaId?.message} />
       </section>
 
-      {/* ── Cliente ─────────────────────────────────────────────────── */}
+      {/* ── 2. Cliente ─────────────────────────────────────────────── */}
       <section className="rounded-xl border border-gray-200 bg-white p-5">
-        <h2 className="text-sm font-semibold text-gray-900 mb-4">Cliente</h2>
+        <h2 className="mb-4 text-sm font-semibold text-gray-900">Cliente</h2>
         <Controller
           name="clienteId"
           control={control}
@@ -262,29 +246,25 @@ export function ReservaForm({
         />
       </section>
 
-      {/* ── Fechas ──────────────────────────────────────────────────── */}
+      {/* ── 3. Fechas (range picker) ────────────────────────────────── */}
       <section className="rounded-xl border border-gray-200 bg-white p-5">
-        <h2 className="text-sm font-semibold text-gray-900 mb-4">Fechas</h2>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <div>
-            <Label required>Fecha de inicio</Label>
-            <input
-              type="date"
-              {...register("fechaInicio")}
-              className={inputCls(errors.fechaInicio?.message)}
-            />
-            <FieldError msg={errors.fechaInicio?.message} />
-          </div>
-          <div>
-            <Label required>Fecha de fin</Label>
-            <input
-              type="date"
-              {...register("fechaFin")}
-              className={inputCls(errors.fechaFin?.message)}
-            />
-            <FieldError msg={errors.fechaFin?.message} />
-          </div>
-        </div>
+        <h2 className="mb-4 text-sm font-semibold text-gray-900">Fechas</h2>
+
+        {/* Hidden inputs for form validation */}
+        <input type="hidden" {...register("fechaInicio")} />
+        <input type="hidden" {...register("fechaFin")} />
+
+        <DateRangePicker
+          startDate={fechaInicio ?? ""}
+          endDate={fechaFin ?? ""}
+          onChange={(start, end) => {
+            setValue("fechaInicio", start, { shouldValidate: !!start });
+            setValue("fechaFin",    end,   { shouldValidate: !!end });
+          }}
+          quintaColor={quintaColor}
+          blockedRanges={blockedRanges}
+          error={errors.fechaInicio?.message ?? errors.fechaFin?.message}
+        />
 
         {disponibilidad && (
           <div
@@ -305,56 +285,72 @@ export function ReservaForm({
             </span>
           </div>
         )}
-
-        {temporadaInfo && (
-          <div className="mt-3 flex items-center gap-2 rounded-lg bg-blue-50 px-3 py-2 text-xs text-blue-700">
-            <Info className="h-3.5 w-3.5 shrink-0" />
-            <span>
-              {temporadaInfo.nombre} (
-              {temporadaInfo.tipo === "ALTA" ? "Temporada Alta" : "Temporada Baja"})
-              — los precios se sugieren al seleccionar el tipo
-            </span>
-          </div>
-        )}
       </section>
 
-      {/* ── Tipo y monto ─────────────────────────────────────────────── */}
+      {/* ── 4–6. Personas, mascota, motivo ─────────────────────────── */}
       <section className="rounded-xl border border-gray-200 bg-white p-5">
-        <h2 className="text-sm font-semibold text-gray-900 mb-4">Tipo y monto</h2>
-
-        <div className="mb-4">
-          <Label required>Tipo de alquiler</Label>
-          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-            {TIPO_OPTIONS.map((opt) => {
-              const precio = temporadaInfo?.precios[opt.value];
-              return (
-                <label
-                  key={opt.value}
-                  className={cn(
-                    "flex cursor-pointer flex-col rounded-lg border-2 p-3 transition",
-                    tipoAlquiler === opt.value
-                      ? "border-gray-900 bg-gray-50"
-                      : "border-gray-200 hover:border-gray-300"
-                  )}
-                >
+        <h2 className="mb-4 text-sm font-semibold text-gray-900">Detalles</h2>
+        <div className="space-y-4">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <div>
+              <Label>Cantidad de personas</Label>
+              <select
+                {...register("cantidadPersonas", { valueAsNumber: true })}
+                className={inputCls(errors.cantidadPersonas?.message)}
+              >
+                <option value="">— Seleccioná —</option>
+                {Array.from({ length: maxPersonas }, (_, i) => i + 1).map((n) => (
+                  <option key={n} value={n}>{n} persona{n !== 1 ? "s" : ""}</option>
+                ))}
+              </select>
+            </div>
+            <div className="flex items-center gap-3 pt-6">
+              <Controller
+                name="tieneMascota"
+                control={control}
+                render={({ field }) => (
                   <input
-                    type="radio"
-                    value={opt.value}
-                    {...register("tipoAlquiler")}
-                    className="sr-only"
+                    id="tieneMascota"
+                    type="checkbox"
+                    checked={field.value ?? false}
+                    onChange={(e) => field.onChange(e.target.checked)}
+                    className="h-4 w-4 rounded border-gray-300 text-gray-900 focus:ring-gray-900"
                   />
-                  <span className="text-sm font-medium text-gray-900">{opt.label}</span>
-                  {precio && (
-                    <span className="mt-0.5 text-xs text-gray-500">{formatMonto(precio)}</span>
-                  )}
-                </label>
-              );
-            })}
+                )}
+              />
+              <label htmlFor="tieneMascota" className="cursor-pointer select-none text-sm text-gray-700">
+                ¿Trae mascota?
+              </label>
+            </div>
           </div>
-          <FieldError msg={errors.tipoAlquiler?.message} />
-        </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div>
+            <Label>Motivo del evento</Label>
+            <input
+              {...register("motivoEvento")}
+              placeholder="Ej: Cumpleaños, Vacaciones…"
+              className={inputCls(errors.motivoEvento?.message)}
+            />
+          </div>
+
+          {!forceEstado && (
+            <div>
+              <Label required>Estado</Label>
+              <select {...register("estado")} className={inputCls(errors.estado?.message)}>
+                {ESTADO_OPTIONS.map((o) => (
+                  <option key={o.value} value={o.value}>{o.label}</option>
+                ))}
+              </select>
+              <FieldError msg={errors.estado?.message} />
+            </div>
+          )}
+        </div>
+      </section>
+
+      {/* ── 7–9. Monto, seña, método de pago ───────────────────────── */}
+      <section className="rounded-xl border border-gray-200 bg-white p-5">
+        <h2 className="mb-4 text-sm font-semibold text-gray-900">Monto</h2>
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <div>
             <Label required>Monto total</Label>
             <div className="relative">
@@ -390,7 +386,7 @@ export function ReservaForm({
         {tieneSeña && mode === "crear" && (
           <div className="mt-4">
             <Label>Método de pago de la seña</Label>
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mt-1">
+            <div className="mt-1 grid grid-cols-2 gap-2 sm:grid-cols-4">
               {(["EFECTIVO", "TRANSFERENCIA", "TARJETA", "MERCADOPAGO"] as const).map((m) => (
                 <label
                   key={m}
@@ -403,11 +399,11 @@ export function ReservaForm({
                     defaultChecked={m === "EFECTIVO"}
                     className="sr-only"
                   />
-                  <span className="font-medium text-gray-900 text-xs">
-                    {m === "EFECTIVO" && "Efectivo"}
+                  <span className="text-xs font-medium text-gray-900">
+                    {m === "EFECTIVO"      && "Efectivo"}
                     {m === "TRANSFERENCIA" && "Transferencia"}
-                    {m === "TARJETA" && "Tarjeta"}
-                    {m === "MERCADOPAGO" && "MercadoPago"}
+                    {m === "TARJETA"       && "Tarjeta"}
+                    {m === "MERCADOPAGO"   && "MercadoPago"}
                   </span>
                 </label>
               ))}
@@ -419,91 +415,30 @@ export function ReservaForm({
         )}
       </section>
 
-      {/* ── Detalles adicionales ─────────────────────────────────────── */}
+      {/* ── 10. Notas ──────────────────────────────────────────────── */}
       <section className="rounded-xl border border-gray-200 bg-white p-5">
-        <h2 className="text-sm font-semibold text-gray-900 mb-4">Detalles adicionales</h2>
-        <div className="space-y-4">
-          <div className={cn("grid grid-cols-1 gap-4", forceEstado ? "sm:grid-cols-1" : "sm:grid-cols-2")}>
-            <div>
-              <Label>Motivo del evento</Label>
-              <input
-                {...register("motivoEvento")}
-                placeholder="Ej: Cumpleaños, Vacaciones..."
-                className={inputCls(errors.motivoEvento?.message)}
-              />
-            </div>
-            {!forceEstado && (
-              <div>
-                <Label required>Estado</Label>
-                <select {...register("estado")} className={inputCls(errors.estado?.message)}>
-                  {ESTADO_OPTIONS.map((o) => (
-                    <option key={o.value} value={o.value}>{o.label}</option>
-                  ))}
-                </select>
-                <FieldError msg={errors.estado?.message} />
-              </div>
-            )}
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div>
-              <Label>Cantidad de personas</Label>
-              <select
-                {...register("cantidadPersonas", { valueAsNumber: true })}
-                className={inputCls(errors.cantidadPersonas?.message)}
-              >
-                <option value="">— Seleccioná —</option>
-                {Array.from({ length: maxPersonas }, (_, i) => i + 1).map((n) => (
-                  <option key={n} value={n}>{n} persona{n !== 1 ? "s" : ""}</option>
-                ))}
-              </select>
-              <FieldError msg={errors.cantidadPersonas?.message} />
-            </div>
-            <div className="flex items-center gap-3 pt-6">
-              <Controller
-                name="tieneMascota"
-                control={control}
-                render={({ field }) => (
-                  <input
-                    id="tieneMascota"
-                    type="checkbox"
-                    checked={field.value ?? false}
-                    onChange={(e) => field.onChange(e.target.checked)}
-                    className="h-4 w-4 rounded border-gray-300 text-gray-900 focus:ring-gray-900"
-                  />
-                )}
-              />
-              <label htmlFor="tieneMascota" className="text-sm text-gray-700 cursor-pointer select-none">
-                ¿Trae mascota?
-              </label>
-            </div>
-          </div>
-
-          <div>
-            <Label>Notas internas</Label>
-            <textarea
-              {...register("notas")}
-              rows={3}
-              placeholder="Observaciones, requerimientos especiales..."
-              className={cn(inputCls(errors.notas?.message), "resize-none")}
-            />
-          </div>
-        </div>
+        <h2 className="mb-4 text-sm font-semibold text-gray-900">Notas</h2>
+        <textarea
+          {...register("notas")}
+          rows={3}
+          placeholder="Observaciones, requerimientos especiales…"
+          className={cn(inputCls(errors.notas?.message), "resize-none")}
+        />
       </section>
 
-      {/* ── Actions ──────────────────────────────────────────────────── */}
-      <div className="flex gap-3 justify-end">
+      {/* ── Actions ────────────────────────────────────────────────── */}
+      <div className="flex justify-end gap-3">
         <button
           type="button"
           onClick={() => router.back()}
-          className="rounded-lg border border-gray-200 px-5 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50 transition"
+          className="rounded-lg border border-gray-200 px-5 py-2.5 text-sm font-medium text-gray-700 transition hover:bg-gray-50"
         >
           Cancelar
         </button>
         <button
           type="submit"
           disabled={isSubmitting || disponibilidad === "ocupado"}
-          className="flex items-center gap-2 rounded-lg bg-gray-900 px-5 py-2.5 text-sm font-medium text-white hover:bg-gray-700 transition disabled:opacity-60 disabled:cursor-not-allowed"
+          className="flex items-center gap-2 rounded-lg bg-gray-900 px-5 py-2.5 text-sm font-medium text-white transition hover:bg-gray-700 disabled:cursor-not-allowed disabled:opacity-60"
         >
           {isSubmitting && <Loader2 className="h-4 w-4 animate-spin" />}
           {mode === "editar" ? "Guardar cambios" : "Crear reserva"}

@@ -6,9 +6,7 @@ export const reservaSchema = z
     clienteId:        z.string().min(1, "Seleccioná un cliente"),
     fechaInicio:      z.string().min(1, "La fecha de inicio es requerida"),
     fechaFin:         z.string().min(1, "La fecha de fin es requerida"),
-    tipoAlquiler:     z.enum(["DIA", "FIN_DE_SEMANA", "SEMANA", "QUINCENA", "MES"], {
-      error: "Seleccioná un tipo de alquiler",
-    }),
+    tipoAlquiler:     z.enum(["DIA", "FIN_DE_SEMANA", "SEMANA", "QUINCENA", "MES"]).optional(),
     estado:           z.enum(["PENDIENTE", "CONFIRMADA", "CANCELADA", "COMPLETADA"]),
     montoTotal:       z.number().min(1, "El monto debe ser mayor a 0"),
     sena:             z.number().min(0).nullable().optional(),
@@ -31,9 +29,6 @@ export const reservaPendienteSchema = z
     clienteId:        z.string().min(1, "Seleccioná un cliente"),
     fechaInicio:      z.string().min(1, "La fecha de inicio es requerida"),
     fechaFin:         z.string().min(1, "La fecha de fin es requerida"),
-    tipoAlquiler:     z.enum(["DIA", "FIN_DE_SEMANA", "SEMANA", "QUINCENA", "MES"], {
-      error: "Seleccioná un tipo de alquiler",
-    }),
     notas:            z.string().optional(),
     tieneMascota:     z.boolean().optional(),
     cantidadPersonas: z.number().int().min(1).nullable().optional(),

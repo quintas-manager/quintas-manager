@@ -12,32 +12,29 @@ import { cn } from "@/lib/utils";
 import { reservaPendienteSchema, type ReservaPendienteFormValues } from "@/lib/schemas/reservas";
 import { crearReservaPendiente } from "@/lib/actions/reservas";
 import { ClienteSearch, type ClienteOption } from "@/components/clientes/ClienteSearch";
+import { DateRangePicker, type BlockedRange } from "@/components/reservas/DateRangePicker";
+
+// ── Types ─────────────────────────────────────────────────────────────────────
 
 interface QuintaOption {
-  id: string;
-  nombre: string;
-  colorHex: string;
+  id:               string;
+  nombre:           string;
+  colorHex:         string;
   capacidadAdultos: number;
-  capacidadNinos: number;
+  capacidadNinos:   number;
 }
 
 interface ReservaPendienteFormProps {
-  quintas: QuintaOption[];
-  clientes: ClienteOption[];
+  quintas:       QuintaOption[];
+  clientes:      ClienteOption[];
   defaultValues?: Partial<ReservaPendienteFormValues>;
 }
 
-const TIPO_OPTIONS = [
-  { value: "DIA",           label: "Por día" },
-  { value: "FIN_DE_SEMANA", label: "Fin de semana" },
-  { value: "SEMANA",        label: "Semana" },
-  { value: "QUINCENA",      label: "Quincena" },
-  { value: "MES",           label: "Mes completo" },
-] as const;
+// ── Field helpers ─────────────────────────────────────────────────────────────
 
 function Label({ children, required }: { children: React.ReactNode; required?: boolean }) {
   return (
-    <label className="block text-xs font-medium text-gray-700 mb-1.5">
+    <label className="mb-1.5 block text-xs font-medium text-gray-700">
       {children} {required && <span className="text-red-500">*</span>}
     </label>
   );
@@ -54,8 +51,10 @@ const inputCls = (err?: string) =>
     inputBase,
     err
       ? "border-red-400 focus:ring-red-200"
-      : "border-gray-300 focus:border-gray-400 focus:ring-gray-200"
+      : "border-gray-300 focus:border-gray-400 focus:ring-gray-200",
   );
+
+// ── Component ─────────────────────────────────────────────────────────────────
 
 export function ReservaPendienteForm({
   quintas,
@@ -69,9 +68,10 @@ export function ReservaPendienteForm({
     handleSubmit,
     control,
     watch,
+    setValue,
     formState: { errors, isSubmitting },
   } = useForm<ReservaPendienteFormValues>({
-    resolver: zodResolver(reservaPendienteSchema),
+    resolver:      zodResolver(reservaPendienteSchema),
     defaultValues: { tieneMascota: false, ...defaultValues },
   });
 
@@ -79,13 +79,37 @@ export function ReservaPendienteForm({
     null | "checking" | "disponible" | "ocupado"
   >(null);
   const [conflictoInfo, setConflictoInfo] = useState<string | null>(null);
+  const [blockedRanges, setBlockedRanges] = useState<BlockedRange[]>([]);
 
-  const [quintaId, fechaInicio, fechaFin, tipoAlquiler] = watch([
-    "quintaId", "fechaInicio", "fechaFin", "tipoAlquiler",
-  ]);
+  const [quintaId, fechaInicio, fechaFin] = watch(["quintaId", "fechaInicio", "fechaFin"]);
 
   const selectedQuinta = quintas.find((q) => q.id === quintaId);
-  const maxPersonas    = selectedQuinta?.capacidadAdultos ?? 10;
+  const quintaColor    = selectedQuinta?.colorHex ?? "#9ca3af";
+  const maxPersonas    = selectedQuinta?.capacidadAdultos ?? 20;
+
+  // ── Fetch blocked ranges when quinta changes ───────────────────────────────
+
+  useEffect(() => {
+    if (!quintaId) { setBlockedRanges([]); return; }
+
+    const desde = new Date(Date.now() - 365 * 86400000).toISOString();
+    const hasta = new Date(Date.now() + 365 * 86400000).toISOString();
+    const params = new URLSearchParams({ quintaId, desde, hasta });
+
+    fetch(`/api/reservas?${params}`)
+      .then((r) => r.json())
+      .then((data: { fechaInicio: string; fechaFin: string }[]) => {
+        setBlockedRanges(
+          data.map((r) => ({
+            start: r.fechaInicio.substring(0, 10),
+            end:   r.fechaFin.substring(0, 10),
+          })),
+        );
+      })
+      .catch(() => setBlockedRanges([]));
+  }, [quintaId]);
+
+  // ── Disponibilidad check ──────────────────────────────────────────────────
 
   const checkDisponibilidad = useCallback(
     async (qId: string, fi: string, ff: string) => {
@@ -94,8 +118,8 @@ export function ReservaPendienteForm({
       setConflictoInfo(null);
       try {
         const params = new URLSearchParams({ quintaId: qId, desde: fi, hasta: ff });
-        const res  = await fetch(`/api/reservas/disponibilidad?${params}`);
-        const data = await res.json();
+        const res    = await fetch(`/api/reservas/disponibilidad?${params}`);
+        const data   = await res.json();
         if (data.disponible) {
           setDisponibilidad("disponible");
         } else {
@@ -123,6 +147,8 @@ export function ReservaPendienteForm({
     return () => clearTimeout(t);
   }, [quintaId, fechaInicio, fechaFin, checkDisponibilidad]);
 
+  // ── Submit ────────────────────────────────────────────────────────────────
+
   const onSubmit = async (data: ReservaPendienteFormValues) => {
     if (disponibilidad === "ocupado") {
       toast.error("Las fechas seleccionadas están ocupadas.");
@@ -137,8 +163,11 @@ export function ReservaPendienteForm({
     }
   };
 
+  // ── Render ────────────────────────────────────────────────────────────────
+
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+
       {/* Warning banner */}
       <div className="flex items-start gap-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3">
         <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-amber-600" />
@@ -147,10 +176,10 @@ export function ReservaPendienteForm({
         </p>
       </div>
 
-      {/* Quinta */}
+      {/* ── 1. Quinta ──────────────────────────────────────────────── */}
       <section className="rounded-xl border border-gray-200 bg-white p-5">
-        <h2 className="text-sm font-semibold text-gray-900 mb-4">Quinta</h2>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <h2 className="mb-4 text-sm font-semibold text-gray-900">Quinta</h2>
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           {quintas.map((q) => (
             <label
               key={q.id}
@@ -158,24 +187,15 @@ export function ReservaPendienteForm({
                 "flex cursor-pointer items-start gap-3 rounded-xl border-2 p-4 transition",
                 quintaId === q.id
                   ? "border-gray-900 bg-gray-50"
-                  : "border-gray-200 hover:border-gray-300"
+                  : "border-gray-200 hover:border-gray-300",
               )}
             >
-              <input
-                type="radio"
-                value={q.id}
-                {...register("quintaId")}
-                className="sr-only"
-              />
-              <span
-                className="mt-0.5 h-4 w-4 rounded-full shrink-0"
-                style={{ backgroundColor: q.colorHex }}
-              />
+              <input type="radio" value={q.id} {...register("quintaId")} className="sr-only" />
+              <span className="mt-0.5 h-4 w-4 shrink-0 rounded-full" style={{ backgroundColor: q.colorHex }} />
               <div>
                 <p className="text-sm font-semibold text-gray-900">{q.nombre}</p>
-                <p className="text-xs text-gray-500 mt-0.5">
-                  {q.capacidadAdultos} adultos
-                  {q.capacidadNinos > 0 ? ` · ${q.capacidadNinos} niños` : ""}
+                <p className="mt-0.5 text-xs text-gray-500">
+                  {q.capacidadAdultos} adultos{q.capacidadNinos > 0 ? ` · ${q.capacidadNinos} niños` : ""}
                 </p>
               </div>
               {quintaId === q.id && (
@@ -187,9 +207,9 @@ export function ReservaPendienteForm({
         <FieldError msg={errors.quintaId?.message} />
       </section>
 
-      {/* Cliente */}
+      {/* ── 2. Cliente ─────────────────────────────────────────────── */}
       <section className="rounded-xl border border-gray-200 bg-white p-5">
-        <h2 className="text-sm font-semibold text-gray-900 mb-4">Cliente</h2>
+        <h2 className="mb-4 text-sm font-semibold text-gray-900">Cliente</h2>
         <Controller
           name="clienteId"
           control={control}
@@ -204,29 +224,24 @@ export function ReservaPendienteForm({
         />
       </section>
 
-      {/* Fechas */}
+      {/* ── 3. Fechas (range picker) ────────────────────────────────── */}
       <section className="rounded-xl border border-gray-200 bg-white p-5">
-        <h2 className="text-sm font-semibold text-gray-900 mb-4">Fechas</h2>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <div>
-            <Label required>Fecha de inicio</Label>
-            <input
-              type="date"
-              {...register("fechaInicio")}
-              className={inputCls(errors.fechaInicio?.message)}
-            />
-            <FieldError msg={errors.fechaInicio?.message} />
-          </div>
-          <div>
-            <Label required>Fecha de fin</Label>
-            <input
-              type="date"
-              {...register("fechaFin")}
-              className={inputCls(errors.fechaFin?.message)}
-            />
-            <FieldError msg={errors.fechaFin?.message} />
-          </div>
-        </div>
+        <h2 className="mb-4 text-sm font-semibold text-gray-900">Fechas</h2>
+
+        <input type="hidden" {...register("fechaInicio")} />
+        <input type="hidden" {...register("fechaFin")} />
+
+        <DateRangePicker
+          startDate={fechaInicio ?? ""}
+          endDate={fechaFin ?? ""}
+          onChange={(start, end) => {
+            setValue("fechaInicio", start, { shouldValidate: !!start });
+            setValue("fechaFin",    end,   { shouldValidate: !!end });
+          }}
+          quintaColor={quintaColor}
+          blockedRanges={blockedRanges}
+          error={errors.fechaInicio?.message ?? errors.fechaFin?.message}
+        />
 
         {disponibilidad && (
           <div
@@ -249,94 +264,67 @@ export function ReservaPendienteForm({
         )}
       </section>
 
-      {/* Tipo de alquiler */}
+      {/* ── 4–5. Personas y mascota ─────────────────────────────────── */}
       <section className="rounded-xl border border-gray-200 bg-white p-5">
-        <h2 className="text-sm font-semibold text-gray-900 mb-4">Tipo de alquiler</h2>
-        <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-          {TIPO_OPTIONS.map((opt) => (
-            <label
-              key={opt.value}
-              className={cn(
-                "flex cursor-pointer flex-col rounded-lg border-2 p-3 transition",
-                tipoAlquiler === opt.value
-                  ? "border-gray-900 bg-gray-50"
-                  : "border-gray-200 hover:border-gray-300"
-              )}
-            >
-              <input
-                type="radio"
-                value={opt.value}
-                {...register("tipoAlquiler")}
-                className="sr-only"
-              />
-              <span className="text-sm font-medium text-gray-900">{opt.label}</span>
-            </label>
-          ))}
-        </div>
-        <FieldError msg={errors.tipoAlquiler?.message} />
-      </section>
-
-      {/* Detalles adicionales */}
-      <section className="rounded-xl border border-gray-200 bg-white p-5">
-        <h2 className="text-sm font-semibold text-gray-900 mb-4">Detalles adicionales</h2>
-        <div className="space-y-4">
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div>
-              <Label>Cantidad de personas</Label>
-              <select
-                {...register("cantidadPersonas", { valueAsNumber: true })}
-                className={inputCls(errors.cantidadPersonas?.message)}
-              >
-                <option value="">— Seleccioná —</option>
-                {Array.from({ length: maxPersonas }, (_, i) => i + 1).map((n) => (
-                  <option key={n} value={n}>{n} persona{n !== 1 ? "s" : ""}</option>
-                ))}
-              </select>
-            </div>
-            <div className="flex items-center gap-3 pt-6">
-              <Controller
-                name="tieneMascota"
-                control={control}
-                render={({ field }) => (
-                  <input
-                    id="tieneMascota"
-                    type="checkbox"
-                    checked={field.value ?? false}
-                    onChange={(e) => field.onChange(e.target.checked)}
-                    className="h-4 w-4 rounded border-gray-300 text-gray-900 focus:ring-gray-900"
-                  />
-                )}
-              />
-              <label htmlFor="tieneMascota" className="text-sm text-gray-700 cursor-pointer select-none">
-                ¿Trae mascota?
-              </label>
-            </div>
-          </div>
+        <h2 className="mb-4 text-sm font-semibold text-gray-900">Detalles</h2>
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <div>
-            <Label>Notas internas</Label>
-            <textarea
-              {...register("notas")}
-              rows={3}
-              placeholder="Observaciones, requerimientos especiales..."
-              className={cn(inputCls(errors.notas?.message), "resize-none")}
+            <Label>Cantidad de personas</Label>
+            <select
+              {...register("cantidadPersonas", { valueAsNumber: true })}
+              className={inputCls(errors.cantidadPersonas?.message)}
+            >
+              <option value="">— Seleccioná —</option>
+              {Array.from({ length: maxPersonas }, (_, i) => i + 1).map((n) => (
+                <option key={n} value={n}>{n} persona{n !== 1 ? "s" : ""}</option>
+              ))}
+            </select>
+          </div>
+          <div className="flex items-center gap-3 pt-6">
+            <Controller
+              name="tieneMascota"
+              control={control}
+              render={({ field }) => (
+                <input
+                  id="tieneMascotaPendiente"
+                  type="checkbox"
+                  checked={field.value ?? false}
+                  onChange={(e) => field.onChange(e.target.checked)}
+                  className="h-4 w-4 rounded border-gray-300 text-gray-900 focus:ring-gray-900"
+                />
+              )}
             />
+            <label htmlFor="tieneMascotaPendiente" className="cursor-pointer select-none text-sm text-gray-700">
+              ¿Trae mascota?
+            </label>
           </div>
         </div>
       </section>
 
-      {/* Actions */}
-      <div className="flex gap-3 justify-end">
+      {/* ── 6. Notas ───────────────────────────────────────────────── */}
+      <section className="rounded-xl border border-gray-200 bg-white p-5">
+        <h2 className="mb-4 text-sm font-semibold text-gray-900">Notas</h2>
+        <textarea
+          {...register("notas")}
+          rows={3}
+          placeholder="Observaciones, requerimientos especiales…"
+          className={cn(inputCls(errors.notas?.message), "resize-none")}
+        />
+      </section>
+
+      {/* ── Actions ────────────────────────────────────────────────── */}
+      <div className="flex justify-end gap-3">
         <button
           type="button"
           onClick={() => router.back()}
-          className="rounded-lg border border-gray-200 px-5 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50 transition"
+          className="rounded-lg border border-gray-200 px-5 py-2.5 text-sm font-medium text-gray-700 transition hover:bg-gray-50"
         >
           Cancelar
         </button>
         <button
           type="submit"
           disabled={isSubmitting || disponibilidad === "ocupado"}
-          className="flex items-center gap-2 rounded-lg bg-amber-500 px-5 py-2.5 text-sm font-medium text-white hover:bg-amber-600 transition disabled:opacity-60 disabled:cursor-not-allowed"
+          className="flex items-center gap-2 rounded-lg bg-amber-500 px-5 py-2.5 text-sm font-medium text-white transition hover:bg-amber-600 disabled:cursor-not-allowed disabled:opacity-60"
         >
           {isSubmitting && <Loader2 className="h-4 w-4 animate-spin" />}
           Crear reserva pendiente
