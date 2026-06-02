@@ -417,13 +417,13 @@ export function CalendarioClient({
       // Find the month block with the highest offsetTop still ≤ scrollTop + 80px
       let bestOffset = -1;
       let bestKey: string | null = null;
-      for (const [key, blockEl] of blockRefs.current) {
+      Array.from(blockRefs.current.entries()).forEach(([key, blockEl]) => {
         const ot = blockEl.offsetTop;
         if (ot <= scrollTop + 80 && ot > bestOffset) {
           bestOffset = ot;
           bestKey = key;
         }
-      }
+      });
       if (bestKey) {
         const [yr, mo] = bestKey.split("-").map(Number);
         setHeaderLabel(`${MONTH_NAMES[mo - 1].toUpperCase()} ${yr}`);
