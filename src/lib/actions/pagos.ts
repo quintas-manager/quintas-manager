@@ -20,13 +20,13 @@ export async function calcularSaldoPendiente(reservaId: string): Promise<number>
     where: { id: reservaId },
     select: {
       montoTotal: true,
-      seña: true,
+      sena: true,
       pagos: { select: { monto: true } },
     },
   });
   if (!reserva) return 0;
   const pagado = reserva.pagos.reduce((acc, p) => acc + Number(p.monto), 0);
-  return Number(reserva.montoTotal) - (Number(reserva.seña) || 0) - pagado;
+  return Number(reserva.montoTotal) - (Number(reserva.sena) || 0) - pagado;
 }
 
 export async function registrarPago(raw: PagoFormValues): Promise<Result<{ id: string }>> {
@@ -100,7 +100,7 @@ export async function getClientesConDeuda() {
 
   for (const r of reservas) {
     const pagado = r.pagos.reduce((acc, p) => acc + Number(p.monto), 0);
-    const saldo = Number(r.montoTotal) - (Number(r.seña) || 0) - pagado;
+    const saldo = Number(r.montoTotal) - (Number(r.sena) || 0) - pagado;
     if (saldo <= 0) continue;
 
     const cid = r.cliente.id;
@@ -121,7 +121,7 @@ export async function getClientesConDeuda() {
       fechaInicio: r.fechaInicio,
       fechaFin: r.fechaFin,
       montoTotal: Number(r.montoTotal),
-      senaYPagos: (Number(r.seña) || 0) + pagado,
+      senaYPagos: (Number(r.sena) || 0) + pagado,
       saldoPendiente: saldo,
     });
   }

@@ -152,9 +152,9 @@ function EventoModal({
               <span className="font-medium text-gray-900">
                 {formatMonto(reserva.montoTotal)}
               </span>
-              {reserva.seña != null && (
+              {reserva.sena != null && (
                 <span className="text-gray-400">
-                  · seña {formatMonto(reserva.seña)}
+                  · seña {formatMonto(reserva.sena)}
                 </span>
               )}
             </div>

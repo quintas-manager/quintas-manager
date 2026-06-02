@@ -52,7 +52,7 @@ export default async function EditarReservaPage({ params }: { params: { id: stri
     tipoAlquiler:  reserva.tipoAlquiler as never,
     estado:        reserva.estado as never,
     montoTotal:    Number(reserva.montoTotal),
-    seña:          reserva.seña ? Number(reserva.seña) : null,
+    sena:          reserva.sena ? Number(reserva.sena) : null,
     motivoEvento:  reserva.motivoEvento ?? undefined,
     notas:         reserva.notas ?? undefined,
   };

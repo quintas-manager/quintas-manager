@@ -44,7 +44,7 @@ async function getInitialData(): Promise<{
     tipoAlquiler: r.tipoAlquiler,
     estado: r.estado,
     montoTotal: Number(r.montoTotal),
-    seña: r.seña ? Number(r.seña) : null,
+    sena: r.sena ? Number(r.sena) : null,
     notas: r.notas,
     motivoEvento: r.motivoEvento,
   }));

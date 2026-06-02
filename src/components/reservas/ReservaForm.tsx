@@ -110,13 +110,13 @@ export function ReservaForm({
     precios: Record<string, number>;
   } | null>(null);
 
-  const [quintaId, fechaInicio, fechaFin, tipoAlquiler, seña] = watch([
-    "quintaId", "fechaInicio", "fechaFin", "tipoAlquiler", "seña",
+  const [quintaId, fechaInicio, fechaFin, tipoAlquiler, sena] = watch([
+    "quintaId", "fechaInicio", "fechaFin", "tipoAlquiler", "sena",
   ]);
 
   const selectedQuinta = quintas.find((q) => q.id === quintaId);
   const maxPersonas    = selectedQuinta?.capacidadAdultos ?? 10;
-  const tieneSeña      = typeof seña === "number" && seña > 0;
+  const tieneSeña      = typeof sena === "number" && sena > 0;
 
   // ── Disponibilidad ────────────────────────────────────────────────────────
 
@@ -376,12 +376,12 @@ export function ReservaForm({
                 type="number"
                 min="0"
                 step="1000"
-                {...register("seña", { valueAsNumber: true })}
-                className={cn(inputCls(errors.seña?.message), "pl-7")}
+                {...register("sena", { valueAsNumber: true })}
+                className={cn(inputCls(errors.sena?.message), "pl-7")}
                 placeholder="0"
               />
             </div>
-            <FieldError msg={errors.seña?.message} />
+            <FieldError msg={errors.sena?.message} />
           </div>
         </div>
 

@@ -63,7 +63,7 @@ export default async function ReservasPage({
     fechaFin:        r.fechaFin.toISOString(),
     tipoAlquiler:    r.tipoAlquiler,
     montoTotal:      Number(r.montoTotal),
-    seña:            r.seña ? Number(r.seña) : null,
+    sena:            r.sena ? Number(r.sena) : null,
     estado:          r.estado,
   }));
 

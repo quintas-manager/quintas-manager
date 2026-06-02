@@ -91,7 +91,7 @@ export default async function DashboardPage() {
           quintaId:    true,
           estado:      true,
           montoTotal:  true,
-          seña:        true,
+          sena:        true,
           fechaInicio: true,
           fechaFin:    true,
           cliente:     { select: { nombre: true, apellido: true } },
@@ -124,7 +124,7 @@ export default async function DashboardPage() {
           fechaInicio: true,
           fechaFin:    true,
           montoTotal:  true,
-          seña:        true,
+          sena:        true,
           cliente:     { select: { nombre: true, apellido: true } },
           quinta:      { select: { nombre: true, colorHex: true } },
         },
@@ -223,7 +223,7 @@ export default async function DashboardPage() {
     ...confirmManana.filter((c) => !comenzanManana.find((p) => p.id === c.id)),
   ];
 
-  const sinSena = pendientes.filter((r) => !r.seña || Number(r.seña) === 0);
+  const sinSena = pendientes.filter((r) => !r.sena || Number(r.sena) === 0);
 
   // ── gastos / reintegros ───────────────────────────────────────────────────
 
@@ -726,7 +726,7 @@ export default async function DashboardPage() {
                   <p className="text-xs text-gray-500">
                     {r.quinta.nombre} · {fmtDate(r.fechaInicio)} — {fmtDate(r.fechaFin)} ·{" "}
                     {fmtMoney(Number(r.montoTotal))}
-                    {(!r.seña || Number(r.seña) === 0) && (
+                    {(!r.sena || Number(r.sena) === 0) && (
                       <span className="ml-1.5 text-orange-500 font-medium">sin seña</span>
                     )}
                   </p>

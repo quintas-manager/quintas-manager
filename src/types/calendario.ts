@@ -10,7 +10,7 @@ export type ReservaEvento = {
   tipoAlquiler: string;
   estado: string;
   montoTotal: number;
-  seña: number | null;
+  sena: number | null;
   notas: string | null;
   motivoEvento: string | null;
 };

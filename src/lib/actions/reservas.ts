@@ -65,7 +65,7 @@ export async function crearReserva(raw: ReservaFormValues): Promise<Result<{ id:
     };
   }
 
-  const seña = data.seña ?? null;
+  const seña = data.sena ?? null;
   const now  = new Date();
 
   const reserva = await prisma.$transaction(async (tx) => {
@@ -79,7 +79,7 @@ export async function crearReserva(raw: ReservaFormValues): Promise<Result<{ id:
         tipoAlquiler:     data.tipoAlquiler,
         estado:           data.estado,
         montoTotal:       data.montoTotal,
-        seña,
+        sena: seña,
         motivoEvento:     data.motivoEvento || null,
         notas:            data.notas || null,
         tieneMascota:     data.tieneMascota ?? false,
@@ -148,7 +148,7 @@ export async function actualizarReserva(
       tipoAlquiler:     data.tipoAlquiler,
       estado:           data.estado,
       montoTotal:       data.montoTotal,
-      seña:             data.seña ?? null,
+      sena:             data.sena ?? null,
       motivoEvento:     data.motivoEvento || null,
       notas:            data.notas || null,
       tieneMascota:     data.tieneMascota ?? false,

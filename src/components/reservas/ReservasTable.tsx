@@ -23,7 +23,7 @@ interface ReservaRow {
   fechaFin: string;
   tipoAlquiler: string;
   montoTotal: number;
-  seña: number | null;
+  sena: number | null;
   estado: string;
 }
 
@@ -224,7 +224,7 @@ export function ReservasTable({
                         {formatMonto(r.montoTotal)}
                       </td>
                       <td className="px-4 py-3 text-gray-500 whitespace-nowrap">
-                        {r.seña != null ? formatMonto(r.seña) : "—"}
+                        {r.sena != null ? formatMonto(r.sena) : "—"}
                       </td>
                       <td className="px-4 py-3">
                         <span className={cn("inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium", estado.cls)}>

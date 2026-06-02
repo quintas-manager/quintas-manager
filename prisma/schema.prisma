@@ -3,8 +3,9 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
 }
 
 enum Role {
@@ -117,7 +118,7 @@ model Reserva {
   tipoAlquiler   TipoAlquiler
   estado         EstadoReserva @default(PENDIENTE)
   montoTotal     Decimal       @db.Decimal(10, 2)
-  seña           Decimal?      @db.Decimal(10, 2)
+  sena           Decimal?      @db.Decimal(10, 2)  @map("seña")
   notas           String?
   motivoEvento    String?
   tieneMascota    Boolean       @default(false)

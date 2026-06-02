@@ -11,7 +11,7 @@ export const reservaSchema = z
     }),
     estado:           z.enum(["PENDIENTE", "CONFIRMADA", "CANCELADA", "COMPLETADA"]),
     montoTotal:       z.number().min(1, "El monto debe ser mayor a 0"),
-    seña:             z.number().min(0).nullable().optional(),
+    sena:             z.number().min(0).nullable().optional(),
     motivoEvento:     z.string().optional(),
     notas:            z.string().optional(),
     tieneMascota:     z.boolean().optional(),
