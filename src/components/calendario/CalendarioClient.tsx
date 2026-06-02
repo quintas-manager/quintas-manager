@@ -1,54 +1,53 @@
 "use client";
 
-import FullCalendar from "@fullcalendar/react";
-import dayGridPlugin from "@fullcalendar/daygrid";
-import listPlugin from "@fullcalendar/list";
-import interactionPlugin, { DateClickArg } from "@fullcalendar/interaction";
-import type { DatesSetArg, EventClickArg } from "@fullcalendar/core";
-import esLocale from "@fullcalendar/core/locales/es";
-import { useCallback, useMemo, useState } from "react";
-import { format, parseISO, addDays } from "date-fns";
-import { es } from "date-fns/locale";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import {
-  X,
-  CalendarDays,
-  Home,
-  Clock,
-  CreditCard,
-  FileText,
-  Gift,
-  Loader2,
-  CalendarPlus,
-} from "lucide-react";
+import { format, parseISO } from "date-fns";
+import { es } from "date-fns/locale";
 import { cn } from "@/lib/utils";
 import type { QuintaBasic, ReservaEvento } from "@/types/calendario";
 
-// ── Helpers ──────────────────────────────────────────────────────────────────
+// ── Date Utilities ────────────────────────────────────────────────────────────
 
-function hexWithAlpha(hex: string, alpha: number): string {
-  const a = Math.round(alpha * 255)
-    .toString(16)
-    .padStart(2, "0");
-  return hex + a;
+function daysInMonth(year: number, month: number) {
+  return new Date(year, month + 1, 0).getDate();
 }
 
-function formatFecha(iso: string) {
-  return format(parseISO(iso), "d 'de' MMMM 'de' yyyy", { locale: es });
+function firstWeekday(year: number, month: number) {
+  return new Date(year, month, 1).getDay(); // 0 = Sunday
 }
 
-function formatMonto(n: number) {
-  return new Intl.NumberFormat("es-AR", {
-    style: "currency",
-    currency: "ARS",
-    maximumFractionDigits: 0,
-  }).format(n);
+function shiftMonth(year: number, month: number, delta: number) {
+  const d = new Date(year, month + delta, 1);
+  return { year: d.getFullYear(), month: d.getMonth() };
 }
 
-// Exclusive end date for FullCalendar allDay events
-function exclusiveEnd(isoFechaFin: string): string {
-  return format(addDays(parseISO(isoFechaFin), 1), "yyyy-MM-dd");
+function monthKey(year: number, month: number) {
+  return `${year}-${String(month + 1).padStart(2, "0")}`;
 }
+
+function toIso(year: number, month: number, day: number) {
+  return `${year}-${String(month + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+}
+
+function todayStr() {
+  const n = new Date();
+  return toIso(n.getFullYear(), n.getMonth(), n.getDate());
+}
+
+// Date-string comparison (timezone-safe for UTC-X servers like Argentina)
+function coversDia(r: ReservaEvento, iso: string): boolean {
+  return iso >= r.fechaInicio.substring(0, 10) && iso <= r.fechaFin.substring(0, 10);
+}
+
+// ── Constants ─────────────────────────────────────────────────────────────────
+
+const WEEKDAYS = ["Dom", "Lun", "Mar", "Mié", "Jue", "Vie", "Sáb"];
+
+const MONTH_NAMES = [
+  "Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio",
+  "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre",
+];
 
 const TIPO_LABELS: Record<string, string> = {
   DIA: "Por día",
@@ -58,258 +57,231 @@ const TIPO_LABELS: Record<string, string> = {
   MES: "Mes completo",
 };
 
-const ESTADO_CONFIG: Record<string, { label: string; classes: string }> = {
-  PENDIENTE: {
-    label: "Pendiente",
-    classes: "bg-amber-100 text-amber-800 ring-1 ring-amber-200",
-  },
-  CONFIRMADA: {
-    label: "Confirmada",
-    classes: "bg-green-100 text-green-800 ring-1 ring-green-200",
-  },
+const ESTADO_CONFIG: Record<string, { label: string; cls: string }> = {
+  PENDIENTE:  { label: "Pendiente",  cls: "bg-amber-100 text-amber-800" },
+  CONFIRMADA: { label: "Confirmada", cls: "bg-green-100 text-green-800" },
+  CANCELADA:  { label: "Cancelada",  cls: "bg-red-100 text-red-700" },
+  COMPLETADA: { label: "Completada", cls: "bg-blue-100 text-blue-700" },
 };
 
-// ── Evento Modal ──────────────────────────────────────────────────────────────
+// ── DayPanel ──────────────────────────────────────────────────────────────────
 
-function EventoModal({
-  reserva,
-  onClose,
+function DayPanel({
+  dateIso,
+  reservas,
 }: {
-  reserva: ReservaEvento;
-  onClose: () => void;
+  dateIso: string;
+  reservas: ReservaEvento[];
 }) {
   const router = useRouter();
-  const estado = ESTADO_CONFIG[reserva.estado] ?? ESTADO_CONFIG.PENDIENTE;
+
+  const dayReservas = useMemo(
+    () => reservas.filter((r) => coversDia(r, dateIso)),
+    [reservas, dateIso],
+  );
+
+  const [y, m, d] = dateIso.split("-").map(Number);
+  const label = format(new Date(y, m - 1, d), "EEEE d 'de' MMMM", { locale: es });
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      <div
-        className="fixed inset-0 bg-black/50 backdrop-blur-sm"
-        onClick={onClose}
-      />
-      <div className="relative w-full max-w-sm rounded-2xl bg-white shadow-xl">
-        {/* Header con color de quinta */}
-        <div
-          className="flex items-center justify-between rounded-t-2xl px-5 py-4"
-          style={{ backgroundColor: hexWithAlpha(reserva.quintaColor, 0.12) }}
-        >
-          <div className="flex items-center gap-2">
-            <span
-              className="inline-block h-3 w-3 rounded-full"
-              style={{ backgroundColor: reserva.quintaColor }}
-            />
-            <span className="text-sm font-semibold text-gray-800">
-              {reserva.quintaNombre}
-            </span>
-          </div>
-          <button
-            onClick={onClose}
-            className="rounded-lg p-1 text-gray-400 hover:bg-black/10 hover:text-gray-600"
-          >
-            <X className="h-4 w-4" />
-          </button>
-        </div>
+    <div className="mt-1 border-t border-gray-100 bg-gray-50/80 px-0 pb-3 pt-4">
+      <p className="mb-3 text-xs font-semibold uppercase tracking-wider text-gray-400 capitalize">
+        {label}
+      </p>
 
-        {/* Body */}
-        <div className="space-y-4 px-5 py-4">
-          {/* Cliente */}
-          <div>
-            <p className="text-xs font-medium uppercase tracking-wide text-gray-400">
-              Cliente
-            </p>
-            <p className="mt-0.5 text-base font-semibold text-gray-900">
-              {reserva.clienteNombre} {reserva.clienteApellido}
-            </p>
-          </div>
-
-          <div className="space-y-2.5 text-sm">
-            {/* Fechas */}
-            <div className="flex items-start gap-3">
-              <CalendarDays className="mt-0.5 h-4 w-4 shrink-0 text-gray-400" />
-              <div>
-                <span className="text-gray-900">{formatFecha(reserva.fechaInicio)}</span>
-                <span className="mx-1.5 text-gray-400">→</span>
-                <span className="text-gray-900">{formatFecha(reserva.fechaFin)}</span>
+      {dayReservas.length === 0 ? (
+        <p className="py-2 text-sm text-gray-400">Sin reservas para este día</p>
+      ) : (
+        <div className="space-y-2">
+          {dayReservas.map((r) => {
+            const estado = ESTADO_CONFIG[r.estado] ?? ESTADO_CONFIG.PENDIENTE;
+            return (
+              <div
+                key={r.id}
+                className="rounded-xl border border-gray-200 bg-white p-3 shadow-sm"
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-sm font-semibold text-gray-900">
+                      {r.clienteNombre} {r.clienteApellido}
+                    </p>
+                    <p className="mt-0.5 text-xs text-gray-500">
+                      {format(parseISO(r.fechaInicio), "d/MM/yy")} →{" "}
+                      {format(parseISO(r.fechaFin), "d/MM/yy")} ·{" "}
+                      {TIPO_LABELS[r.tipoAlquiler] ?? r.tipoAlquiler}
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => router.push(`/reservas/${r.id}`)}
+                    className="shrink-0 rounded-lg bg-gray-900 px-3 py-1.5 text-xs font-medium text-white transition hover:bg-gray-700"
+                  >
+                    Ver →
+                  </button>
+                </div>
+                <div className="mt-2 flex flex-wrap items-center gap-1.5">
+                  <span
+                    className="rounded-full px-2.5 py-0.5 text-xs font-medium text-white"
+                    style={{ backgroundColor: r.quintaColor }}
+                  >
+                    {r.quintaNombre}
+                  </span>
+                  <span
+                    className={cn(
+                      "rounded-full px-2.5 py-0.5 text-xs font-medium",
+                      estado.cls,
+                    )}
+                  >
+                    {estado.label}
+                  </span>
+                </div>
               </div>
-            </div>
-
-            {/* Quinta */}
-            <div className="flex items-center gap-3">
-              <Home className="h-4 w-4 shrink-0 text-gray-400" />
-              <span className="text-gray-700">{reserva.quintaNombre}</span>
-            </div>
-
-            {/* Tipo alquiler */}
-            <div className="flex items-center gap-3">
-              <Clock className="h-4 w-4 shrink-0 text-gray-400" />
-              <span className="text-gray-700">
-                {TIPO_LABELS[reserva.tipoAlquiler] ?? reserva.tipoAlquiler}
-              </span>
-            </div>
-
-            {/* Monto */}
-            <div className="flex items-center gap-3">
-              <CreditCard className="h-4 w-4 shrink-0 text-gray-400" />
-              <span className="font-medium text-gray-900">
-                {formatMonto(reserva.montoTotal)}
-              </span>
-              {reserva.sena != null && (
-                <span className="text-gray-400">
-                  · seña {formatMonto(reserva.sena)}
-                </span>
-              )}
-            </div>
-
-            {/* Motivo */}
-            {reserva.motivoEvento && (
-              <div className="flex items-center gap-3">
-                <Gift className="h-4 w-4 shrink-0 text-gray-400" />
-                <span className="text-gray-700">{reserva.motivoEvento}</span>
-              </div>
-            )}
-
-            {/* Notas */}
-            {reserva.notas && (
-              <div className="flex items-start gap-3">
-                <FileText className="mt-0.5 h-4 w-4 shrink-0 text-gray-400" />
-                <span className="text-gray-600 italic">{reserva.notas}</span>
-              </div>
-            )}
-          </div>
-
-          {/* Estado badge */}
-          <div>
-            <span
-              className={cn(
-                "inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium",
-                estado.classes
-              )}
-            >
-              {estado.label}
-            </span>
-          </div>
+            );
+          })}
         </div>
-
-        {/* Footer */}
-        <div className="border-t border-gray-100 px-5 py-3">
-          <button
-            onClick={() => router.push(`/reservas/${reserva.id}`)}
-            className="w-full rounded-lg bg-gray-900 px-4 py-2 text-sm font-medium text-white transition hover:bg-gray-700"
-          >
-            Ver reserva completa →
-          </button>
-        </div>
-      </div>
+      )}
     </div>
   );
 }
 
-// ── Nueva Reserva Modal ───────────────────────────────────────────────────────
+// ── MonthBlock ────────────────────────────────────────────────────────────────
 
-function NuevaReservaModal({
-  fecha,
-  quintas,
-  onClose,
-}: {
-  fecha: string;
-  quintas: QuintaBasic[];
-  onClose: () => void;
-}) {
-  const router = useRouter();
-  const [quintaId, setQuintaId] = useState(quintas[0]?.id ?? "");
-  const fechaLabel = format(parseISO(fecha), "EEEE d 'de' MMMM 'de' yyyy", { locale: es });
+interface MonthBlockProps {
+  year: number;
+  month: number;
+  reservas: ReservaEvento[];
+  selectedDate: string | null;
+  onSelectDate: (iso: string | null) => void;
+  onRef: (el: HTMLDivElement | null) => void;
+}
+
+function MonthBlock({
+  year,
+  month,
+  reservas,
+  selectedDate,
+  onSelectDate,
+  onRef,
+}: MonthBlockProps) {
+  const today   = todayStr();
+  const firstWd = firstWeekday(year, month);
+  const numDays = daysInMonth(year, month);
+
+  type Cell = { day: number; iso: string; current: boolean };
+
+  const cells = useMemo<Cell[]>(() => {
+    const out: Cell[] = [];
+    const pm = shiftMonth(year, month, -1);
+    const nm = shiftMonth(year, month, 1);
+    const prevDays = daysInMonth(pm.year, pm.month);
+
+    // Leading blanks from previous month
+    for (let i = firstWd - 1; i >= 0; i--) {
+      const d = prevDays - i;
+      out.push({ day: d, iso: toIso(pm.year, pm.month, d), current: false });
+    }
+    // This month
+    for (let d = 1; d <= numDays; d++) {
+      out.push({ day: d, iso: toIso(year, month, d), current: true });
+    }
+    // Trailing blanks from next month
+    const trailing = out.length % 7 === 0 ? 0 : 7 - (out.length % 7);
+    for (let d = 1; d <= trailing; d++) {
+      out.push({ day: d, iso: toIso(nm.year, nm.month, d), current: false });
+    }
+    return out;
+  }, [year, month, firstWd, numDays]);
+
+  // Build dot map: iso → [color, ...] for each day that has reservations
+  const dotsMap = useMemo(() => {
+    const map: Record<string, string[]> = {};
+    for (let d = 1; d <= numDays; d++) {
+      const iso = toIso(year, month, d);
+      const colors: string[] = [];
+      const seen = new Set<string>();
+      for (const r of reservas) {
+        if (!seen.has(r.quintaColor) && coversDia(r, iso)) {
+          seen.add(r.quintaColor);
+          colors.push(r.quintaColor);
+          if (colors.length === 2) break;
+        }
+      }
+      if (colors.length > 0) map[iso] = colors;
+    }
+    return map;
+  }, [year, month, numDays, reservas]);
+
+  const mPrefix = `${year}-${String(month + 1).padStart(2, "0")}`;
+  const selectedHere = selectedDate?.startsWith(mPrefix) ? selectedDate : null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      <div
-        className="fixed inset-0 bg-black/50 backdrop-blur-sm"
-        onClick={onClose}
-      />
-      <div className="relative w-full max-w-sm rounded-2xl bg-white shadow-xl">
-        {/* Header */}
-        <div className="flex items-center justify-between border-b border-gray-100 px-5 py-4">
-          <h3 className="text-base font-semibold text-gray-900">Nueva reserva</h3>
-          <button
-            onClick={onClose}
-            className="rounded-lg p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-600"
-          >
-            <X className="h-4 w-4" />
-          </button>
-        </div>
+    <div ref={onRef} className="px-4 pb-4">
+      {/* Month heading */}
+      <h2 className="pb-2 pt-6 text-xl font-semibold tracking-tight text-gray-900">
+        {MONTH_NAMES[month].toUpperCase()} {year}
+      </h2>
 
-        {/* Body */}
-        <div className="space-y-4 px-5 py-4">
-          <div className="rounded-lg bg-gray-50 px-4 py-3">
-            <p className="text-xs text-gray-500">Fecha de inicio</p>
-            <p className="mt-0.5 text-sm font-medium capitalize text-gray-900">
-              {fechaLabel}
-            </p>
+      {/* Weekday labels */}
+      <div className="mb-1 grid grid-cols-7 text-center">
+        {WEEKDAYS.map((w) => (
+          <div
+            key={w}
+            className="py-1 text-[11px] font-medium uppercase tracking-wide text-gray-400"
+          >
+            {w}
           </div>
-
-          <div>
-            <label className="block text-xs font-medium text-gray-700 mb-1.5">
-              Quinta
-            </label>
-            <div className="space-y-2">
-              {quintas.map((q) => (
-                <label
-                  key={q.id}
-                  className={cn(
-                    "flex cursor-pointer items-center gap-3 rounded-lg border px-3 py-2.5 transition",
-                    quintaId === q.id
-                      ? "border-gray-900 bg-gray-50"
-                      : "border-gray-200 hover:border-gray-300"
-                  )}
-                >
-                  <input
-                    type="radio"
-                    name="quinta"
-                    value={q.id}
-                    checked={quintaId === q.id}
-                    onChange={() => setQuintaId(q.id)}
-                    className="sr-only"
-                  />
-                  <span
-                    className="h-3 w-3 rounded-full shrink-0"
-                    style={{ backgroundColor: q.colorHex }}
-                  />
-                  <span className="text-sm font-medium text-gray-800">
-                    {q.nombre}
-                  </span>
-                </label>
-              ))}
-            </div>
-          </div>
-        </div>
-
-        {/* Footer */}
-        <div className="flex flex-col gap-2 border-t border-gray-100 px-5 py-3">
-          <button
-            onClick={() =>
-              router.push(`/reservas/nueva?fecha=${fecha}&quintaId=${quintaId}`)
-            }
-            className="flex w-full items-center justify-center gap-2 rounded-lg bg-gray-900 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-gray-700"
-          >
-            <CalendarPlus className="h-4 w-4" />
-            Reserva Confirmada
-          </button>
-          <button
-            onClick={() =>
-              router.push(`/reservas/pendiente?fecha=${fecha}&quintaId=${quintaId}`)
-            }
-            className="flex w-full items-center justify-center gap-2 rounded-lg border border-amber-300 bg-amber-50 px-4 py-2.5 text-sm font-medium text-amber-800 transition hover:bg-amber-100"
-          >
-            <Clock className="h-4 w-4" />
-            Reserva Pendiente
-          </button>
-          <button
-            onClick={onClose}
-            className="w-full rounded-lg border border-gray-200 px-4 py-2 text-sm font-medium text-gray-500 transition hover:bg-gray-50"
-          >
-            Cancelar
-          </button>
-        </div>
+        ))}
       </div>
+
+      {/* Day grid */}
+      <div className="grid grid-cols-7">
+        {cells.map((cell, idx) => {
+          const isToday    = cell.current && cell.iso === today;
+          const isSelected = cell.current && cell.iso === selectedDate;
+          const dots       = cell.current ? (dotsMap[cell.iso] ?? []) : [];
+
+          return (
+            <button
+              key={idx}
+              type="button"
+              disabled={!cell.current}
+              onClick={() => onSelectDate(isSelected ? null : cell.iso)}
+              className={cn(
+                "flex min-h-[44px] flex-col items-center justify-start pt-0.5 pb-1",
+                !cell.current && "pointer-events-none",
+              )}
+            >
+              <span
+                className={cn(
+                  "flex h-9 w-9 items-center justify-center rounded-full text-[15px] font-normal leading-none transition-colors",
+                  isToday && !isSelected && "bg-red-500 font-semibold text-white",
+                  isSelected && !isToday  && "bg-gray-700 text-white",
+                  isSelected && isToday   && "bg-red-500 text-white ring-2 ring-red-300",
+                  !isToday && !isSelected && cell.current  && "text-gray-900",
+                  !cell.current && "text-gray-300",
+                )}
+              >
+                {cell.day}
+              </span>
+              {dots.length > 0 && (
+                <div className="mt-0.5 flex gap-0.5">
+                  {dots.map((color, di) => (
+                    <span
+                      key={di}
+                      className="h-[5px] w-[5px] rounded-full"
+                      style={{ backgroundColor: color }}
+                    />
+                  ))}
+                </div>
+              )}
+            </button>
+          );
+        })}
+      </div>
+
+      {/* Day detail panel — appears below this month's grid when a day here is selected */}
+      {selectedHere && (
+        <DayPanel dateIso={selectedHere} reservas={reservas} />
+      )}
     </div>
   );
 }
@@ -321,204 +293,201 @@ interface CalendarioClientProps {
   quintas: QuintaBasic[];
 }
 
+type MonthEntry = { year: number; month: number };
+
 export function CalendarioClient({
   initialReservas,
-  quintas,
+  quintas: _quintas,
 }: CalendarioClientProps) {
-  const [reservas, setReservas] = useState<ReservaEvento[]>(initialReservas);
-  const [filtroQuinta, setFiltroQuinta] = useState<string>("todas");
-  const [filtroEstado, setFiltroEstado] = useState<string>("todas");
-  const [isFetching, setIsFetching] = useState(false);
-  const [eventoModal, setEventoModal] = useState<ReservaEvento | null>(null);
-  const [nuevaFecha, setNuevaFecha] = useState<string | null>(null);
+  const now = new Date();
+  const cy  = now.getFullYear();
+  const cm  = now.getMonth();
 
-  // Count per quinta in current fetched range
-  const countByQuinta = useMemo(() => {
-    const counts: Record<string, number> = {};
-    for (const r of reservas) {
-      counts[r.quintaId] = (counts[r.quintaId] ?? 0) + 1;
-    }
-    return counts;
-  }, [reservas]);
+  const [months, setMonths] = useState<MonthEntry[]>(() => [
+    shiftMonth(cy, cm, -1),
+    { year: cy, month: cm },
+    shiftMonth(cy, cm, 1),
+  ]);
 
-  // FullCalendar events derived from reservas + active filters
-  const events = useMemo(() => {
-    return reservas
-      .filter((r) => filtroQuinta === "todas" || r.quintaId === filtroQuinta)
-      .filter((r) => filtroEstado === "todas" || r.estado === filtroEstado)
-      .map((r) => {
-        const confirmada = r.estado === "CONFIRMADA";
-        return {
-          id: r.id,
-          title: `${r.clienteNombre} ${r.clienteApellido}`,
-          start: r.fechaInicio.split("T")[0],
-          end: exclusiveEnd(r.fechaFin),
-          allDay: true,
-          backgroundColor: confirmada
-            ? r.quintaColor
-            : hexWithAlpha(r.quintaColor, 0.18),
-          borderColor: r.quintaColor,
-          textColor: confirmada ? "#ffffff" : r.quintaColor,
-          extendedProps: r,
-        };
-      });
-  }, [reservas, filtroQuinta, filtroEstado]);
+  const [reservas,     setReservas]     = useState(initialReservas);
+  const [selectedDate, setSelectedDate] = useState<string | null>(null);
+  const [headerLabel,  setHeaderLabel]  = useState(
+    `${MONTH_NAMES[cm].toUpperCase()} ${cy}`,
+  );
 
-  const handleDatesSet = useCallback(async (info: DatesSetArg) => {
-    setIsFetching(true);
+  const scrollRef   = useRef<HTMLDivElement>(null);
+  const blockRefs   = useRef(new Map<string, HTMLDivElement>());
+  const fetchedKeys = useRef(new Set<string>([
+    monthKey(shiftMonth(cy, cm, -1).year, shiftMonth(cy, cm, -1).month),
+    monthKey(cy, cm),
+    monthKey(shiftMonth(cy, cm, 1).year, shiftMonth(cy, cm, 1).month),
+  ]));
+  const isFetchingFuture = useRef(false);
+  const isFetchingPast   = useRef(false);
+
+  // ── Data fetching ─────────────────────────────────────────────────────────
+
+  const fetchRange = useCallback(async (desde: Date, hasta: Date, keys: string[]) => {
     try {
       const res = await fetch(
-        `/api/reservas?desde=${info.startStr}&hasta=${info.endStr}`
+        `/api/reservas?desde=${desde.toISOString()}&hasta=${hasta.toISOString()}`,
       );
-      if (!res.ok) return;
-      const data: ReservaEvento[] = await res.json();
-      setReservas(data);
+      if (res.ok) {
+        const data: ReservaEvento[] = await res.json();
+        setReservas((prev) => {
+          const ids   = new Set(prev.map((r) => r.id));
+          const fresh = data.filter((r) => !ids.has(r.id));
+          return fresh.length > 0 ? [...prev, ...fresh] : prev;
+        });
+      }
     } finally {
-      setIsFetching(false);
+      keys.forEach((k) => fetchedKeys.current.add(k));
     }
   }, []);
 
-  const handleEventClick = useCallback((info: EventClickArg) => {
-    info.jsEvent.preventDefault();
-    setEventoModal(info.event.extendedProps as ReservaEvento);
+  // ── Load more months ──────────────────────────────────────────────────────
+
+  const loadFuture = useCallback(() => {
+    if (isFetchingFuture.current) return;
+    isFetchingFuture.current = true;
+
+    setMonths((prev) => {
+      const last = prev[prev.length - 1];
+      const n1   = shiftMonth(last.year, last.month, 1);
+      const n2   = shiftMonth(last.year, last.month, 2);
+      const add  = [n1, n2].filter(
+        (m) => !prev.some((p) => p.year === m.year && p.month === m.month),
+      );
+      if (add.length === 0) { isFetchingFuture.current = false; return prev; }
+
+      const keys      = add.map((m) => monthKey(m.year, m.month));
+      const unfetched = keys.filter((k) => !fetchedKeys.current.has(k));
+      if (unfetched.length > 0) {
+        fetchRange(
+          new Date(n1.year, n1.month, 1),
+          new Date(n2.year, n2.month + 1, 0),
+          keys,
+        ).finally(() => { isFetchingFuture.current = false; });
+      } else {
+        isFetchingFuture.current = false;
+      }
+      return [...prev, ...add];
+    });
+  }, [fetchRange]);
+
+  const loadPast = useCallback(() => {
+    if (isFetchingPast.current) return;
+    isFetchingPast.current = true;
+
+    setMonths((prev) => {
+      const first = prev[0];
+      const p1    = shiftMonth(first.year, first.month, -2);
+      const p2    = shiftMonth(first.year, first.month, -1);
+      const add   = [p1, p2].filter(
+        (m) => !prev.some((p) => p.year === m.year && p.month === m.month),
+      );
+      if (add.length === 0) { isFetchingPast.current = false; return prev; }
+
+      const keys      = add.map((m) => monthKey(m.year, m.month));
+      const unfetched = keys.filter((k) => !fetchedKeys.current.has(k));
+      if (unfetched.length > 0) {
+        fetchRange(
+          new Date(p1.year, p1.month, 1),
+          new Date(p2.year, p2.month + 1, 0),
+          keys,
+        ).finally(() => { isFetchingPast.current = false; });
+      } else {
+        isFetchingPast.current = false;
+      }
+      return [...add, ...prev];
+    });
+  }, [fetchRange]);
+
+  // ── Scroll event: lazy load + header update ───────────────────────────────
+
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+
+    const onScroll = () => {
+      const { scrollTop, scrollHeight, clientHeight } = el;
+
+      if (scrollHeight - scrollTop - clientHeight < 500) loadFuture();
+      if (scrollTop < 300) loadPast();
+
+      // Find the month block with the highest offsetTop still ≤ scrollTop + 80px
+      let bestOffset = -1;
+      let bestKey: string | null = null;
+      for (const [key, blockEl] of blockRefs.current) {
+        const ot = blockEl.offsetTop;
+        if (ot <= scrollTop + 80 && ot > bestOffset) {
+          bestOffset = ot;
+          bestKey = key;
+        }
+      }
+      if (bestKey) {
+        const [yr, mo] = bestKey.split("-").map(Number);
+        setHeaderLabel(`${MONTH_NAMES[mo - 1].toUpperCase()} ${yr}`);
+      }
+    };
+
+    el.addEventListener("scroll", onScroll, { passive: true });
+    return () => el.removeEventListener("scroll", onScroll);
+  }, [loadFuture, loadPast]);
+
+  // ── Initial scroll to current month (no animation) ────────────────────────
+
+  useEffect(() => {
+    const key     = monthKey(cy, cm);
+    const blockEl = blockRefs.current.get(key);
+    if (blockEl && scrollRef.current) {
+      scrollRef.current.scrollTop = blockEl.offsetTop;
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const handleDateClick = useCallback((info: DateClickArg) => {
-    setNuevaFecha(info.dateStr);
-  }, []);
+  // ── Ref callbacks ─────────────────────────────────────────────────────────
+
+  const makeOnRef = useCallback(
+    (key: string) => (el: HTMLDivElement | null) => {
+      if (el) blockRefs.current.set(key, el);
+      else blockRefs.current.delete(key);
+    },
+    [],
+  );
+
+  // ── Render ────────────────────────────────────────────────────────────────
 
   return (
-    <div className="space-y-4">
-      {/* ── Toolbar ──────────────────────────────────────────────────────── */}
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        {/* Badges por quinta */}
-        <div className="flex flex-wrap gap-2">
-          {quintas.map((q) => {
-            const count = countByQuinta[q.id] ?? 0;
-            return (
-              <div
-                key={q.id}
-                className="flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-medium"
-                style={{
-                  borderColor: hexWithAlpha(q.colorHex, 0.4),
-                  backgroundColor: hexWithAlpha(q.colorHex, 0.08),
-                  color: q.colorHex,
-                }}
-              >
-                <span
-                  className="h-2 w-2 rounded-full"
-                  style={{ backgroundColor: q.colorHex }}
-                />
-                {q.nombre}
-                <span
-                  className="ml-0.5 rounded-full px-1.5 py-0.5 text-[10px] font-bold text-white"
-                  style={{ backgroundColor: q.colorHex }}
-                >
-                  {count}
-                </span>
-              </div>
-            );
-          })}
-          {isFetching && (
-            <div className="flex items-center gap-1.5 text-xs text-gray-400">
-              <Loader2 className="h-3 w-3 animate-spin" />
-              Actualizando…
-            </div>
-          )}
-        </div>
-
-        {/* Filtros */}
-        <div className="flex flex-wrap gap-2">
-          <select
-            value={filtroQuinta}
-            onChange={(e) => setFiltroQuinta(e.target.value)}
-            className="rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-sm text-gray-700 shadow-sm focus:outline-none focus:ring-2 focus:ring-gray-300"
-          >
-            <option value="todas">Todas las quintas</option>
-            {quintas.map((q) => (
-              <option key={q.id} value={q.id}>
-                {q.nombre}
-              </option>
-            ))}
-          </select>
-
-          <select
-            value={filtroEstado}
-            onChange={(e) => setFiltroEstado(e.target.value)}
-            className="rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-sm text-gray-700 shadow-sm focus:outline-none focus:ring-2 focus:ring-gray-300"
-          >
-            <option value="todas">Todos los estados</option>
-            <option value="PENDIENTE">Pendiente</option>
-            <option value="CONFIRMADA">Confirmada</option>
-          </select>
-        </div>
+    <div
+      className="-mx-4 -mt-4 flex flex-col lg:-mx-6 lg:-mt-6"
+      style={{ height: "calc(100dvh - 56px)" }}
+    >
+      {/* Fixed month/year label */}
+      <div className="shrink-0 border-b border-gray-100 bg-white px-4 py-3">
+        <p className="text-base font-semibold text-gray-900">{headerLabel}</p>
       </div>
 
-      {/* Leyenda de estados */}
-      <div className="flex flex-wrap items-center gap-4 text-xs text-gray-500">
-        <span className="font-medium text-gray-600">Colores:</span>
-        {quintas.map((q) => (
-          <span key={q.id} className="flex items-center gap-1.5">
-            <span
-              className="inline-block h-2.5 w-2.5 rounded-sm"
-              style={{ backgroundColor: q.colorHex }}
-            />
-            {q.nombre}
-          </span>
+      {/* Scrollable month list */}
+      <div
+        ref={scrollRef}
+        className="flex-1 overflow-y-auto bg-white"
+        // overflow-anchor keeps scroll position stable when prepending months
+        style={{ overflowAnchor: "auto" } as React.CSSProperties}
+      >
+        {months.map(({ year, month }) => (
+          <MonthBlock
+            key={monthKey(year, month)}
+            year={year}
+            month={month}
+            reservas={reservas}
+            selectedDate={selectedDate}
+            onSelectDate={setSelectedDate}
+            onRef={makeOnRef(monthKey(year, month))}
+          />
         ))}
-        <span className="ml-2 flex items-center gap-1.5">
-          <span className="inline-block h-2.5 w-2.5 rounded-sm border-2 border-gray-400 bg-gray-100" />
-          Pendiente (fondo claro)
-        </span>
+        <div className="h-20" />
       </div>
-
-      {/* ── Calendario ───────────────────────────────────────────────────── */}
-      <div className="rounded-xl border border-gray-200 bg-white p-1 shadow-sm">
-        <FullCalendar
-          plugins={[dayGridPlugin, listPlugin, interactionPlugin]}
-          initialView="dayGridMonth"
-          locale={esLocale}
-          events={events}
-          datesSet={handleDatesSet}
-          eventClick={handleEventClick}
-          dateClick={handleDateClick}
-          headerToolbar={{
-            left: "prev,next today",
-            center: "title",
-            right: "dayGridMonth,dayGridWeek,listMonth",
-          }}
-          buttonText={{
-            today: "Hoy",
-            month: "Mes",
-            week: "Semana",
-            list: "Lista",
-          }}
-          height="auto"
-          eventDisplay="block"
-          dayMaxEvents={3}
-          moreLinkText={(n) => `+${n} más`}
-          nowIndicator
-          selectable
-          eventTimeFormat={{ hour: undefined, minute: undefined }}
-          eventClassNames="cursor-pointer rounded-md text-xs font-medium px-1"
-          dayCellClassNames="hover:bg-gray-50 transition-colors"
-        />
-      </div>
-
-      {/* ── Modals ───────────────────────────────────────────────────────── */}
-      {eventoModal && (
-        <EventoModal
-          reserva={eventoModal}
-          onClose={() => setEventoModal(null)}
-        />
-      )}
-      {nuevaFecha && (
-        <NuevaReservaModal
-          fecha={nuevaFecha}
-          quintas={quintas}
-          onClose={() => setNuevaFecha(null)}
-        />
-      )}
     </div>
   );
 }
