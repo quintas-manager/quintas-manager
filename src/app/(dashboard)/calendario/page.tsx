@@ -47,6 +47,8 @@ async function getInitialData(): Promise<{
     sena: r.sena ? Number(r.sena) : null,
     notas: r.notas,
     motivoEvento: r.motivoEvento,
+    cantidadPersonas: r.cantidadPersonas,
+    tieneMascota: r.tieneMascota,
   }));
 
   return { reservas, quintas: rawQuintas };
