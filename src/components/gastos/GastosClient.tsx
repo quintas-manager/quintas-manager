@@ -2,7 +2,6 @@
 
 import { useState, useTransition } from "react";
 import { useRouter, useSearchParams, usePathname } from "next/navigation";
-import Link from "next/link";
 import {
   Plus,
   Pencil,
@@ -540,8 +539,6 @@ export function GastosClient({
     next.set("view", v);
     router.push(`${pathname}?${next.toString()}`);
   };
-
-  const reintegrosPendientesTotal = reintegros.reduce((s, p) => s + p.total, 0);
 
   return (
     <div className="space-y-5">

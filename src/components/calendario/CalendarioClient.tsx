@@ -6,7 +6,7 @@ import listPlugin from "@fullcalendar/list";
 import interactionPlugin, { DateClickArg } from "@fullcalendar/interaction";
 import type { DatesSetArg, EventClickArg } from "@fullcalendar/core";
 import esLocale from "@fullcalendar/core/locales/es";
-import { useCallback, useMemo, useRef, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { format, parseISO, addDays } from "date-fns";
 import { es } from "date-fns/locale";
 import { useRouter } from "next/navigation";
