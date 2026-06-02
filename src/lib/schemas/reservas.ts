@@ -25,6 +25,33 @@ export const reservaSchema = z
 
 export type ReservaFormValues = z.infer<typeof reservaSchema>;
 
+export const reservaPendienteSchema = z
+  .object({
+    quintaId:         z.string().min(1, "Seleccioná una quinta"),
+    clienteId:        z.string().min(1, "Seleccioná un cliente"),
+    fechaInicio:      z.string().min(1, "La fecha de inicio es requerida"),
+    fechaFin:         z.string().min(1, "La fecha de fin es requerida"),
+    tipoAlquiler:     z.enum(["DIA", "FIN_DE_SEMANA", "SEMANA", "QUINCENA", "MES"], {
+      error: "Seleccioná un tipo de alquiler",
+    }),
+    notas:            z.string().optional(),
+    tieneMascota:     z.boolean().optional(),
+    cantidadPersonas: z.number().int().min(1).nullable().optional(),
+  })
+  .refine((d) => new Date(d.fechaFin) >= new Date(d.fechaInicio), {
+    message: "La fecha de fin debe ser igual o posterior a la de inicio",
+    path: ["fechaFin"],
+  });
+
+export type ReservaPendienteFormValues = z.infer<typeof reservaPendienteSchema>;
+
+export const confirmarConMontoSchema = z.object({
+  montoTotal:     z.number().min(1, "El monto debe ser mayor a 0"),
+  sena:           z.number().min(0).nullable().optional(),
+  metodoPagoSeña: z.enum(["EFECTIVO", "TRANSFERENCIA", "TARJETA", "MERCADOPAGO"]).optional(),
+});
+export type ConfirmarConMontoValues = z.infer<typeof confirmarConMontoSchema>;
+
 export const cancelarSchema = z.object({
   motivo: z.string().min(10, "Describí el motivo (mínimo 10 caracteres)"),
 });

@@ -5,11 +5,10 @@ import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import { useCallback, useState } from "react";
 import { format, parseISO } from "date-fns";
 import { es } from "date-fns/locale";
-import { toast } from "sonner";
 import { Eye, Pencil, XCircle, ChevronLeft, ChevronRight, Search } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { confirmarReserva } from "@/lib/actions/reservas";
 import { CancelarModal } from "./CancelarModal";
+import { ConfirmarConMontoModal } from "./ConfirmarConMontoModal";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -84,7 +83,8 @@ export function ReservasTable({
   const [desde,   setDesde]   = useState(defaultFiltros.desde   ?? "");
   const [hasta,   setHasta]   = useState(defaultFiltros.hasta   ?? "");
 
-  const [cancelModal, setCancelModal] = useState<{ id: string; nombre: string } | null>(null);
+  const [cancelModal,   setCancelModal]   = useState<{ id: string; nombre: string } | null>(null);
+  const [confirmarModal, setConfirmarModal] = useState<{ id: string; nombre: string } | null>(null);
 
   const totalPages = Math.ceil(total / pageSize);
 
@@ -107,12 +107,6 @@ export function ReservasTable({
   const clearFiltros = () => {
     setQuinta(""); setEstado(""); setDesde(""); setHasta("");
     router.push(pathname);
-  };
-
-  const handleConfirmar = async (id: string) => {
-    const result = await confirmarReserva(id);
-    if (result.success) toast.success("Reserva confirmada");
-    else toast.error(result.error ?? "Error al confirmar");
   };
 
   const selectCls =
@@ -227,7 +221,11 @@ export function ReservasTable({
                         {r.sena != null ? formatMonto(r.sena) : "—"}
                       </td>
                       <td className="px-4 py-3">
-                        <span className={cn("inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium", estado.cls)}>
+                        <span className={cn(
+                          "inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium",
+                          estado.cls,
+                          r.estado === "PENDIENTE" && "font-semibold ring-2"
+                        )}>
                           {estado.label}
                         </span>
                       </td>
@@ -252,7 +250,12 @@ export function ReservasTable({
                           {r.estado === "PENDIENTE" && (
                             <button
                               title="Confirmar"
-                              onClick={() => handleConfirmar(r.id)}
+                              onClick={() =>
+                                setConfirmarModal({
+                                  id: r.id,
+                                  nombre: `${r.clienteNombre} ${r.clienteApellido}`,
+                                })
+                              }
                               className="rounded-lg px-2 py-1 text-xs font-medium text-green-700 hover:bg-green-50 transition"
                             >
                               Confirmar
@@ -314,6 +317,14 @@ export function ReservasTable({
           clienteNombre={cancelModal.nombre}
           onClose={() => setCancelModal(null)}
           onSuccess={() => setCancelModal(null)}
+        />
+      )}
+      {confirmarModal && (
+        <ConfirmarConMontoModal
+          reservaId={confirmarModal.id}
+          clienteNombre={confirmarModal.nombre}
+          onClose={() => setConfirmarModal(null)}
+          onSuccess={() => setConfirmarModal(null)}
         />
       )}
     </div>

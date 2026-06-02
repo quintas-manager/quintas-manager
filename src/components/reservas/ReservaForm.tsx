@@ -28,6 +28,7 @@ interface ReservaFormProps {
   clientes: ClienteOption[];
   defaultValues?: Partial<ReservaFormValues> & { id?: string };
   mode: "crear" | "editar";
+  forceEstado?: "CONFIRMADA" | "PENDIENTE";
 }
 
 // ── Constants ────────────────────────────────────────────────────────────────
@@ -83,6 +84,7 @@ export function ReservaForm({
   clientes: initialClientes,
   defaultValues,
   mode,
+  forceEstado,
 }: ReservaFormProps) {
   const router    = useRouter();
   const reservaId = defaultValues?.id;
@@ -96,7 +98,7 @@ export function ReservaForm({
     formState: { errors, isSubmitting },
   } = useForm<ReservaFormValues>({
     resolver: zodResolver(reservaSchema),
-    defaultValues: { estado: "PENDIENTE" as const, tieneMascota: false, ...defaultValues },
+    defaultValues: { estado: "PENDIENTE" as const, tieneMascota: false, ...defaultValues, ...(forceEstado ? { estado: forceEstado } : {}) },
   });
 
   const [disponibilidad, setDisponibilidad] = useState<
@@ -421,7 +423,7 @@ export function ReservaForm({
       <section className="rounded-xl border border-gray-200 bg-white p-5">
         <h2 className="text-sm font-semibold text-gray-900 mb-4">Detalles adicionales</h2>
         <div className="space-y-4">
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div className={cn("grid grid-cols-1 gap-4", forceEstado ? "sm:grid-cols-1" : "sm:grid-cols-2")}>
             <div>
               <Label>Motivo del evento</Label>
               <input
@@ -430,15 +432,17 @@ export function ReservaForm({
                 className={inputCls(errors.motivoEvento?.message)}
               />
             </div>
-            <div>
-              <Label required>Estado</Label>
-              <select {...register("estado")} className={inputCls(errors.estado?.message)}>
-                {ESTADO_OPTIONS.map((o) => (
-                  <option key={o.value} value={o.value}>{o.label}</option>
-                ))}
-              </select>
-              <FieldError msg={errors.estado?.message} />
-            </div>
+            {!forceEstado && (
+              <div>
+                <Label required>Estado</Label>
+                <select {...register("estado")} className={inputCls(errors.estado?.message)}>
+                  {ESTADO_OPTIONS.map((o) => (
+                    <option key={o.value} value={o.value}>{o.label}</option>
+                  ))}
+                </select>
+                <FieldError msg={errors.estado?.message} />
+              </div>
+            )}
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">

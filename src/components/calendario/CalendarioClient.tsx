@@ -19,6 +19,7 @@ import {
   FileText,
   Gift,
   Loader2,
+  CalendarPlus,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { QuintaBasic, ReservaEvento } from "@/types/calendario";
@@ -282,22 +283,30 @@ function NuevaReservaModal({
         </div>
 
         {/* Footer */}
-        <div className="flex gap-2 border-t border-gray-100 px-5 py-3">
+        <div className="flex flex-col gap-2 border-t border-gray-100 px-5 py-3">
           <button
-            onClick={onClose}
-            className="flex-1 rounded-lg border border-gray-200 px-4 py-2 text-sm font-medium text-gray-700 transition hover:bg-gray-50"
+            onClick={() =>
+              router.push(`/reservas/nueva?fecha=${fecha}&quintaId=${quintaId}`)
+            }
+            className="flex w-full items-center justify-center gap-2 rounded-lg bg-gray-900 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-gray-700"
           >
-            Cancelar
+            <CalendarPlus className="h-4 w-4" />
+            Reserva Confirmada
           </button>
           <button
             onClick={() =>
-              router.push(
-                `/reservas/nueva?fecha=${fecha}&quintaId=${quintaId}`
-              )
+              router.push(`/reservas/pendiente?fecha=${fecha}&quintaId=${quintaId}`)
             }
-            className="flex-1 rounded-lg bg-gray-900 px-4 py-2 text-sm font-medium text-white transition hover:bg-gray-700"
+            className="flex w-full items-center justify-center gap-2 rounded-lg border border-amber-300 bg-amber-50 px-4 py-2.5 text-sm font-medium text-amber-800 transition hover:bg-amber-100"
           >
-            Continuar →
+            <Clock className="h-4 w-4" />
+            Reserva Pendiente
+          </button>
+          <button
+            onClick={onClose}
+            className="w-full rounded-lg border border-gray-200 px-4 py-2 text-sm font-medium text-gray-500 transition hover:bg-gray-50"
+          >
+            Cancelar
           </button>
         </div>
       </div>

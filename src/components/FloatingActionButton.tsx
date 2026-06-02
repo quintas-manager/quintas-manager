@@ -2,13 +2,14 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Plus, CalendarPlus, Receipt, Wallet, X } from "lucide-react";
+import { Plus, CalendarPlus, Clock, Receipt, Wallet, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const ACTIONS = [
-  { label: "Nueva Reserva", icon: CalendarPlus, href: "/reservas/nueva" },
-  { label: "Agregar Gasto", icon: Receipt,      href: "/gastos/nueva" },
-  { label: "Registrar Pago", icon: Wallet,      href: "/pagos/nueva" },
+  { label: "Nueva Reserva",     icon: CalendarPlus, href: "/reservas/nueva",     color: "text-green-600" },
+  { label: "Reserva Pendiente", icon: Clock,        href: "/reservas/pendiente", color: "text-amber-500" },
+  { label: "Agregar Gasto",     icon: Receipt,      href: "/gastos/nueva",       color: "text-gray-700" },
+  { label: "Registrar Pago",    icon: Wallet,       href: "/pagos/nueva",        color: "text-gray-700" },
 ] as const;
 
 export function FloatingActionButton() {
@@ -51,7 +52,7 @@ export function FloatingActionButton() {
                 setOpen(false);
                 router.push(action.href);
               }}
-              className="flex h-11 w-11 items-center justify-center rounded-full bg-white shadow-md border border-gray-200 text-gray-700 hover:bg-gray-50 transition"
+              className={cn("flex h-11 w-11 items-center justify-center rounded-full bg-white shadow-md border border-gray-200 hover:bg-gray-50 transition", action.color)}
               aria-label={action.label}
             >
               <Icon className="h-5 w-5" />

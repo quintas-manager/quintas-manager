@@ -1,11 +1,11 @@
 import Link from "next/link";
 import { ChevronLeft } from "lucide-react";
 import { prisma } from "@/lib/prisma";
-import { ReservaForm } from "@/components/reservas/ReservaForm";
+import { ReservaPendienteForm } from "@/components/reservas/ReservaPendienteForm";
 
 interface SearchParams { fecha?: string; quintaId?: string }
 
-export default async function NuevaReservaPage({
+export default async function ReservaPendientePage({
   searchParams,
 }: {
   searchParams: SearchParams;
@@ -41,17 +41,15 @@ export default async function NuevaReservaPage({
           <ChevronLeft className="h-5 w-5" />
         </Link>
         <div>
-          <h2 className="text-lg font-semibold text-gray-900">Nueva Reserva</h2>
-          <p className="text-sm text-gray-500">Se creará directamente como confirmada</p>
+          <h2 className="text-lg font-semibold text-gray-900">Reserva Pendiente</h2>
+          <p className="text-sm text-gray-500">Reserva tentativa — bloqueará las fechas hasta confirmar</p>
         </div>
       </div>
 
-      <ReservaForm
+      <ReservaPendienteForm
         quintas={quintas}
         clientes={clientes}
         defaultValues={defaultValues}
-        mode="crear"
-        forceEstado="CONFIRMADA"
       />
     </div>
   );
