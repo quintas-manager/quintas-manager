@@ -297,7 +297,6 @@ type MonthEntry = { year: number; month: number };
 
 export function CalendarioClient({
   initialReservas,
-  quintas: _quintas,
 }: CalendarioClientProps) {
   const now = new Date();
   const cy  = now.getFullYear();
