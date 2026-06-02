@@ -7,7 +7,7 @@ import { es } from "date-fns/locale";
 import { toast } from "sonner";
 import { Loader2, Send, Save, AlertTriangle } from "lucide-react";
 import { crearCronograma } from "@/lib/actions/limpieza";
-import type { ContactoConfig } from "@/lib/actions/limpieza";
+import type { ContactoConfig } from "@/lib/limpieza-config";
 
 interface Lugar {
   id:     string;

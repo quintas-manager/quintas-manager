@@ -7,7 +7,7 @@ import { toast } from "sonner";
 import { format, parseISO } from "date-fns";
 import { es } from "date-fns/locale";
 import { marcarEnviado } from "@/lib/actions/limpieza";
-import type { ContactoConfig } from "@/lib/actions/limpieza";
+import type { ContactoConfig } from "@/lib/limpieza-config";
 
 interface Props {
   cronogramaId: string;

@@ -5,7 +5,7 @@ import Link from "next/link";
 import { Settings, X, Loader2, CheckCircle2, Clock, Send } from "lucide-react";
 import { toast } from "sonner";
 import { setContactos } from "@/lib/actions/limpieza";
-import type { ContactoConfig } from "@/lib/actions/limpieza";
+import type { ContactoConfig } from "@/lib/limpieza-config";
 import { format, parseISO, addDays } from "date-fns";
 import { es } from "date-fns/locale";
 

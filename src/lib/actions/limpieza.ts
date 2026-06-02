@@ -3,6 +3,8 @@
 import { revalidatePath } from "next/cache";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { CONTACTOS_KEYS } from "@/lib/limpieza-config";
+export type { ContactoConfig } from "@/lib/limpieza-config";
 
 type Ok<T> = { success: true; data: T };
 type Err  = { success: false; error: string };
@@ -125,20 +127,6 @@ export async function setConfiguracion(
 }
 
 // ── Contactos múltiples ───────────────────────────────────────────────────────
-
-export interface ContactoConfig {
-  key:    string;
-  nombre: string;
-  numero: string;
-}
-
-export const CONTACTOS_KEYS: { key: string; nombre: string }[] = [
-  { key: "whatsapp_silvana", nombre: "Silvana" },
-  { key: "whatsapp_martin",  nombre: "Martín" },
-  { key: "whatsapp_matias",  nombre: "Matías" },
-  { key: "whatsapp_rocio",   nombre: "Rocío" },
-  { key: "whatsapp_german",  nombre: "Germán" },
-];
 
 export async function getContactos(): Promise<ContactoConfig[]> {
   const claves  = CONTACTOS_KEYS.map((c) => c.key);
