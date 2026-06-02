@@ -1,17 +1,17 @@
 import Link from "next/link";
 import { ChevronLeft } from "lucide-react";
 import { prisma } from "@/lib/prisma";
-import { getConfiguracion } from "@/lib/actions/limpieza";
+import { getContactos } from "@/lib/actions/limpieza";
 import { NuevoCronogramaForm } from "@/components/limpieza/NuevoCronogramaForm";
 
 export default async function NuevoCronogramaPage() {
-  const [lugares, numeroSilvana] = await Promise.all([
+  const [lugares, contactos] = await Promise.all([
     prisma.lugarLimpieza.findMany({
       where: { activo: true },
       orderBy: { orden: "asc" },
       select: { id: true, nombre: true },
     }),
-    getConfiguracion("whatsapp_silvana"),
+    getContactos(),
   ]);
 
   return (
@@ -29,7 +29,7 @@ export default async function NuevoCronogramaPage() {
         </div>
       </div>
 
-      <NuevoCronogramaForm lugares={lugares} numeroSilvana={numeroSilvana} />
+      <NuevoCronogramaForm lugares={lugares} contactos={contactos} />
     </div>
   );
 }

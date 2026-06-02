@@ -4,7 +4,7 @@ import { ChevronLeft, Edit2 } from "lucide-react";
 import { format, addDays } from "date-fns";
 import { es } from "date-fns/locale";
 import { prisma } from "@/lib/prisma";
-import { getConfiguracion } from "@/lib/actions/limpieza";
+import { getContactos } from "@/lib/actions/limpieza";
 import { DetalleCronogramaClient } from "@/components/limpieza/DetalleCronogramaClient";
 
 const DIAS = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes"];
@@ -14,7 +14,7 @@ export default async function DetalleCronogramaPage({
 }: {
   params: { id: string };
 }) {
-  const [cronograma, numeroSilvana] = await Promise.all([
+  const [cronograma, contactos] = await Promise.all([
     prisma.cronogramaLimpieza.findUnique({
       where: { id: params.id },
       include: {
@@ -22,26 +22,25 @@ export default async function DetalleCronogramaPage({
         dias: {
           orderBy: { diaSemana: "asc" },
           include: {
-            lugarPrincipal: { select: { nombre: true } },
+            lugarPrincipal:  { select: { nombre: true } },
             lugarSecundario: { select: { nombre: true } },
           },
         },
       },
     }),
-    getConfiguracion("whatsapp_silvana"),
+    getContactos(),
   ]);
 
   if (!cronograma) notFound();
 
   const lunes   = cronograma.semanaInicio;
   const viernes = addDays(lunes, 4);
-
   const preview = buildPreview(lunes, viernes, cronograma.dias);
 
   const diasSerializable = cronograma.dias.map((d) => ({
-    diaSemana:         d.diaSemana,
-    lugarPrincipal:    d.lugarPrincipal.nombre,
-    lugarSecundario:   d.lugarSecundario?.nombre ?? null,
+    diaSemana:       d.diaSemana,
+    lugarPrincipal:  d.lugarPrincipal.nombre,
+    lugarSecundario: d.lugarSecundario?.nombre ?? null,
   }));
 
   return (
@@ -80,22 +79,18 @@ export default async function DetalleCronogramaPage({
 
       {/* Estado */}
       <div className="rounded-2xl border border-gray-200 bg-white p-5">
-        <div className="flex items-center justify-between">
-          <div>
-            <p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-1">Estado</p>
-            {cronograma.enviado ? (
-              <span className="inline-flex items-center gap-1.5 rounded-full bg-green-100 px-3 py-1 text-sm font-medium text-green-700">
-                <span className="h-1.5 w-1.5 rounded-full bg-green-500" />
-                Enviado el {format(cronograma.fechaEnvio!, "d/MM/yyyy 'a las' HH:mm", { locale: es })}
-              </span>
-            ) : (
-              <span className="inline-flex items-center gap-1.5 rounded-full bg-yellow-100 px-3 py-1 text-sm font-medium text-yellow-700">
-                <span className="h-1.5 w-1.5 rounded-full bg-yellow-500" />
-                Borrador
-              </span>
-            )}
-          </div>
-        </div>
+        <p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-1">Estado</p>
+        {cronograma.enviado ? (
+          <span className="inline-flex items-center gap-1.5 rounded-full bg-green-100 px-3 py-1 text-sm font-medium text-green-700">
+            <span className="h-1.5 w-1.5 rounded-full bg-green-500" />
+            Enviado el {format(cronograma.fechaEnvio!, "d/MM/yyyy 'a las' HH:mm", { locale: es })}
+          </span>
+        ) : (
+          <span className="inline-flex items-center gap-1.5 rounded-full bg-yellow-100 px-3 py-1 text-sm font-medium text-yellow-700">
+            <span className="h-1.5 w-1.5 rounded-full bg-yellow-500" />
+            Borrador
+          </span>
+        )}
       </div>
 
       {/* Tabla días */}
@@ -137,8 +132,9 @@ export default async function DetalleCronogramaPage({
       <DetalleCronogramaClient
         cronogramaId={cronograma.id}
         enviado={cronograma.enviado}
+        fechaEnvio={cronograma.fechaEnvio?.toISOString() ?? null}
         preview={preview}
-        numeroSilvana={numeroSilvana}
+        contactos={contactos}
       />
     </div>
   );
@@ -147,7 +143,11 @@ export default async function DetalleCronogramaPage({
 function buildPreview(
   lunes: Date,
   viernes: Date,
-  dias: { diaSemana: number; lugarPrincipal: { nombre: string }; lugarSecundario: { nombre: string } | null }[],
+  dias: {
+    diaSemana: number;
+    lugarPrincipal: { nombre: string };
+    lugarSecundario: { nombre: string } | null;
+  }[],
 ) {
   const fmtD = (d: Date) => format(d, "d 'de' MMMM", { locale: es });
   const lineas = DIAS.map((nombre, i) => {
@@ -156,5 +156,5 @@ function buildPreview(
     const sec = d.lugarSecundario ? ` (+ ${d.lugarSecundario.nombre})` : "";
     return `${nombre}: ${d.lugarPrincipal.nombre}${sec}`;
   });
-  return `📅 Cronograma semana del ${fmtD(lunes)} al ${fmtD(viernes)}\n\n${lineas.join("\n")}\n\n¡Gracias Silvana! 🙏`;
+  return `📅 Cronograma de limpieza - semana del ${fmtD(lunes)} al ${fmtD(viernes)}\n\n${lineas.join("\n")}\n\n¡Gracias! 🙏`;
 }

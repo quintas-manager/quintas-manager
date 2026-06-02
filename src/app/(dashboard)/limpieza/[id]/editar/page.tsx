@@ -2,7 +2,7 @@ import { notFound } from "next/navigation";
 import Link from "next/link";
 import { ChevronLeft } from "lucide-react";
 import { prisma } from "@/lib/prisma";
-import { getConfiguracion } from "@/lib/actions/limpieza";
+import { getContactos } from "@/lib/actions/limpieza";
 import { NuevoCronogramaForm } from "@/components/limpieza/NuevoCronogramaForm";
 import { format } from "date-fns";
 
@@ -11,7 +11,7 @@ export default async function EditarCronogramaPage({
 }: {
   params: { id: string };
 }) {
-  const [cronograma, lugares, numeroSilvana] = await Promise.all([
+  const [cronograma, lugares, contactos] = await Promise.all([
     prisma.cronogramaLimpieza.findUnique({
       where: { id: params.id },
       include: {
@@ -23,7 +23,7 @@ export default async function EditarCronogramaPage({
       orderBy: { orden: "asc" },
       select: { id: true, nombre: true },
     }),
-    getConfiguracion("whatsapp_silvana"),
+    getContactos(),
   ]);
 
   if (!cronograma) notFound();
@@ -51,7 +51,7 @@ export default async function EditarCronogramaPage({
 
       <NuevoCronogramaForm
         lugares={lugares}
-        numeroSilvana={numeroSilvana}
+        contactos={contactos}
         cronogramaId={params.id}
         defaultFecha={defaultFecha}
         defaultDias={defaultDias}

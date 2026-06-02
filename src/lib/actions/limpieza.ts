@@ -123,3 +123,50 @@ export async function setConfiguracion(
 
   return { success: true, data: undefined };
 }
+
+// ── Contactos múltiples ───────────────────────────────────────────────────────
+
+export interface ContactoConfig {
+  key:    string;
+  nombre: string;
+  numero: string;
+}
+
+export const CONTACTOS_KEYS: { key: string; nombre: string }[] = [
+  { key: "whatsapp_silvana", nombre: "Silvana" },
+  { key: "whatsapp_martin",  nombre: "Martín" },
+  { key: "whatsapp_matias",  nombre: "Matías" },
+  { key: "whatsapp_rocio",   nombre: "Rocío" },
+  { key: "whatsapp_german",  nombre: "Germán" },
+];
+
+export async function getContactos(): Promise<ContactoConfig[]> {
+  const claves  = CONTACTOS_KEYS.map((c) => c.key);
+  const configs = await prisma.configuracionApp.findMany({
+    where: { clave: { in: claves } },
+  });
+  const map = Object.fromEntries(configs.map((c) => [c.clave, c.valor]));
+  return CONTACTOS_KEYS.map((c) => ({
+    key:    c.key,
+    nombre: c.nombre,
+    numero: map[c.key] ?? "",
+  }));
+}
+
+export async function setContactos(
+  contactos: { key: string; numero: string }[],
+): Promise<Result> {
+  await getSession();
+
+  await Promise.all(
+    contactos.map(({ key, numero }) =>
+      prisma.configuracionApp.upsert({
+        where:  { clave: key },
+        update: { valor: numero },
+        create: { clave: key, valor: numero },
+      }),
+    ),
+  );
+
+  return { success: true, data: undefined };
+}

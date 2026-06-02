@@ -7,6 +7,7 @@ import { es } from "date-fns/locale";
 import { toast } from "sonner";
 import { Loader2, Send, Save, AlertTriangle } from "lucide-react";
 import { crearCronograma } from "@/lib/actions/limpieza";
+import type { ContactoConfig } from "@/lib/actions/limpieza";
 
 interface Lugar {
   id:     string;
@@ -33,48 +34,51 @@ const selectCls =
   "w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-900 outline-none focus:border-gray-400 focus:ring-2 focus:ring-gray-100 transition";
 
 interface Props {
-  lugares:       Lugar[];
-  numeroSilvana: string;
-  // For edit mode
-  cronogramaId?:      string;
-  defaultFecha?:      string;
-  defaultDias?:       DiaState[];
+  lugares:    Lugar[];
+  contactos:  ContactoConfig[];
+  cronogramaId?:  string;
+  defaultFecha?:  string;
+  defaultDias?:   DiaState[];
 }
 
 export function NuevoCronogramaForm({
   lugares,
-  numeroSilvana,
+  contactos,
   cronogramaId,
   defaultFecha = "",
   defaultDias,
 }: Props) {
   const router = useRouter();
+
   const emptyDias: DiaState[] = Array.from({ length: 5 }, () => ({
     lugarPrincipalId: "",
     lugarSecundarioId: "",
   }));
 
-  const [fechaStr, setFechaStr]     = useState(defaultFecha);
-  const [dias, setDias]             = useState<DiaState[]>(defaultDias ?? emptyDias);
+  const [fechaStr,    setFechaStr]    = useState(defaultFecha);
+  const [dias,        setDias]        = useState<DiaState[]>(defaultDias ?? emptyDias);
   const [isSubmitting, setSubmitting] = useState(false);
 
   const lunes   = useMemo(() => (fechaStr ? getLunes(fechaStr) : null), [fechaStr]);
   const viernes = useMemo(() => (lunes ? addDays(lunes, 4) : null), [lunes]);
 
+  const configurados = contactos.filter((c) => c.numero.replace(/\D/g, "").length > 0);
+
   const updateDia = (idx: number, field: keyof DiaState, value: string) => {
-    setDias((prev) =>
-      prev.map((d, i) => (i === idx ? { ...d, [field]: value } : d))
-    );
+    setDias((prev) => prev.map((d, i) => (i === idx ? { ...d, [field]: value } : d)));
   };
 
-  // Warn if same lugar used as principal more than once
   const duplicados = useMemo(() => {
     const counts: Record<string, number> = {};
     for (const d of dias) {
       if (d.lugarPrincipalId)
         counts[d.lugarPrincipalId] = (counts[d.lugarPrincipalId] ?? 0) + 1;
     }
-    return new Set(Object.entries(counts).filter(([, n]) => n > 1).map(([id]) => id));
+    return new Set(
+      Object.entries(counts)
+        .filter(([, n]) => n > 1)
+        .map(([id]) => id),
+    );
   }, [dias]);
 
   const preview = useMemo(() => {
@@ -88,7 +92,7 @@ export function NuevoCronogramaForm({
         : null;
       return `${nombre}: ${principal}${secundario ? ` (+ ${secundario})` : ""}`;
     });
-    return `📅 Cronograma semana del ${fmtD(lunes)} al ${fmtD(viernes)}\n\n${lineas.join("\n")}\n\n¡Gracias Silvana! 🙏`;
+    return `📅 Cronograma de limpieza - semana del ${fmtD(lunes)} al ${fmtD(viernes)}\n\n${lineas.join("\n")}\n\n¡Gracias! 🙏`;
   }, [lunes, viernes, dias, lugares]);
 
   const handleSubmit = async (enviar: boolean) => {
@@ -96,6 +100,18 @@ export function NuevoCronogramaForm({
     if (dias.some((d) => !d.lugarPrincipalId)) {
       toast.error("Completá el lugar principal de cada día");
       return;
+    }
+
+    // Open WhatsApp windows synchronously BEFORE any async operation
+    if (enviar) {
+      if (configurados.length === 0) {
+        toast.warning("No hay contactos configurados. Se guardará el cronograma sin enviar.");
+      } else {
+        configurados.forEach((c) => {
+          const n = c.numero.replace(/\D/g, "");
+          window.open(`https://wa.me/${n}?text=${encodeURIComponent(preview)}`, "_blank");
+        });
+      }
     }
 
     setSubmitting(true);
@@ -112,25 +128,17 @@ export function NuevoCronogramaForm({
 
       const result = cronogramaId
         ? await import("@/lib/actions/limpieza").then((m) =>
-            m.actualizarCronograma(cronogramaId, payload)
+            m.actualizarCronograma(cronogramaId, payload),
           )
         : await crearCronograma(payload);
 
       if (!result.success) { toast.error("Error al guardar"); return; }
 
-      if (enviar) {
-        const numero = numeroSilvana.replace(/\D/g, "");
-        if (!numero) {
-          toast.warning("Guardado. Configurá el número de Silvana para enviar por WhatsApp.");
-        } else {
-          window.open(
-            `https://wa.me/${numero}?text=${encodeURIComponent(preview)}`,
-            "_blank"
-          );
-        }
+      if (enviar && configurados.length > 0) {
+        toast.success(`Cronograma enviado a ${configurados.length} contacto${configurados.length !== 1 ? "s" : ""}`);
+      } else {
+        toast.success("Borrador guardado");
       }
-
-      toast.success(enviar ? "Cronograma enviado" : "Borrador guardado");
       router.push("/limpieza");
     } catch {
       toast.error("Error inesperado");
@@ -143,9 +151,7 @@ export function NuevoCronogramaForm({
     <div className="space-y-5">
       {/* Semana picker */}
       <div className="rounded-2xl border border-gray-200 bg-white p-5">
-        <label className="block text-xs font-medium text-gray-700 mb-1.5">
-          Semana
-        </label>
+        <label className="block text-xs font-medium text-gray-700 mb-1.5">Semana</label>
         <input
           type="date"
           value={fechaStr}
@@ -172,44 +178,43 @@ export function NuevoCronogramaForm({
             const d = dias[i];
             const isDup = d.lugarPrincipalId && duplicados.has(d.lugarPrincipalId);
             return (
-              <div key={nombre} className="grid grid-cols-[100px_1fr_1fr] items-center gap-4 px-5 py-3">
+              <div
+                key={nombre}
+                className="grid grid-cols-[100px_1fr_1fr] items-center gap-4 px-5 py-3"
+              >
                 <div className="flex items-center gap-2">
                   <span className="text-sm font-medium text-gray-700">{nombre}</span>
                   {isDup && (
                     <AlertTriangle className="h-3.5 w-3.5 text-orange-400 shrink-0" />
                   )}
                 </div>
-                <div>
-                  <select
-                    value={d.lugarPrincipalId}
-                    onChange={(e) => updateDia(i, "lugarPrincipalId", e.target.value)}
-                    className={selectCls}
-                  >
-                    <option value="">— Principal —</option>
-                    {lugares.map((l) => (
-                      <option key={l.id} value={l.id}>{l.nombre}</option>
-                    ))}
-                  </select>
-                </div>
-                <div>
-                  <select
-                    value={d.lugarSecundarioId}
-                    onChange={(e) => updateDia(i, "lugarSecundarioId", e.target.value)}
-                    className={selectCls}
-                  >
-                    <option value="">Ninguno</option>
-                    {lugares.map((l) => (
-                      <option key={l.id} value={l.id}>{l.nombre}</option>
-                    ))}
-                  </select>
-                </div>
+                <select
+                  value={d.lugarPrincipalId}
+                  onChange={(e) => updateDia(i, "lugarPrincipalId", e.target.value)}
+                  className={selectCls}
+                >
+                  <option value="">— Principal —</option>
+                  {lugares.map((l) => (
+                    <option key={l.id} value={l.id}>{l.nombre}</option>
+                  ))}
+                </select>
+                <select
+                  value={d.lugarSecundarioId}
+                  onChange={(e) => updateDia(i, "lugarSecundarioId", e.target.value)}
+                  className={selectCls}
+                >
+                  <option value="">Ninguno</option>
+                  {lugares.map((l) => (
+                    <option key={l.id} value={l.id}>{l.nombre}</option>
+                  ))}
+                </select>
               </div>
             );
           })}
         </div>
         {duplicados.size > 0 && (
           <div className="border-t border-orange-100 bg-orange-50 px-5 py-2.5">
-            <p className="text-xs text-orange-700 flex items-center gap-1.5">
+            <p className="flex items-center gap-1.5 text-xs text-orange-700">
               <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
               Hay lugares repetidos como principal en la misma semana.
             </p>
@@ -217,15 +222,20 @@ export function NuevoCronogramaForm({
         )}
       </div>
 
-      {/* Preview WhatsApp */}
+      {/* Preview del mensaje */}
       {preview && (
         <div className="rounded-2xl border border-green-200 bg-green-50 p-5">
-          <p className="text-xs font-semibold text-green-700 mb-2 uppercase tracking-wide">
+          <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-green-700">
             Preview del mensaje
           </p>
-          <pre className="whitespace-pre-wrap text-sm text-gray-800 font-sans leading-relaxed">
+          <pre className="whitespace-pre-wrap font-sans text-sm leading-relaxed text-gray-800">
             {preview}
           </pre>
+          {configurados.length > 0 && (
+            <p className="mt-3 text-xs text-green-600">
+              Se enviará a: {configurados.map((c) => c.nombre).join(", ")}
+            </p>
+          )}
         </div>
       )}
 
@@ -245,7 +255,12 @@ export function NuevoCronogramaForm({
           className="flex items-center gap-2 rounded-lg bg-green-700 px-4 py-2.5 text-sm font-medium text-white hover:bg-green-800 transition disabled:opacity-60"
         >
           {isSubmitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
-          Guardar y enviar por WhatsApp
+          Guardar y enviar
+          {configurados.length > 0 && (
+            <span className="rounded-full bg-green-600 px-1.5 py-0.5 text-xs font-semibold">
+              {configurados.length}
+            </span>
+          )}
         </button>
       </div>
     </div>

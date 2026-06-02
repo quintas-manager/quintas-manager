@@ -1,22 +1,22 @@
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
-import { getConfiguracion } from "@/lib/actions/limpieza";
+import { getContactos } from "@/lib/actions/limpieza";
 import { LimpiezaListClient } from "@/components/limpieza/LimpiezaListClient";
 import { Plus } from "lucide-react";
 
 export default async function LimpiezaPage() {
-  const [cronogramas, numeroSilvana] = await Promise.all([
+  const [cronogramas, contactos] = await Promise.all([
     prisma.cronogramaLimpieza.findMany({
       orderBy: { semanaInicio: "desc" },
       include: { creadoPor: { select: { name: true } } },
     }),
-    getConfiguracion("whatsapp_silvana"),
+    getContactos(),
   ]);
 
   const rows = cronogramas.map((c) => ({
     id:           c.id,
     semanaInicio: c.semanaInicio.toISOString(),
-    creadoPor:    c.creadoPor.name,
+    creadoPor:    c.creadoPor.name ?? "",
     enviado:      c.enviado,
     fechaEnvio:   c.fechaEnvio?.toISOString() ?? null,
     createdAt:    c.createdAt.toISOString(),
@@ -27,7 +27,7 @@ export default async function LimpiezaPage() {
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-lg font-semibold text-gray-900">Limpieza</h2>
-          <p className="text-sm text-gray-500 mt-0.5">Cronogramas semanales para Silvana</p>
+          <p className="text-sm text-gray-500 mt-0.5">Cronogramas semanales de limpieza</p>
         </div>
         <Link
           href="/limpieza/nueva"
@@ -38,7 +38,7 @@ export default async function LimpiezaPage() {
         </Link>
       </div>
 
-      <LimpiezaListClient cronogramas={rows} numeroSilvana={numeroSilvana} />
+      <LimpiezaListClient cronogramas={rows} contactos={contactos} />
     </div>
   );
 }
