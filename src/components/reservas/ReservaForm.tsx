@@ -196,7 +196,7 @@ export function ReservaForm({
   // ── Render ────────────────────────────────────────────────────────────────
 
   return (
-    <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+    <form onSubmit={handleSubmit(onSubmit)} className="space-y-6 pb-24 md:pb-6">
 
       {/* ── 1. Quinta ──────────────────────────────────────────────── */}
       <section className="rounded-xl border border-gray-200 bg-white p-5">
@@ -427,7 +427,33 @@ export function ReservaForm({
       </section>
 
       {/* ── Actions ────────────────────────────────────────────────── */}
-      <div className="flex justify-end gap-3">
+      {/* Mobile: full-width stacked buttons */}
+      <div className="flex flex-col gap-3 md:hidden">
+        <button
+          type="submit"
+          disabled={isSubmitting || disponibilidad === "ocupado"}
+          onPointerDown={(e) => e.preventDefault()}
+          onPointerUp={(e) => {
+            if (!isSubmitting && disponibilidad !== "ocupado") {
+              e.currentTarget.form?.requestSubmit();
+            }
+          }}
+          className="flex w-full min-h-[56px] items-center justify-center gap-2 rounded-xl bg-gray-900 text-base font-semibold text-white transition hover:bg-gray-700 disabled:cursor-not-allowed disabled:opacity-60 mb-6"
+        >
+          {isSubmitting && <Loader2 className="h-5 w-5 animate-spin" />}
+          {mode === "editar" ? "Guardar cambios" : "Crear reserva"}
+        </button>
+        <button
+          type="button"
+          onClick={() => router.back()}
+          className="w-full rounded-lg border border-gray-200 px-5 py-2.5 text-sm font-medium text-gray-700 transition hover:bg-gray-50"
+        >
+          Cancelar
+        </button>
+      </div>
+
+      {/* Desktop: inline end-aligned */}
+      <div className="hidden md:flex justify-end gap-3">
         <button
           type="button"
           onClick={() => router.back()}
@@ -444,6 +470,8 @@ export function ReservaForm({
           {mode === "editar" ? "Guardar cambios" : "Crear reserva"}
         </button>
       </div>
+
+      <div className="h-20 md:h-0" />
     </form>
   );
 }
