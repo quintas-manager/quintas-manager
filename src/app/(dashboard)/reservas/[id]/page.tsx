@@ -56,8 +56,7 @@ export default async function ReservaDetailPage({ params }: { params: { id: stri
   const isAdmin = session?.user.role === "ADMIN";
 
   const totalPagado = reserva.pagos.reduce((acc, p) => acc + Number(p.monto), 0);
-  const saldoPendiente =
-    Number(reserva.montoTotal) - (Number(reserva.sena) || 0) - totalPagado;
+  const saldoPendiente = Number(reserva.montoTotal) - totalPagado;
 
   return (
     <div className="max-w-2xl mx-auto space-y-5">
@@ -188,12 +187,13 @@ export default async function ReservaDetailPage({ params }: { params: { id: stri
           <dl>
             <InfoRow label="Monto total" value={formatMonto(Number(reserva.montoTotal))} />
             <InfoRow
-              label="Seña"
+              label="Seña acordada"
               value={reserva.sena ? formatMonto(Number(reserva.sena)) : "—"}
             />
-            {totalPagado > 0 && (
-              <InfoRow label="Pagos adicionales" value={formatMonto(totalPagado)} />
-            )}
+            <InfoRow
+              label="Total pagado"
+              value={formatMonto(totalPagado)}
+            />
             <InfoRow
               label="Saldo pendiente"
               value={
