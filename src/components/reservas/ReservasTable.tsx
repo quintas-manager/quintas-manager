@@ -101,6 +101,7 @@ function ReservaDrawer({
       <div
         className="absolute inset-0 bg-black/40 backdrop-blur-sm"
         onClick={onClose}
+        onPointerUp={onClose}
         aria-hidden="true"
       />
 
@@ -328,12 +329,14 @@ export function ReservasTable({
 
           <div className="flex gap-2 ml-auto">
             <button
+              type="button"
               onClick={clearFiltros}
               className="min-h-[40px] rounded-lg border border-gray-200 px-4 py-2 text-sm text-gray-500 hover:bg-gray-50 transition"
             >
               Limpiar
             </button>
             <button
+              type="button"
               onClick={applyFiltros}
               className="flex min-h-[40px] items-center gap-2 rounded-lg bg-gray-900 px-4 py-2 text-sm font-medium text-white hover:bg-gray-700 transition"
             >
@@ -373,8 +376,11 @@ export function ReservasTable({
                     return (
                       <tr
                         key={r.id}
+                        role="button"
+                        tabIndex={0}
                         className="hover:bg-gray-50 transition-colors cursor-pointer"
                         onClick={() => setDrawerReserva(r)}
+                        onKeyDown={(e) => e.key === "Enter" && setDrawerReserva(r)}
                       >
                         <td className="px-4 py-3 font-medium text-gray-900">
                           {r.clienteNombre} {r.clienteApellido}
@@ -451,9 +457,10 @@ export function ReservasTable({
                 const puedeEditar  = ["PENDIENTE", "CONFIRMADA"].includes(r.estado);
                 const puedeCancelar = puedeEditar;
                 return (
-                  <div
+                  <button
                     key={r.id}
-                    className="cursor-pointer p-4 hover:bg-gray-50 transition-colors"
+                    type="button"
+                    className="w-full text-left p-4 hover:bg-gray-50 transition-colors"
                     onClick={() => setDrawerReserva(r)}
                   >
                     {/* Top row */}
@@ -481,7 +488,7 @@ export function ReservasTable({
                     </div>
 
                     {/* Actions */}
-                    <div className="flex gap-2" onClick={(e) => e.stopPropagation()}>
+                    <div className="flex gap-2" onClick={(e) => e.stopPropagation()} onPointerUp={(e) => e.stopPropagation()}>
                       {puedeEditar && (
                         <Link
                           href={`/reservas/${r.id}/editar`}
@@ -509,7 +516,7 @@ export function ReservasTable({
                         </button>
                       )}
                     </div>
-                  </div>
+                  </button>
                 );
               })}
             </div>

@@ -33,7 +33,7 @@ export function FloatingActionButton() {
           "fixed inset-0 z-40 bg-white/95 transition-opacity duration-200",
           open ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none",
         )}
-        onClick={() => setOpen(false)}
+        onPointerUp={() => setOpen(false)}
         aria-hidden="true"
       />
 
@@ -77,7 +77,7 @@ export function FloatingActionButton() {
         {/* Main button */}
         <button
           type="button"
-          onClick={() => setOpen((v) => !v)}
+          onPointerUp={() => setOpen((v) => !v)}
           aria-label={open ? "Cerrar menú" : "Acciones rápidas"}
           className={cn(
             "flex h-14 w-14 items-center justify-center rounded-full shadow-lg transition-all duration-200",

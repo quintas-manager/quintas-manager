@@ -48,6 +48,7 @@ export function CerrarMesButton({
   return (
     <>
       <button
+        type="button"
         onClick={() => setOpen(true)}
         className="flex items-center gap-2 rounded-lg bg-gray-900 px-4 py-2 text-sm font-medium text-white hover:bg-gray-700 transition"
       >
@@ -57,7 +58,7 @@ export function CerrarMesButton({
 
       {open && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setOpen(false)} />
+          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setOpen(false)} onPointerUp={() => setOpen(false)} />
           <div className="relative w-full max-w-md rounded-2xl bg-white shadow-xl">
             <div className="border-b border-gray-100 px-5 py-4">
               <div className="flex items-center gap-2">
@@ -115,12 +116,14 @@ export function CerrarMesButton({
 
             <div className="flex gap-2 border-t border-gray-100 px-5 py-4">
               <button
+                type="button"
                 onClick={() => setOpen(false)}
                 className="flex-1 rounded-lg border border-gray-200 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 transition"
               >
                 Cancelar
               </button>
               <button
+                type="button"
                 onClick={handleCerrar}
                 disabled={loading}
                 className="flex-1 flex items-center justify-center gap-2 rounded-lg bg-gray-900 px-4 py-2 text-sm font-medium text-white hover:bg-gray-700 transition disabled:opacity-60"

@@ -10,6 +10,18 @@ body {
 
 * {
   box-sizing: border-box;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
+
+/* Restore scroll on scrollable containers */
+[style*="overflow"],
+.overflow-y-auto,
+.overflow-x-auto,
+.overflow-auto,
+.overflow-y-scroll,
+.overflow-x-scroll {
+  touch-action: pan-y;
 }
 
 /* Prevent iOS auto-zoom on input focus */

@@ -20,6 +20,7 @@ const geistMono = localFont({
 export const metadata: Metadata = {
   title: "Quintas Manager",
   description: "Gestión de reservas y gastos",
+  formatDetection: { telephone: false },
 };
 
 export const viewport: Viewport = {

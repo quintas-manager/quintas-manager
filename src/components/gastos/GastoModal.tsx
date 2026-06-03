@@ -117,7 +117,7 @@ export function GastoModal({ quintas, categorias, gasto, onClose }: Props) {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      <div className="fixed inset-0 bg-black/50 backdrop-blur-sm" onClick={onClose} />
+      <div className="fixed inset-0 bg-black/50 backdrop-blur-sm" onClick={onClose} onPointerUp={onClose} />
 
       <div className="relative w-full max-w-lg rounded-2xl bg-white shadow-xl">
         {/* Header */}
@@ -126,6 +126,7 @@ export function GastoModal({ quintas, categorias, gasto, onClose }: Props) {
             {isEdit ? "Editar gasto" : "Registrar gasto"}
           </h3>
           <button
+            type="button"
             onClick={onClose}
             className="rounded-lg p-1.5 text-gray-400 hover:bg-gray-100 transition"
           >
