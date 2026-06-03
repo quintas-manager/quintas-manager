@@ -38,7 +38,7 @@ export function FloatingActionButton() {
       />
 
       {/* FAB container — above overlay */}
-      <div ref={ref} className="fixed bottom-6 right-6 z-50 flex flex-col-reverse items-end gap-3">
+      <div ref={ref} className="fixed bottom-[76px] right-4 z-50 flex flex-col-reverse items-end gap-3 lg:bottom-6 lg:right-6">
         {/* Action items */}
         {ACTIONS.map((action, i) => {
           const Icon = action.icon;

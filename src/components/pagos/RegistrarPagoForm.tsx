@@ -189,68 +189,100 @@ export function RegistrarPagoForm({ clientes, defaultReservaId, defaultClienteId
             <p className="text-sm text-gray-400">Sin resultados para &ldquo;{query}&rdquo;</p>
           </div>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="bg-gray-50 border-b border-gray-100">
-                  {["Cliente", "Quinta", "Fechas", "Total", "Pagado", "Saldo"].map((h) => (
-                    <th key={h} className="px-4 py-2.5 text-left text-xs font-medium text-gray-500 whitespace-nowrap">
-                      {h}
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-50">
-                {filtered.map((r) => {
-                  const selected = selectedReserva?.id === r.id;
-                  return (
-                    <tr
-                      key={r.id}
-                      onClick={() => selectReserva(r)}
-                      className={cn(
-                        "cursor-pointer transition-colors",
-                        selected
-                          ? "bg-gray-900 text-white"
-                          : "hover:bg-gray-50"
-                      )}
-                    >
-                      <td className="px-4 py-3 font-medium whitespace-nowrap">
-                        {r.clienteNombre} {r.clienteApellido}
-                      </td>
-                      <td className="px-4 py-3">
-                        <div className="flex items-center gap-2">
-                          <span
-                            className="h-2.5 w-2.5 rounded-full shrink-0"
-                            style={{ backgroundColor: r.quintaColor }}
-                          />
-                          <span className={cn(selected ? "text-gray-200" : "text-gray-700")}>
-                            {r.quintaNombre}
+          <>
+            {/* ── Desktop table ─────────────────────────── */}
+            <div className="hidden md:block overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="bg-gray-50 border-b border-gray-100">
+                    {["Cliente", "Quinta", "Fechas", "Total", "Pagado", "Saldo"].map((h) => (
+                      <th key={h} className="px-4 py-2.5 text-left text-xs font-medium text-gray-500 whitespace-nowrap">
+                        {h}
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-50">
+                  {filtered.map((r) => {
+                    const selected = selectedReserva?.id === r.id;
+                    return (
+                      <tr
+                        key={r.id}
+                        onClick={() => selectReserva(r)}
+                        className={cn("cursor-pointer transition-colors", selected ? "bg-gray-900 text-white" : "hover:bg-gray-50")}
+                      >
+                        <td className="px-4 py-3 font-medium whitespace-nowrap">
+                          {r.clienteNombre} {r.clienteApellido}
+                        </td>
+                        <td className="px-4 py-3">
+                          <div className="flex items-center gap-2">
+                            <span className="h-2.5 w-2.5 rounded-full shrink-0" style={{ backgroundColor: r.quintaColor }} />
+                            <span className={cn(selected ? "text-gray-200" : "text-gray-700")}>{r.quintaNombre}</span>
+                          </div>
+                        </td>
+                        <td className={cn("px-4 py-3 whitespace-nowrap", selected ? "text-gray-300" : "text-gray-600")}>
+                          {formatFecha(r.fechaInicio)} → {formatFecha(r.fechaFin)}
+                        </td>
+                        <td className={cn("px-4 py-3 whitespace-nowrap", selected ? "text-gray-200" : "text-gray-700")}>
+                          {formatMonto(r.montoTotal)}
+                        </td>
+                        <td className={cn("px-4 py-3 whitespace-nowrap", selected ? "text-gray-300" : "text-gray-500")}>
+                          {formatMonto(r.senaYPagos)}
+                        </td>
+                        <td className="px-4 py-3 whitespace-nowrap">
+                          <span className={cn("font-semibold", selected ? "text-red-300" : "text-red-600")}>
+                            {formatMonto(r.saldoPendiente)}
                           </span>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+
+            {/* ── Mobile cards ──────────────────────────── */}
+            <div className="md:hidden divide-y divide-gray-100">
+              {filtered.map((r) => {
+                const selected = selectedReserva?.id === r.id;
+                return (
+                  <button
+                    key={r.id}
+                    type="button"
+                    onClick={() => selectReserva(r)}
+                    className={cn(
+                      "w-full text-left px-4 py-4 transition-colors",
+                      selected ? "bg-gray-900" : "hover:bg-gray-50",
+                    )}
+                  >
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="min-w-0">
+                        <p className={cn("font-medium truncate", selected ? "text-white" : "text-gray-900")}>
+                          {r.clienteNombre} {r.clienteApellido}
+                        </p>
+                        <div className="flex items-center gap-1.5 mt-0.5">
+                          <span className="h-2 w-2 rounded-full shrink-0" style={{ backgroundColor: r.quintaColor }} />
+                          <span className={cn("text-xs", selected ? "text-gray-300" : "text-gray-500")}>{r.quintaNombre}</span>
                         </div>
-                      </td>
-                      <td className={cn("px-4 py-3 whitespace-nowrap", selected ? "text-gray-300" : "text-gray-600")}>
-                        {formatFecha(r.fechaInicio)} → {formatFecha(r.fechaFin)}
-                      </td>
-                      <td className={cn("px-4 py-3 whitespace-nowrap", selected ? "text-gray-200" : "text-gray-700")}>
-                        {formatMonto(r.montoTotal)}
-                      </td>
-                      <td className={cn("px-4 py-3 whitespace-nowrap", selected ? "text-gray-300" : "text-gray-500")}>
-                        {formatMonto(r.senaYPagos)}
-                      </td>
-                      <td className="px-4 py-3 whitespace-nowrap">
-                        <span className={cn(
-                          "font-semibold",
-                          selected ? "text-red-300" : "text-red-600"
-                        )}>
+                        <p className={cn("text-xs mt-0.5", selected ? "text-gray-400" : "text-gray-500")}>
+                          {formatFecha(r.fechaInicio)} → {formatFecha(r.fechaFin)}
+                        </p>
+                      </div>
+                      <div className="text-right shrink-0">
+                        <p className={cn("text-xs", selected ? "text-gray-400" : "text-gray-500")}>
+                          {formatMonto(r.montoTotal)} total
+                        </p>
+                        <p className={cn("font-semibold", selected ? "text-red-300" : "text-red-600")}>
                           {formatMonto(r.saldoPendiente)}
-                        </span>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
+                        </p>
+                        <p className={cn("text-[10px]", selected ? "text-gray-500" : "text-gray-400")}>pendiente</p>
+                      </div>
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          </>
         )}
 
         <FieldError msg={errors.reservaId?.message} />

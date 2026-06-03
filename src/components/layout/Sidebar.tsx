@@ -36,6 +36,14 @@ const NAV_ITEMS: NavItem[] = [
   { label: "Configuración", href: "/configuracion", icon: Settings, adminOnly: true },
 ];
 
+// Items shown in bottom nav (always visible)
+const BOTTOM_NAV_ITEMS: NavItem[] = [
+  { label: "Dashboard",  href: "/dashboard",  icon: LayoutDashboard },
+  { label: "Calendario", href: "/calendario", icon: CalendarDays },
+  { label: "Reservas",   href: "/reservas",   icon: BookOpen },
+  { label: "Clientes",   href: "/clientes",   icon: Users },
+];
+
 const PAGE_TITLES: Record<string, string> = {
   "/dashboard":     "Dashboard",
   "/calendario":    "Calendario",
@@ -111,7 +119,7 @@ function SidebarInner({ userName, userRole, pathname, onClose }: SidebarInnerPro
         {onClose && (
           <button
             onClick={onClose}
-            className="rounded-md p-1 text-gray-400 hover:bg-white/10 hover:text-white"
+            className="flex min-h-[44px] min-w-[44px] items-center justify-center rounded-md text-gray-400 hover:bg-white/10 hover:text-white"
             aria-label="Cerrar menú"
           >
             <X className="h-4 w-4" />
@@ -148,7 +156,7 @@ function SidebarInner({ userName, userRole, pathname, onClose }: SidebarInnerPro
         <form action={logout}>
           <button
             type="submit"
-            className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm text-gray-400 transition-colors hover:bg-white/5 hover:text-red-400"
+            className="flex w-full min-h-[44px] items-center gap-2 rounded-lg px-3 py-2 text-sm text-gray-400 transition-colors hover:bg-white/5 hover:text-red-400"
           >
             <LogOut className="h-4 w-4" />
             Cerrar sesión
@@ -168,6 +176,14 @@ interface DashboardShellProps {
 export function DashboardShell({ userName, userRole, children }: DashboardShellProps) {
   const pathname = usePathname();
   const [mobileOpen, setMobileOpen] = useState(false);
+  const isAdmin = userRole === "ADMIN";
+
+  // Extra nav items accessible from the mobile "Menú" drawer
+  const menuItems = NAV_ITEMS.filter(
+    (i) =>
+      !BOTTOM_NAV_ITEMS.some((b) => b.href === i.href) &&
+      (!i.adminOnly || isAdmin),
+  );
 
   return (
     <div className="flex min-h-screen bg-gray-50">
@@ -201,7 +217,7 @@ export function DashboardShell({ userName, userRole, children }: DashboardShellP
         <header className="sticky top-0 z-20 flex h-14 items-center gap-3 border-b border-gray-200 bg-white px-4 lg:px-6">
           <button
             onClick={() => setMobileOpen(true)}
-            className="inline-flex items-center justify-center rounded-lg p-1.5 text-gray-500 hover:bg-gray-100 hover:text-gray-700 lg:hidden"
+            className="inline-flex min-h-[44px] min-w-[44px] items-center justify-center rounded-lg text-gray-500 hover:bg-gray-100 hover:text-gray-700 lg:hidden"
             aria-label="Abrir menú"
           >
             <Menu className="h-5 w-5" />
@@ -211,16 +227,52 @@ export function DashboardShell({ userName, userRole, children }: DashboardShellP
           </h1>
         </header>
 
-        {/* Page content — no padding on /calendario so the calendar can go edge-to-edge */}
+        {/* Page content */}
         <main
           className={cn(
             "flex-1",
-            pathname === "/calendario" ? "" : "overflow-y-auto p-4 lg:p-6",
+            pathname === "/calendario"
+              ? "pb-[60px] lg:pb-0"
+              : "overflow-y-auto p-4 pb-[76px] lg:p-6 lg:pb-6",
           )}
         >
           {children}
         </main>
       </div>
+
+      {/* ── Mobile bottom navigation ─────────────────────────────── */}
+      <nav className="fixed bottom-0 left-0 right-0 z-30 flex h-[60px] items-stretch border-t border-gray-200 bg-white lg:hidden">
+        {BOTTOM_NAV_ITEMS.map((item) => {
+          const Icon = item.icon;
+          const active = pathname === item.href || pathname.startsWith(item.href + "/");
+          return (
+            <Link
+              key={item.href}
+              href={item.href}
+              className={cn(
+                "flex flex-1 flex-col items-center justify-center gap-0.5 text-[10px] font-medium transition-colors",
+                active ? "text-gray-900" : "text-gray-400 hover:text-gray-600",
+              )}
+            >
+              <Icon className={cn("h-5 w-5", active && "text-gray-900")} />
+              <span>{item.label}</span>
+            </Link>
+          );
+        })}
+
+        {/* "Menú" — opens the drawer with remaining nav items */}
+        <button
+          type="button"
+          onClick={() => setMobileOpen(true)}
+          className={cn(
+            "flex flex-1 flex-col items-center justify-center gap-0.5 text-[10px] font-medium transition-colors",
+            mobileOpen ? "text-gray-900" : "text-gray-400 hover:text-gray-600",
+          )}
+        >
+          <Menu className="h-5 w-5" />
+          <span>Menú</span>
+        </button>
+      </nav>
     </div>
   );
 }

@@ -352,102 +352,168 @@ export function ReservasTable({
             <p className="text-sm">No se encontraron reservas</p>
           </div>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b border-gray-100 bg-gray-50">
-                  {["Cliente", "Quinta", "Fechas", "Tipo", "Monto", "Seña", "Estado", ""].map((h) => (
-                    <th key={h} className="px-4 py-3 text-left text-xs font-medium text-gray-500">
-                      {h}
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-50">
-                {reservas.map((r) => {
-                  const estadoCfg   = ESTADO_CONFIG[r.estado] ?? ESTADO_CONFIG.PENDIENTE;
-                  const puedeEditar  = ["PENDIENTE", "CONFIRMADA"].includes(r.estado);
-                  const puedeCancelar = puedeEditar;
-                  return (
-                    <tr
-                      key={r.id}
-                      className="hover:bg-gray-50 transition-colors cursor-pointer"
-                      onClick={() => setDrawerReserva(r)}
-                    >
-                      <td className="px-4 py-3 font-medium text-gray-900">
-                        {r.clienteNombre} {r.clienteApellido}
-                      </td>
-                      <td className="px-4 py-3">
-                        <div className="flex items-center gap-2">
-                          <span
-                            className="h-2.5 w-2.5 rounded-full shrink-0"
-                            style={{ backgroundColor: r.quintaColor }}
-                          />
-                          <span className="text-gray-700">{r.quintaNombre}</span>
+          <>
+            {/* ── Desktop table ──────────────────────────── */}
+            <div className="hidden md:block overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-gray-100 bg-gray-50">
+                    {["Cliente", "Quinta", "Fechas", "Tipo", "Monto", "Seña", "Estado", ""].map((h) => (
+                      <th key={h} className="px-4 py-3 text-left text-xs font-medium text-gray-500">
+                        {h}
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-50">
+                  {reservas.map((r) => {
+                    const estadoCfg    = ESTADO_CONFIG[r.estado] ?? ESTADO_CONFIG.PENDIENTE;
+                    const puedeEditar  = ["PENDIENTE", "CONFIRMADA"].includes(r.estado);
+                    const puedeCancelar = puedeEditar;
+                    return (
+                      <tr
+                        key={r.id}
+                        className="hover:bg-gray-50 transition-colors cursor-pointer"
+                        onClick={() => setDrawerReserva(r)}
+                      >
+                        <td className="px-4 py-3 font-medium text-gray-900">
+                          {r.clienteNombre} {r.clienteApellido}
+                        </td>
+                        <td className="px-4 py-3">
+                          <div className="flex items-center gap-2">
+                            <span className="h-2.5 w-2.5 rounded-full shrink-0" style={{ backgroundColor: r.quintaColor }} />
+                            <span className="text-gray-700">{r.quintaNombre}</span>
+                          </div>
+                        </td>
+                        <td className="px-4 py-3 text-gray-600 whitespace-nowrap">
+                          {fmt(r.fechaInicio)} → {fmt(r.fechaFin)}
+                        </td>
+                        <td className="px-4 py-3 text-gray-600">
+                          {TIPO_LABELS[r.tipoAlquiler] ?? r.tipoAlquiler}
+                        </td>
+                        <td className="px-4 py-3 font-medium text-gray-900 whitespace-nowrap">
+                          {formatMonto(r.montoTotal)}
+                        </td>
+                        <td className="px-4 py-3 text-gray-500 whitespace-nowrap">
+                          {r.sena != null ? formatMonto(r.sena) : "—"}
+                        </td>
+                        <td className="px-4 py-3">
+                          <span className={cn(
+                            "inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium",
+                            estadoCfg.cls,
+                            r.estado === "PENDIENTE" && "font-semibold ring-2"
+                          )}>
+                            {estadoCfg.label}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
+                          <div className="flex items-center gap-1">
+                            {puedeEditar && (
+                              <Link
+                                href={`/reservas/${r.id}/editar`}
+                                title="Editar"
+                                className="flex min-h-[44px] min-w-[44px] items-center justify-center rounded-lg text-gray-400 hover:bg-gray-100 hover:text-blue-600 transition"
+                              >
+                                <Pencil className="h-4 w-4" />
+                              </Link>
+                            )}
+                            {r.estado === "PENDIENTE" && (
+                              <button
+                                title="Confirmar"
+                                onClick={() => setConfirmarModal({ id: r.id, nombre: `${r.clienteNombre} ${r.clienteApellido}` })}
+                                className="min-h-[44px] rounded-lg px-2 py-1 text-xs font-medium text-green-700 hover:bg-green-50 transition"
+                              >
+                                Confirmar
+                              </button>
+                            )}
+                            {puedeCancelar && (
+                              <button
+                                title="Cancelar"
+                                onClick={() => setCancelModal({ id: r.id, nombre: `${r.clienteNombre} ${r.clienteApellido}` })}
+                                className="flex min-h-[44px] min-w-[44px] items-center justify-center rounded-lg text-gray-400 hover:bg-red-50 hover:text-red-600 transition"
+                              >
+                                <XCircle className="h-4 w-4" />
+                              </button>
+                            )}
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+
+            {/* ── Mobile cards ───────────────────────────── */}
+            <div className="md:hidden divide-y divide-gray-100">
+              {reservas.map((r) => {
+                const estadoCfg    = ESTADO_CONFIG[r.estado] ?? ESTADO_CONFIG.PENDIENTE;
+                const puedeEditar  = ["PENDIENTE", "CONFIRMADA"].includes(r.estado);
+                const puedeCancelar = puedeEditar;
+                return (
+                  <div
+                    key={r.id}
+                    className="cursor-pointer p-4 hover:bg-gray-50 transition-colors"
+                    onClick={() => setDrawerReserva(r)}
+                  >
+                    {/* Top row */}
+                    <div className="flex items-start justify-between gap-2 mb-2">
+                      <div className="min-w-0">
+                        <p className="font-medium text-gray-900 truncate">
+                          {r.clienteNombre} {r.clienteApellido}
+                        </p>
+                        <div className="flex items-center gap-1.5 mt-0.5">
+                          <span className="h-2 w-2 rounded-full shrink-0" style={{ backgroundColor: r.quintaColor }} />
+                          <span className="text-xs text-gray-500">{r.quintaNombre}</span>
                         </div>
-                      </td>
-                      <td className="px-4 py-3 text-gray-600 whitespace-nowrap">
-                        {fmt(r.fechaInicio)} → {fmt(r.fechaFin)}
-                      </td>
-                      <td className="px-4 py-3 text-gray-600">
-                        {TIPO_LABELS[r.tipoAlquiler] ?? r.tipoAlquiler}
-                      </td>
-                      <td className="px-4 py-3 font-medium text-gray-900 whitespace-nowrap">
-                        {formatMonto(r.montoTotal)}
-                      </td>
-                      <td className="px-4 py-3 text-gray-500 whitespace-nowrap">
-                        {r.sena != null ? formatMonto(r.sena) : "—"}
-                      </td>
-                      <td className="px-4 py-3">
-                        <span className={cn(
-                          "inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium",
-                          estadoCfg.cls,
-                          r.estado === "PENDIENTE" && "font-semibold ring-2"
-                        )}>
-                          {estadoCfg.label}
-                        </span>
-                      </td>
-                      <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
-                        <div className="flex items-center gap-1">
-                          {puedeEditar && (
-                            <Link
-                              href={`/reservas/${r.id}/editar`}
-                              title="Editar"
-                              className="flex min-h-[44px] min-w-[44px] items-center justify-center rounded-lg text-gray-400 hover:bg-gray-100 hover:text-blue-600 transition"
-                            >
-                              <Pencil className="h-4 w-4" />
-                            </Link>
-                          )}
-                          {r.estado === "PENDIENTE" && (
-                            <button
-                              title="Confirmar"
-                              onClick={() =>
-                                setConfirmarModal({ id: r.id, nombre: `${r.clienteNombre} ${r.clienteApellido}` })
-                              }
-                              className="min-h-[44px] rounded-lg px-2 py-1 text-xs font-medium text-green-700 hover:bg-green-50 transition"
-                            >
-                              Confirmar
-                            </button>
-                          )}
-                          {puedeCancelar && (
-                            <button
-                              title="Cancelar"
-                              onClick={() =>
-                                setCancelModal({ id: r.id, nombre: `${r.clienteNombre} ${r.clienteApellido}` })
-                              }
-                              className="flex min-h-[44px] min-w-[44px] items-center justify-center rounded-lg text-gray-400 hover:bg-red-50 hover:text-red-600 transition"
-                            >
-                              <XCircle className="h-4 w-4" />
-                            </button>
-                          )}
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
+                      </div>
+                      <span className={cn("shrink-0 inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium", estadoCfg.cls)}>
+                        {estadoCfg.label}
+                      </span>
+                    </div>
+
+                    {/* Detail row */}
+                    <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs text-gray-600 mb-3">
+                      <span>{fmt(r.fechaInicio)} → {fmt(r.fechaFin)}</span>
+                      <span className="font-medium text-gray-900">{formatMonto(r.montoTotal)}</span>
+                      <span>{TIPO_LABELS[r.tipoAlquiler] ?? r.tipoAlquiler}</span>
+                      <span className="text-gray-500">Seña: {r.sena != null ? formatMonto(r.sena) : "—"}</span>
+                    </div>
+
+                    {/* Actions */}
+                    <div className="flex gap-2" onClick={(e) => e.stopPropagation()}>
+                      {puedeEditar && (
+                        <Link
+                          href={`/reservas/${r.id}/editar`}
+                          className="flex min-h-[40px] items-center gap-1.5 rounded-lg border border-gray-200 px-3 text-xs font-medium text-gray-600 hover:bg-gray-100 transition"
+                        >
+                          <Pencil className="h-3.5 w-3.5" />
+                          Editar
+                        </Link>
+                      )}
+                      {r.estado === "PENDIENTE" && (
+                        <button
+                          onClick={() => setConfirmarModal({ id: r.id, nombre: `${r.clienteNombre} ${r.clienteApellido}` })}
+                          className="min-h-[40px] rounded-lg px-3 text-xs font-medium text-green-700 hover:bg-green-50 transition"
+                        >
+                          Confirmar
+                        </button>
+                      )}
+                      {puedeCancelar && (
+                        <button
+                          onClick={() => setCancelModal({ id: r.id, nombre: `${r.clienteNombre} ${r.clienteApellido}` })}
+                          className="flex min-h-[40px] items-center gap-1.5 rounded-lg border border-red-200 px-3 text-xs font-medium text-red-600 hover:bg-red-50 transition"
+                        >
+                          <XCircle className="h-3.5 w-3.5" />
+                          Cancelar
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </>
         )}
 
         {/* Pagination */}

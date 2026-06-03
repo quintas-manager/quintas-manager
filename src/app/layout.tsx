@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import localFont from "next/font/local";
 import { SessionProvider } from "next-auth/react";
 import { Toaster } from "sonner";
@@ -20,6 +20,13 @@ const geistMono = localFont({
 export const metadata: Metadata = {
   title: "Quintas Manager",
   description: "Gestión de reservas y gastos",
+};
+
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 1,
+  userScalable: false,
 };
 
 export default function RootLayout({
