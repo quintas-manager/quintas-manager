@@ -181,6 +181,7 @@ function BottomSheet({
           open ? "opacity-100" : "pointer-events-none opacity-0",
         )}
         onClick={onClose}
+        onPointerUp={onClose}
       />
       {/* Sheet — full width on mobile, centred max-w on desktop */}
       <div
@@ -235,8 +236,9 @@ function ReservationSheet({
           </div>
         </div>
         <button
+          type="button"
           onClick={onClose}
-          className="shrink-0 rounded-lg p-2 text-gray-400 transition hover:bg-gray-100 hover:text-gray-600"
+          className="shrink-0 flex min-h-[44px] min-w-[44px] items-center justify-center rounded-lg text-gray-400 transition hover:bg-gray-100 hover:text-gray-600"
         >
           <X className="h-5 w-5" />
         </button>
@@ -447,8 +449,10 @@ function MonthBlock({
   const firstWd = firstWeekday(year, month);
   const numDays = daysInMonth(year, month);
 
-  // Tap detection: pointer position at pointerdown, cleared on pointerup/cancel
-  const tapStart = useRef<{ x: number; y: number } | null>(null);
+  // Day-cell tap detection via pointer events
+  const tapStart    = useRef<{ x: number; y: number } | null>(null);
+  // Bar tap detection via touch events (prevents scroll stealing on iOS)
+  const barTouchStart = useRef<{ x: number; y: number } | null>(null);
 
   function onPointerDown(e: React.PointerEvent) {
     tapStart.current = { x: e.clientX, y: e.clientY };
@@ -461,6 +465,23 @@ function MonthBlock({
     const moved = Math.abs(e.clientX - tapStart.current.x) + Math.abs(e.clientY - tapStart.current.y);
     tapStart.current = null;
     return moved < 10;
+  }
+
+  function onBarTouchStart(e: React.TouchEvent) {
+    barTouchStart.current = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+  }
+  function makeBarTouchEnd(reserva: ReservaEvento) {
+    return (e: React.TouchEvent) => {
+      if (!barTouchStart.current) return;
+      const dx = Math.abs(e.changedTouches[0].clientX - barTouchStart.current.x);
+      const dy = Math.abs(e.changedTouches[0].clientY - barTouchStart.current.y);
+      barTouchStart.current = null;
+      if (dx < 10 && dy < 10) {
+        e.preventDefault();
+        e.stopPropagation();
+        onBarTap(reserva);
+      }
+    };
   }
 
   const cells = useMemo<Cell[]>(() => {
@@ -567,7 +588,7 @@ function MonthBlock({
             {numLanes > 0 ? (
               <div
                 className="relative"
-                style={{ height: `${numLanes * 22 + 4}px` }}
+                style={{ height: `${numLanes * 30 + 4}px` }}
               >
                 {/* Column dividers */}
                 <div className="pointer-events-none absolute inset-0 grid grid-cols-7">
@@ -585,22 +606,21 @@ function MonthBlock({
                     style={{
                       left:   `calc(${bar.startCol} / 7 * 100% + ${bar.startsHere ? 2 : 0}px)`,
                       right:  `calc(${6 - bar.endCol} / 7 * 100% + ${bar.endsHere  ? 2 : 0}px)`,
-                      top:    `${bar.lane * 22 + 2}px`,
-                      height: "20px",
+                      top:    `${bar.lane * 30 + 2}px`,
+                      height: "28px",
+                      minHeight: "28px",
                       backgroundColor: bar.color,
                       opacity:         bar.isPendiente ? 0.5 : 1,
                       borderRadius: [
-                        bar.startsHere ? 3 : 0,
-                        bar.endsHere   ? 3 : 0,
-                        bar.endsHere   ? 3 : 0,
-                        bar.startsHere ? 3 : 0,
+                        bar.startsHere ? 4 : 0,
+                        bar.endsHere   ? 4 : 0,
+                        bar.endsHere   ? 4 : 0,
+                        bar.startsHere ? 4 : 0,
                       ].map((v) => `${v}px`).join(" "),
                     }}
-                    onPointerDown={onPointerDown}
-                    onPointerUp={(e) => {
-                      if (isTap(e)) onBarTap(bar.reserva);
-                    }}
-                    onPointerCancel={onPointerCancel}
+                    onTouchStart={onBarTouchStart}
+                    onTouchEnd={makeBarTouchEnd(bar.reserva)}
+                    onClick={() => onBarTap(bar.reserva)}
                   >
                     <span className="truncate whitespace-nowrap px-1.5 text-[11px] font-medium leading-none text-white">
                       {bar.clienteNombre} {bar.clienteApellido}
