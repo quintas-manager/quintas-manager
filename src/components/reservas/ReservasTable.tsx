@@ -5,7 +5,10 @@ import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import { useCallback, useState } from "react";
 import { format, parseISO } from "date-fns";
 import { es } from "date-fns/locale";
-import { Eye, Pencil, XCircle, ChevronLeft, ChevronRight, Search } from "lucide-react";
+import {
+  Pencil, XCircle, ChevronLeft, ChevronRight, Search, X,
+  Phone, PawPrint, Users, ExternalLink,
+} from "lucide-react";
 import { cn } from "@/lib/utils";
 import { CancelarModal } from "./CancelarModal";
 import { ConfirmarConMontoModal } from "./ConfirmarConMontoModal";
@@ -14,8 +17,10 @@ import { ConfirmarConMontoModal } from "./ConfirmarConMontoModal";
 
 interface ReservaRow {
   id: string;
+  clienteId: string;
   clienteNombre: string;
   clienteApellido: string;
+  clienteTelefono: string;
   quintaNombre: string;
   quintaColor: string;
   fechaInicio: string;
@@ -24,6 +29,10 @@ interface ReservaRow {
   montoTotal: number;
   sena: number | null;
   estado: string;
+  notas: string | null;
+  motivoEvento: string | null;
+  cantidadPersonas: number | null;
+  tieneMascota: boolean;
 }
 
 interface QuintaFilter {
@@ -63,11 +72,183 @@ const ESTADO_CONFIG: Record<string, { label: string; cls: string }> = {
 };
 
 const fmt = (iso: string) => format(parseISO(iso), "d/MM/yy", { locale: es });
+const fmtLong = (iso: string) =>
+  format(parseISO(iso), "EEEE d 'de' MMMM yyyy", { locale: es });
 
 const formatMonto = (n: number) =>
   new Intl.NumberFormat("es-AR", {
     style: "currency", currency: "ARS", maximumFractionDigits: 0,
   }).format(n);
+
+// ── Detail drawer ─────────────────────────────────────────────────────────────
+
+function ReservaDrawer({
+  reserva,
+  onClose,
+  onCancelar,
+}: {
+  reserva: ReservaRow;
+  onClose: () => void;
+  onCancelar: (r: { id: string; nombre: string }) => void;
+}) {
+  const estado = ESTADO_CONFIG[reserva.estado] ?? ESTADO_CONFIG.PENDIENTE;
+  const puedeEditar   = ["PENDIENTE", "CONFIRMADA"].includes(reserva.estado);
+  const puedeCancelar = puedeEditar;
+
+  return (
+    <div className="fixed inset-0 z-50 flex justify-end">
+      {/* Backdrop */}
+      <div
+        className="absolute inset-0 bg-black/40 backdrop-blur-sm"
+        onClick={onClose}
+        aria-hidden="true"
+      />
+
+      {/* Drawer panel */}
+      <div className="relative flex h-full w-full max-w-md flex-col bg-white shadow-2xl overflow-hidden">
+        {/* Header */}
+        <div className="flex items-start justify-between border-b border-gray-100 px-5 py-4">
+          <div>
+            <div className="flex items-center gap-2 flex-wrap">
+              <h2 className="text-base font-semibold text-gray-900">
+                {reserva.clienteNombre} {reserva.clienteApellido}
+              </h2>
+              <span className={cn("inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium", estado.cls)}>
+                {estado.label}
+              </span>
+            </div>
+            <p className="mt-0.5 text-sm text-gray-500 capitalize">{fmtLong(reserva.fechaInicio)}</p>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            className="ml-3 flex min-h-[44px] min-w-[44px] items-center justify-center rounded-lg text-gray-400 hover:bg-gray-100 hover:text-gray-600 transition shrink-0"
+          >
+            <X className="h-5 w-5" />
+          </button>
+        </div>
+
+        {/* Scrollable content */}
+        <div className="flex-1 overflow-y-auto p-5 space-y-5">
+          {/* Quinta */}
+          <div
+            className="flex items-center gap-3 rounded-xl p-4"
+            style={{ backgroundColor: reserva.quintaColor + "1A" }}
+          >
+            <span
+              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-white text-base font-bold"
+              style={{ backgroundColor: reserva.quintaColor }}
+            >
+              {reserva.quintaNombre.charAt(0)}
+            </span>
+            <span className="font-medium text-gray-900">{reserva.quintaNombre}</span>
+          </div>
+
+          {/* Reserva info */}
+          <div className="rounded-xl border border-gray-100 bg-gray-50 divide-y divide-gray-100">
+            <Row label="Fechas" value={`${fmt(reserva.fechaInicio)} → ${fmt(reserva.fechaFin)}`} />
+            <Row label="Tipo" value={TIPO_LABELS[reserva.tipoAlquiler] ?? reserva.tipoAlquiler} />
+            {reserva.motivoEvento && <Row label="Motivo" value={reserva.motivoEvento} />}
+            {reserva.cantidadPersonas && (
+              <Row
+                label="Personas"
+                value={
+                  <span className="flex items-center gap-1">
+                    <Users className="h-3.5 w-3.5 text-gray-400" />
+                    {reserva.cantidadPersonas}
+                  </span>
+                }
+              />
+            )}
+            <Row
+              label="Mascota"
+              value={
+                <span className="flex items-center gap-1">
+                  <PawPrint className="h-3.5 w-3.5 text-gray-400" />
+                  {reserva.tieneMascota ? "Sí" : "No"}
+                </span>
+              }
+            />
+          </div>
+
+          {/* Financiero */}
+          <div className="rounded-xl border border-gray-100 bg-gray-50 divide-y divide-gray-100">
+            <Row label="Monto total" value={formatMonto(reserva.montoTotal)} />
+            <Row label="Seña acordada" value={reserva.sena != null ? formatMonto(reserva.sena) : "—"} />
+          </div>
+
+          {/* Cliente */}
+          <div className="rounded-xl border border-gray-100 bg-gray-50 divide-y divide-gray-100">
+            <Row
+              label="Teléfono"
+              value={
+                <a
+                  href={`tel:${reserva.clienteTelefono}`}
+                  className="flex items-center gap-1 text-blue-600 hover:underline"
+                >
+                  <Phone className="h-3.5 w-3.5" />
+                  {reserva.clienteTelefono}
+                </a>
+              }
+            />
+          </div>
+
+          {/* Notas */}
+          {reserva.notas && (
+            <div className="rounded-xl border border-gray-100 bg-gray-50 p-4">
+              <p className="text-xs font-medium text-gray-500 mb-1">Notas</p>
+              <p className="text-sm text-gray-700 whitespace-pre-wrap">{reserva.notas}</p>
+            </div>
+          )}
+        </div>
+
+        {/* Footer actions */}
+        <div className="border-t border-gray-100 p-4 flex flex-wrap gap-2">
+          <Link
+            href={`/reservas/${reserva.id}`}
+            onClick={onClose}
+            className="flex min-h-[44px] items-center gap-2 rounded-lg bg-gray-900 px-4 py-2 text-sm font-medium text-white hover:bg-gray-700 transition"
+          >
+            <ExternalLink className="h-4 w-4" />
+            Ver detalle completo
+          </Link>
+          {puedeEditar && (
+            <Link
+              href={`/reservas/${reserva.id}/editar`}
+              onClick={onClose}
+              className="flex min-h-[44px] items-center gap-2 rounded-lg border border-gray-200 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 transition"
+            >
+              <Pencil className="h-4 w-4" />
+              Editar
+            </Link>
+          )}
+          {puedeCancelar && (
+            <button
+              type="button"
+              onClick={() => {
+                onClose();
+                onCancelar({ id: reserva.id, nombre: `${reserva.clienteNombre} ${reserva.clienteApellido}` });
+              }}
+              className="flex min-h-[44px] items-center gap-2 rounded-lg border border-red-200 px-4 py-2 text-sm font-medium text-red-600 hover:bg-red-50 transition"
+            >
+              <XCircle className="h-4 w-4" />
+              Cancelar
+            </button>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function Row({ label, value }: { label: string; value: React.ReactNode }) {
+  return (
+    <div className="grid grid-cols-2 px-4 py-2.5">
+      <dt className="text-xs text-gray-500">{label}</dt>
+      <dd className="text-xs font-medium text-gray-900">{value}</dd>
+    </div>
+  );
+}
 
 // ── Component ─────────────────────────────────────────────────────────────────
 
@@ -83,8 +264,9 @@ export function ReservasTable({
   const [desde,   setDesde]   = useState(defaultFiltros.desde   ?? "");
   const [hasta,   setHasta]   = useState(defaultFiltros.hasta   ?? "");
 
-  const [cancelModal,   setCancelModal]   = useState<{ id: string; nombre: string } | null>(null);
+  const [cancelModal,    setCancelModal]    = useState<{ id: string; nombre: string } | null>(null);
   const [confirmarModal, setConfirmarModal] = useState<{ id: string; nombre: string } | null>(null);
+  const [drawerReserva,  setDrawerReserva]  = useState<ReservaRow | null>(null);
 
   const totalPages = Math.ceil(total / pageSize);
 
@@ -100,9 +282,7 @@ export function ReservasTable({
     [pathname, router, searchParams],
   );
 
-  const applyFiltros = () => {
-    pushParams({ quinta, estado, desde, hasta });
-  };
+  const applyFiltros = () => { pushParams({ quinta, estado, desde, hasta }); };
 
   const clearFiltros = () => {
     setQuinta(""); setEstado(""); setDesde(""); setHasta("");
@@ -138,30 +318,24 @@ export function ReservasTable({
 
           <div className="flex flex-col gap-1">
             <label className="text-xs font-medium text-gray-600">Desde</label>
-            <input
-              type="date" value={desde} onChange={(e) => setDesde(e.target.value)}
-              className={selectCls}
-            />
+            <input type="date" value={desde} onChange={(e) => setDesde(e.target.value)} className={selectCls} />
           </div>
 
           <div className="flex flex-col gap-1">
             <label className="text-xs font-medium text-gray-600">Hasta</label>
-            <input
-              type="date" value={hasta} onChange={(e) => setHasta(e.target.value)}
-              className={selectCls}
-            />
+            <input type="date" value={hasta} onChange={(e) => setHasta(e.target.value)} className={selectCls} />
           </div>
 
           <div className="flex gap-2 ml-auto">
             <button
               onClick={clearFiltros}
-              className="rounded-lg border border-gray-200 px-4 py-2 text-sm text-gray-500 hover:bg-gray-50 transition"
+              className="min-h-[40px] rounded-lg border border-gray-200 px-4 py-2 text-sm text-gray-500 hover:bg-gray-50 transition"
             >
               Limpiar
             </button>
             <button
               onClick={applyFiltros}
-              className="flex items-center gap-2 rounded-lg bg-gray-900 px-4 py-2 text-sm font-medium text-white hover:bg-gray-700 transition"
+              className="flex min-h-[40px] items-center gap-2 rounded-lg bg-gray-900 px-4 py-2 text-sm font-medium text-white hover:bg-gray-700 transition"
             >
               <Search className="h-3.5 w-3.5" />
               Filtrar
@@ -191,11 +365,15 @@ export function ReservasTable({
               </thead>
               <tbody className="divide-y divide-gray-50">
                 {reservas.map((r) => {
-                  const estado = ESTADO_CONFIG[r.estado] ?? ESTADO_CONFIG.PENDIENTE;
+                  const estadoCfg   = ESTADO_CONFIG[r.estado] ?? ESTADO_CONFIG.PENDIENTE;
                   const puedeEditar  = ["PENDIENTE", "CONFIRMADA"].includes(r.estado);
                   const puedeCancelar = puedeEditar;
                   return (
-                    <tr key={r.id} className="hover:bg-gray-50 transition-colors">
+                    <tr
+                      key={r.id}
+                      className="hover:bg-gray-50 transition-colors cursor-pointer"
+                      onClick={() => setDrawerReserva(r)}
+                    >
                       <td className="px-4 py-3 font-medium text-gray-900">
                         {r.clienteNombre} {r.clienteApellido}
                       </td>
@@ -223,26 +401,19 @@ export function ReservasTable({
                       <td className="px-4 py-3">
                         <span className={cn(
                           "inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium",
-                          estado.cls,
+                          estadoCfg.cls,
                           r.estado === "PENDIENTE" && "font-semibold ring-2"
                         )}>
-                          {estado.label}
+                          {estadoCfg.label}
                         </span>
                       </td>
-                      <td className="px-4 py-3">
+                      <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
                         <div className="flex items-center gap-1">
-                          <Link
-                            href={`/reservas/${r.id}`}
-                            title="Ver"
-                            className="rounded-lg p-1.5 text-gray-400 hover:bg-gray-100 hover:text-gray-700 transition"
-                          >
-                            <Eye className="h-4 w-4" />
-                          </Link>
                           {puedeEditar && (
                             <Link
                               href={`/reservas/${r.id}/editar`}
                               title="Editar"
-                              className="rounded-lg p-1.5 text-gray-400 hover:bg-gray-100 hover:text-blue-600 transition"
+                              className="flex min-h-[44px] min-w-[44px] items-center justify-center rounded-lg text-gray-400 hover:bg-gray-100 hover:text-blue-600 transition"
                             >
                               <Pencil className="h-4 w-4" />
                             </Link>
@@ -251,12 +422,9 @@ export function ReservasTable({
                             <button
                               title="Confirmar"
                               onClick={() =>
-                                setConfirmarModal({
-                                  id: r.id,
-                                  nombre: `${r.clienteNombre} ${r.clienteApellido}`,
-                                })
+                                setConfirmarModal({ id: r.id, nombre: `${r.clienteNombre} ${r.clienteApellido}` })
                               }
-                              className="rounded-lg px-2 py-1 text-xs font-medium text-green-700 hover:bg-green-50 transition"
+                              className="min-h-[44px] rounded-lg px-2 py-1 text-xs font-medium text-green-700 hover:bg-green-50 transition"
                             >
                               Confirmar
                             </button>
@@ -265,12 +433,9 @@ export function ReservasTable({
                             <button
                               title="Cancelar"
                               onClick={() =>
-                                setCancelModal({
-                                  id: r.id,
-                                  nombre: `${r.clienteNombre} ${r.clienteApellido}`,
-                                })
+                                setCancelModal({ id: r.id, nombre: `${r.clienteNombre} ${r.clienteApellido}` })
                               }
-                              className="rounded-lg p-1.5 text-gray-400 hover:bg-red-50 hover:text-red-600 transition"
+                              className="flex min-h-[44px] min-w-[44px] items-center justify-center rounded-lg text-gray-400 hover:bg-red-50 hover:text-red-600 transition"
                             >
                               <XCircle className="h-4 w-4" />
                             </button>
@@ -295,14 +460,14 @@ export function ReservasTable({
               <button
                 disabled={page <= 1}
                 onClick={() => pushParams({ page: String(page - 1) })}
-                className="rounded-lg p-1.5 text-gray-400 hover:bg-gray-100 disabled:opacity-40 transition"
+                className="flex min-h-[44px] min-w-[44px] items-center justify-center rounded-lg text-gray-400 hover:bg-gray-100 disabled:opacity-40 transition"
               >
                 <ChevronLeft className="h-4 w-4" />
               </button>
               <button
                 disabled={page >= totalPages}
                 onClick={() => pushParams({ page: String(page + 1) })}
-                className="rounded-lg p-1.5 text-gray-400 hover:bg-gray-100 disabled:opacity-40 transition"
+                className="flex min-h-[44px] min-w-[44px] items-center justify-center rounded-lg text-gray-400 hover:bg-gray-100 disabled:opacity-40 transition"
               >
                 <ChevronRight className="h-4 w-4" />
               </button>
@@ -310,6 +475,15 @@ export function ReservasTable({
           </div>
         )}
       </div>
+
+      {/* Detail drawer */}
+      {drawerReserva && (
+        <ReservaDrawer
+          reserva={drawerReserva}
+          onClose={() => setDrawerReserva(null)}
+          onCancelar={(r) => setCancelModal(r)}
+        />
+      )}
 
       {cancelModal && (
         <CancelarModal

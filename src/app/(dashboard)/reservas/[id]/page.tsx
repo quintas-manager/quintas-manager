@@ -8,6 +8,7 @@ import { auth } from "@/lib/auth";
 import { cn } from "@/lib/utils";
 import { ConfirmarButton } from "@/components/reservas/ConfirmarButton";
 import { CancelarInline } from "@/components/reservas/CancelarInline";
+import { ConfirmacionPDF } from "@/components/reservas/ConfirmacionPDF";
 
 const TIPO_LABELS: Record<string, string> = {
   DIA: "Por día", FIN_DE_SEMANA: "Fin de semana",
@@ -83,17 +84,32 @@ export default async function ReservaDetailPage({ params }: { params: { id: stri
             </p>
           </div>
         </div>
-        <div className="flex gap-2">
+        <div className="flex gap-2 flex-wrap">
           {puedeConfirmar && <ConfirmarButton reservaId={reserva.id} />}
           {puedeEditar && (
             <Link
               href={`/reservas/${reserva.id}/editar`}
-              className="flex items-center gap-2 rounded-lg border border-gray-200 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 transition"
+              className="flex min-h-[44px] items-center gap-2 rounded-lg border border-gray-200 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 transition"
             >
               <Pencil className="h-4 w-4" />
               Editar
             </Link>
           )}
+          <ConfirmacionPDF
+            clienteNombre={reserva.cliente.nombre}
+            clienteApellido={reserva.cliente.apellido}
+            clienteTelefono={reserva.cliente.telefono}
+            clienteEmail={reserva.cliente.email}
+            quintaNombre={reserva.quinta.nombre}
+            fechaInicio={reserva.fechaInicio.toISOString()}
+            fechaFin={reserva.fechaFin.toISOString()}
+            cantidadPersonas={reserva.cantidadPersonas}
+            tieneMascota={reserva.tieneMascota}
+            motivoEvento={reserva.motivoEvento}
+            montoTotal={Number(reserva.montoTotal)}
+            saldoPendiente={saldoPendiente}
+            sena={reserva.sena ? Number(reserva.sena) : null}
+          />
         </div>
       </div>
 
@@ -246,7 +262,7 @@ export default async function ReservaDetailPage({ params }: { params: { id: stri
           <h3 className="text-sm font-semibold text-gray-900">Pagos registrados</h3>
           {saldoPendiente > 0 && puedeCancelar && (
             <Link
-              href={`/pagos/nueva`}
+              href={`/pagos/nueva?reservaId=${reserva.id}&clienteId=${reserva.clienteId}`}
               className="flex items-center gap-1.5 rounded-lg bg-gray-900 px-3 py-1.5 text-xs font-medium text-white hover:bg-gray-700 transition"
             >
               <Wallet className="h-3.5 w-3.5" />

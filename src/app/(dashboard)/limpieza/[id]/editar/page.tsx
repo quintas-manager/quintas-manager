@@ -32,6 +32,7 @@ export default async function EditarCronogramaPage({
   const defaultDias = cronograma.dias.map((d) => ({
     lugarPrincipalId:  d.lugarPrincipalId,
     lugarSecundarioId: d.lugarSecundarioId ?? "",
+    notasSilvana:      d.notasSilvana ?? "",
   }));
 
   return (

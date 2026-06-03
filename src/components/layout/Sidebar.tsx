@@ -68,7 +68,7 @@ function NavLink({
       href={item.href}
       onClick={onClick}
       className={cn(
-        "group flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all duration-150",
+        "group flex min-h-[44px] items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all duration-150",
         active
           ? "bg-white/10 text-white"
           : "text-gray-400 hover:bg-white/5 hover:text-white"

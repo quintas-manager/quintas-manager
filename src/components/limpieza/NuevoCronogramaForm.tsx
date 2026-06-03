@@ -17,6 +17,7 @@ interface Lugar {
 interface DiaState {
   lugarPrincipalId:  string;
   lugarSecundarioId: string;
+  notasSilvana:      string;
 }
 
 const DIAS = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes"];
@@ -33,9 +34,12 @@ function getLunes(dateStr: string): Date {
 const selectCls =
   "w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-900 outline-none focus:border-gray-400 focus:ring-2 focus:ring-gray-100 transition";
 
+const inputCls =
+  "w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-900 placeholder-gray-400 outline-none focus:border-gray-400 focus:ring-2 focus:ring-gray-100 transition";
+
 interface Props {
-  lugares:    Lugar[];
-  contactos:  ContactoConfig[];
+  lugares:        Lugar[];
+  contactos:      ContactoConfig[];
   cronogramaId?:  string;
   defaultFecha?:  string;
   defaultDias?:   DiaState[];
@@ -51,8 +55,9 @@ export function NuevoCronogramaForm({
   const router = useRouter();
 
   const emptyDias: DiaState[] = Array.from({ length: 5 }, () => ({
-    lugarPrincipalId: "",
+    lugarPrincipalId:  "",
     lugarSecundarioId: "",
+    notasSilvana:      "",
   }));
 
   const [fechaStr,    setFechaStr]    = useState(defaultFecha);
@@ -90,7 +95,8 @@ export function NuevoCronogramaForm({
       const secundario = d.lugarSecundarioId
         ? lugares.find((l) => l.id === d.lugarSecundarioId)?.nombre
         : null;
-      return `${nombre}: ${principal}${secundario ? ` (+ ${secundario})` : ""}`;
+      const nota = d.notasSilvana?.trim() ? ` ⚠️ Nota: ${d.notasSilvana.trim()}` : "";
+      return `${nombre}: ${principal}${secundario ? ` (+ ${secundario})` : ""}${nota}`;
     });
     return `📅 Cronograma de limpieza - semana del ${fmtD(lunes)} al ${fmtD(viernes)}\n\n${lineas.join("\n")}\n\n¡Gracias! 🙏`;
   }, [lunes, viernes, dias, lugares]);
@@ -102,7 +108,6 @@ export function NuevoCronogramaForm({
       return;
     }
 
-    // Open WhatsApp windows synchronously BEFORE any async operation
     if (enviar) {
       if (configurados.length === 0) {
         toast.warning("No hay contactos configurados. Se guardará el cronograma sin enviar.");
@@ -122,6 +127,7 @@ export function NuevoCronogramaForm({
           diaSemana:         i + 1,
           lugarPrincipalId:  d.lugarPrincipalId,
           lugarSecundarioId: d.lugarSecundarioId || null,
+          notasSilvana:      d.notasSilvana || null,
         })),
         enviar,
       };
@@ -173,6 +179,13 @@ export function NuevoCronogramaForm({
         <div className="border-b border-gray-100 px-5 py-3">
           <h3 className="text-sm font-semibold text-gray-700">Asignación por día</h3>
         </div>
+        {/* Column headers */}
+        <div className="grid grid-cols-[90px_1fr_1fr_1fr] gap-3 px-5 py-2 bg-gray-50 border-b border-gray-100">
+          <div className="text-xs font-medium text-gray-500">Día</div>
+          <div className="text-xs font-medium text-gray-500">Principal</div>
+          <div className="text-xs font-medium text-gray-500">Secundario</div>
+          <div className="text-xs font-medium text-gray-500">Notas para Silvana</div>
+        </div>
         <div className="divide-y divide-gray-50">
           {DIAS.map((nombre, i) => {
             const d = dias[i];
@@ -180,9 +193,9 @@ export function NuevoCronogramaForm({
             return (
               <div
                 key={nombre}
-                className="grid grid-cols-[100px_1fr_1fr] items-center gap-4 px-5 py-3"
+                className="grid grid-cols-[90px_1fr_1fr_1fr] items-center gap-3 px-5 py-3"
               >
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-1.5">
                   <span className="text-sm font-medium text-gray-700">{nombre}</span>
                   {isDup && (
                     <AlertTriangle className="h-3.5 w-3.5 text-orange-400 shrink-0" />
@@ -193,7 +206,7 @@ export function NuevoCronogramaForm({
                   onChange={(e) => updateDia(i, "lugarPrincipalId", e.target.value)}
                   className={selectCls}
                 >
-                  <option value="">— Principal —</option>
+                  <option value="">— Elegir —</option>
                   {lugares.map((l) => (
                     <option key={l.id} value={l.id}>{l.nombre}</option>
                   ))}
@@ -208,6 +221,13 @@ export function NuevoCronogramaForm({
                     <option key={l.id} value={l.id}>{l.nombre}</option>
                   ))}
                 </select>
+                <input
+                  type="text"
+                  value={d.notasSilvana}
+                  onChange={(e) => updateDia(i, "notasSilvana", e.target.value)}
+                  placeholder="Ej: no limpiar hab. 2, revisar pileta..."
+                  className={inputCls}
+                />
               </div>
             );
           })}

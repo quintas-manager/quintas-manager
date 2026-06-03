@@ -39,7 +39,7 @@ export default async function ReservasPage({
       where,
       include: {
         quinta:  { select: { nombre: true, colorHex: true } },
-        cliente: { select: { nombre: true, apellido: true } },
+        cliente: { select: { nombre: true, apellido: true, telefono: true } },
       },
       orderBy: { createdAt: "desc" },
       skip,
@@ -54,17 +54,23 @@ export default async function ReservasPage({
   ]);
 
   const reservas = rawReservas.map((r) => ({
-    id:              r.id,
-    clienteNombre:   r.cliente.nombre,
-    clienteApellido: r.cliente.apellido,
-    quintaNombre:    r.quinta.nombre,
-    quintaColor:     r.quinta.colorHex,
-    fechaInicio:     r.fechaInicio.toISOString(),
-    fechaFin:        r.fechaFin.toISOString(),
-    tipoAlquiler:    r.tipoAlquiler,
-    montoTotal:      Number(r.montoTotal),
-    sena:            r.sena ? Number(r.sena) : null,
-    estado:          r.estado,
+    id:               r.id,
+    clienteId:        r.clienteId,
+    clienteNombre:    r.cliente.nombre,
+    clienteApellido:  r.cliente.apellido,
+    clienteTelefono:  r.cliente.telefono,
+    quintaNombre:     r.quinta.nombre,
+    quintaColor:      r.quinta.colorHex,
+    fechaInicio:      r.fechaInicio.toISOString(),
+    fechaFin:         r.fechaFin.toISOString(),
+    tipoAlquiler:     r.tipoAlquiler,
+    montoTotal:       Number(r.montoTotal),
+    sena:             r.sena ? Number(r.sena) : null,
+    estado:           r.estado,
+    notas:            r.notas ?? null,
+    motivoEvento:     r.motivoEvento ?? null,
+    cantidadPersonas: r.cantidadPersonas ?? null,
+    tieneMascota:     r.tieneMascota,
   }));
 
   return (

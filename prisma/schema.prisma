@@ -232,6 +232,7 @@ model DiaCronograma {
   diaSemana         Int
   lugarPrincipalId  String
   lugarSecundarioId String?
+  notasSilvana      String?
   cronograma        CronogramaLimpieza  @relation(fields: [cronogramaId], references: [id], onDelete: Cascade)
   lugarPrincipal    LugarLimpieza       @relation("LugarPrincipal", fields: [lugarPrincipalId], references: [id])
   lugarSecundario   LugarLimpieza?      @relation("LugarSecundario", fields: [lugarSecundarioId], references: [id])

@@ -21,6 +21,7 @@ export interface DiaInput {
   diaSemana:         number;
   lugarPrincipalId:  string;
   lugarSecundarioId: string | null;
+  notasSilvana?:     string | null;
 }
 
 export interface CronogramaInput {
@@ -48,6 +49,7 @@ export async function crearCronograma(
           diaSemana:         d.diaSemana,
           lugarPrincipalId:  d.lugarPrincipalId,
           lugarSecundarioId: d.lugarSecundarioId || null,
+          notasSilvana:      d.notasSilvana || null,
         })),
       },
     },
@@ -79,6 +81,7 @@ export async function actualizarCronograma(
             diaSemana:         d.diaSemana,
             lugarPrincipalId:  d.lugarPrincipalId,
             lugarSecundarioId: d.lugarSecundarioId || null,
+            notasSilvana:      d.notasSilvana || null,
           })),
         },
       },

@@ -41,6 +41,7 @@ export default async function DetalleCronogramaPage({
     diaSemana:       d.diaSemana,
     lugarPrincipal:  d.lugarPrincipal.nombre,
     lugarSecundario: d.lugarSecundario?.nombre ?? null,
+    notasSilvana:    d.notasSilvana ?? null,
   }));
 
   return (
@@ -107,12 +108,19 @@ export default async function DetalleCronogramaPage({
               <span className="text-sm font-medium text-gray-700">
                 {DIAS[d.diaSemana - 1]}
               </span>
-              <span className="text-sm text-gray-600">
-                {d.lugarPrincipal}
-                {d.lugarSecundario && (
-                  <span className="text-gray-400"> + {d.lugarSecundario}</span>
+              <div>
+                <span className="text-sm text-gray-600">
+                  {d.lugarPrincipal}
+                  {d.lugarSecundario && (
+                    <span className="text-gray-400"> + {d.lugarSecundario}</span>
+                  )}
+                </span>
+                {d.notasSilvana && (
+                  <p className="mt-0.5 text-xs text-orange-600">
+                    ⚠️ {d.notasSilvana}
+                  </p>
                 )}
-              </span>
+              </div>
             </div>
           ))}
         </div>
@@ -147,14 +155,16 @@ function buildPreview(
     diaSemana: number;
     lugarPrincipal: { nombre: string };
     lugarSecundario: { nombre: string } | null;
+    notasSilvana?: string | null;
   }[],
 ) {
   const fmtD = (d: Date) => format(d, "d 'de' MMMM", { locale: es });
   const lineas = DIAS.map((nombre, i) => {
     const d = dias.find((x) => x.diaSemana === i + 1);
     if (!d) return `${nombre}: —`;
-    const sec = d.lugarSecundario ? ` (+ ${d.lugarSecundario.nombre})` : "";
-    return `${nombre}: ${d.lugarPrincipal.nombre}${sec}`;
+    const sec  = d.lugarSecundario ? ` (+ ${d.lugarSecundario.nombre})` : "";
+    const nota = d.notasSilvana?.trim() ? ` ⚠️ Nota: ${d.notasSilvana.trim()}` : "";
+    return `${nombre}: ${d.lugarPrincipal.nombre}${sec}${nota}`;
   });
   return `📅 Cronograma de limpieza - semana del ${fmtD(lunes)} al ${fmtD(viernes)}\n\n${lineas.join("\n")}\n\n¡Gracias! 🙏`;
 }

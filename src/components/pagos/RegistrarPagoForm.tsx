@@ -5,7 +5,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { Loader2, Search, X, AlertCircle } from "lucide-react";
+import { Loader2, Search } from "lucide-react";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
 import { cn } from "@/lib/utils";
@@ -33,8 +33,16 @@ interface ClienteConDeuda {
   reservasConDeuda: ReservaDeuda[];
 }
 
+interface ReservaFlat extends ReservaDeuda {
+  clienteId: string;
+  clienteNombre: string;
+  clienteApellido: string;
+}
+
 interface Props {
   clientes: ClienteConDeuda[];
+  defaultReservaId?: string;
+  defaultClienteId?: string;
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -47,7 +55,7 @@ const formatMonto = (n: number) =>
   }).format(n);
 
 const formatFecha = (d: Date) =>
-  format(new Date(d), "d MMM yyyy", { locale: es });
+  format(new Date(d), "d MMM yy", { locale: es });
 
 const METODO_OPTIONS = [
   { value: "EFECTIVO",      label: "Efectivo" },
@@ -80,13 +88,10 @@ const inputCls = (err?: string) =>
 
 // ── Main ──────────────────────────────────────────────────────────────────────
 
-export function RegistrarPagoForm({ clientes }: Props) {
+export function RegistrarPagoForm({ clientes, defaultReservaId, defaultClienteId }: Props) {
   const router = useRouter();
-  const [query, setQuery]           = useState("");
-  const [showDropdown, setShowDropdown] = useState(false);
-  const [selectedCliente, setSelectedCliente] = useState<ClienteConDeuda | null>(null);
-  const [selectedReserva, setSelectedReserva] = useState<ReservaDeuda | null>(null);
-  const dropdownRef = useRef<HTMLDivElement>(null);
+  const [query, setQuery] = useState("");
+  const [selectedReserva, setSelectedReserva] = useState<ReservaFlat | null>(null);
 
   const {
     register,
@@ -101,46 +106,47 @@ export function RegistrarPagoForm({ clientes }: Props) {
     },
   });
 
-  const filtered = clientes.filter((c) => {
+  // Flatten all reservas from all clients
+  const todasLasReservas: ReservaFlat[] = clientes.flatMap((c) =>
+    c.reservasConDeuda.map((r) => ({
+      ...r,
+      clienteId:      c.id,
+      clienteNombre:  c.nombre,
+      clienteApellido: c.apellido,
+    }))
+  );
+
+  // Pre-select from URL params on mount
+  const didAutoSelect = useRef(false);
+  useEffect(() => {
+    if (didAutoSelect.current) return;
+    if (!defaultReservaId) return;
+    const target = todasLasReservas.find((r) => r.id === defaultReservaId);
+    if (target) {
+      didAutoSelect.current = true;
+      selectReserva(target);
+      if (defaultClienteId) {
+        const cliente = clientes.find((c) => c.id === defaultClienteId);
+        if (cliente) setQuery(`${cliente.nombre} ${cliente.apellido}`);
+      }
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Filter by search query
+  const filtered = todasLasReservas.filter((r) => {
+    if (!query.trim()) return true;
     const q = query.toLowerCase();
     return (
-      c.nombre.toLowerCase().includes(q) ||
-      c.apellido.toLowerCase().includes(q) ||
-      c.telefono.includes(q)
+      r.clienteNombre.toLowerCase().includes(q) ||
+      r.clienteApellido.toLowerCase().includes(q)
     );
   });
 
-  useEffect(() => {
-    function handleClickOutside(e: MouseEvent) {
-      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
-        setShowDropdown(false);
-      }
-    }
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, []);
-
-  function selectCliente(c: ClienteConDeuda) {
-    setSelectedCliente(c);
-    setSelectedReserva(null);
-    setQuery(`${c.nombre} ${c.apellido}`);
-    setShowDropdown(false);
-    setValue("reservaId", "");
-    setValue("monto", 0);
-  }
-
-  function selectReserva(r: ReservaDeuda) {
+  function selectReserva(r: ReservaFlat) {
     setSelectedReserva(r);
     setValue("reservaId", r.id);
     setValue("monto", Math.round(r.saldoPendiente * 100) / 100);
-  }
-
-  function clearCliente() {
-    setSelectedCliente(null);
-    setSelectedReserva(null);
-    setQuery("");
-    setValue("reservaId", "");
-    setValue("monto", 0);
   }
 
   const onSubmit = async (data: PagoFormValues) => {
@@ -155,125 +161,115 @@ export function RegistrarPagoForm({ clientes }: Props) {
 
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
-      {/* ── Buscador de cliente ─────────────────────────────────────── */}
-      <section className="rounded-xl border border-gray-200 bg-white p-5">
-        <h2 className="text-sm font-semibold text-gray-900 mb-4">Cliente con deuda</h2>
-
-        <div className="relative" ref={dropdownRef}>
+      {/* ── Tabla de reservas ──────────────────────────────────── */}
+      <section className="rounded-xl border border-gray-200 bg-white overflow-hidden">
+        <div className="border-b border-gray-100 px-5 py-4">
+          <h2 className="text-sm font-semibold text-gray-900 mb-3">
+            Reservas con saldo pendiente
+          </h2>
+          {/* Search */}
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400 pointer-events-none" />
             <input
               type="text"
               value={query}
-              onChange={(e) => {
-                setQuery(e.target.value);
-                setShowDropdown(true);
-                if (selectedCliente) clearCliente();
-              }}
-              onFocus={() => setShowDropdown(true)}
-              placeholder="Buscá por nombre o teléfono..."
-              className={cn(inputBase, "border-gray-300 focus:border-gray-400 focus:ring-gray-200 pl-9 pr-9")}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="Buscar por nombre de cliente..."
+              className="w-full rounded-lg border border-gray-200 bg-gray-50 py-2 pl-9 pr-3 text-sm placeholder-gray-400 outline-none focus:border-gray-400 focus:ring-2 focus:ring-gray-100 transition"
             />
-            {query && (
-              <button
-                type="button"
-                onClick={clearCliente}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
-              >
-                <X className="h-4 w-4" />
-              </button>
-            )}
           </div>
-
-          {showDropdown && query && !selectedCliente && (
-            <div className="absolute z-10 mt-1 w-full rounded-lg border border-gray-200 bg-white shadow-lg max-h-60 overflow-y-auto">
-              {filtered.length === 0 ? (
-                <p className="px-4 py-3 text-sm text-gray-500">Sin resultados</p>
-              ) : (
-                filtered.map((c) => (
-                  <button
-                    key={c.id}
-                    type="button"
-                    onClick={() => selectCliente(c)}
-                    className="w-full text-left px-4 py-3 text-sm hover:bg-gray-50 border-b border-gray-100 last:border-0"
-                  >
-                    <span className="font-medium text-gray-900">
-                      {c.nombre} {c.apellido}
-                    </span>
-                    <span className="ml-2 text-gray-500">{c.telefono}</span>
-                    <span className="ml-2 text-xs text-red-600">
-                      {c.reservasConDeuda.length} reserva{c.reservasConDeuda.length !== 1 ? "s" : ""} con deuda
-                    </span>
-                  </button>
-                ))
-              )}
-            </div>
-          )}
         </div>
 
-        {clientes.length === 0 && (
-          <div className="mt-3 flex items-center gap-2 rounded-lg bg-green-50 px-3 py-2.5 text-sm text-green-700">
-            <AlertCircle className="h-4 w-4 shrink-0" />
-            No hay clientes con saldo pendiente.
+        {todasLasReservas.length === 0 ? (
+          <div className="px-5 py-10 text-center">
+            <p className="text-sm text-gray-400">No hay reservas con saldo pendiente.</p>
+          </div>
+        ) : filtered.length === 0 ? (
+          <div className="px-5 py-6 text-center">
+            <p className="text-sm text-gray-400">Sin resultados para &ldquo;{query}&rdquo;</p>
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="bg-gray-50 border-b border-gray-100">
+                  {["Cliente", "Quinta", "Fechas", "Total", "Pagado", "Saldo"].map((h) => (
+                    <th key={h} className="px-4 py-2.5 text-left text-xs font-medium text-gray-500 whitespace-nowrap">
+                      {h}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-50">
+                {filtered.map((r) => {
+                  const selected = selectedReserva?.id === r.id;
+                  return (
+                    <tr
+                      key={r.id}
+                      onClick={() => selectReserva(r)}
+                      className={cn(
+                        "cursor-pointer transition-colors",
+                        selected
+                          ? "bg-gray-900 text-white"
+                          : "hover:bg-gray-50"
+                      )}
+                    >
+                      <td className="px-4 py-3 font-medium whitespace-nowrap">
+                        {r.clienteNombre} {r.clienteApellido}
+                      </td>
+                      <td className="px-4 py-3">
+                        <div className="flex items-center gap-2">
+                          <span
+                            className="h-2.5 w-2.5 rounded-full shrink-0"
+                            style={{ backgroundColor: r.quintaColor }}
+                          />
+                          <span className={cn(selected ? "text-gray-200" : "text-gray-700")}>
+                            {r.quintaNombre}
+                          </span>
+                        </div>
+                      </td>
+                      <td className={cn("px-4 py-3 whitespace-nowrap", selected ? "text-gray-300" : "text-gray-600")}>
+                        {formatFecha(r.fechaInicio)} → {formatFecha(r.fechaFin)}
+                      </td>
+                      <td className={cn("px-4 py-3 whitespace-nowrap", selected ? "text-gray-200" : "text-gray-700")}>
+                        {formatMonto(r.montoTotal)}
+                      </td>
+                      <td className={cn("px-4 py-3 whitespace-nowrap", selected ? "text-gray-300" : "text-gray-500")}>
+                        {formatMonto(r.senaYPagos)}
+                      </td>
+                      <td className="px-4 py-3 whitespace-nowrap">
+                        <span className={cn(
+                          "font-semibold",
+                          selected ? "text-red-300" : "text-red-600"
+                        )}>
+                          {formatMonto(r.saldoPendiente)}
+                        </span>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
           </div>
         )}
+
+        <FieldError msg={errors.reservaId?.message} />
+        <input type="hidden" {...register("reservaId")} />
       </section>
 
-      {/* ── Reservas con deuda ──────────────────────────────────────── */}
-      {selectedCliente && (
-        <section className="rounded-xl border border-gray-200 bg-white p-5">
-          <h2 className="text-sm font-semibold text-gray-900 mb-4">
-            Reservas con saldo pendiente
-          </h2>
-          <div className="space-y-2">
-            {selectedCliente.reservasConDeuda.map((r) => (
-              <button
-                key={r.id}
-                type="button"
-                onClick={() => selectReserva(r)}
-                className={cn(
-                  "w-full text-left rounded-xl border-2 p-4 transition",
-                  selectedReserva?.id === r.id
-                    ? "border-gray-900 bg-gray-50"
-                    : "border-gray-200 hover:border-gray-300"
-                )}
-              >
-                <div className="flex items-center gap-2 mb-1">
-                  <span
-                    className="h-3 w-3 rounded-full shrink-0"
-                    style={{ backgroundColor: r.quintaColor }}
-                  />
-                  <span className="text-sm font-semibold text-gray-900">{r.quintaNombre}</span>
-                </div>
-                <p className="text-xs text-gray-500 mb-2">
-                  {formatFecha(r.fechaInicio)} → {formatFecha(r.fechaFin)}
-                </p>
-                <div className="grid grid-cols-3 gap-2 text-xs">
-                  <div>
-                    <p className="text-gray-400">Total</p>
-                    <p className="font-medium text-gray-700">{formatMonto(r.montoTotal)}</p>
-                  </div>
-                  <div>
-                    <p className="text-gray-400">Pagado</p>
-                    <p className="font-medium text-gray-700">{formatMonto(r.senaYPagos)}</p>
-                  </div>
-                  <div>
-                    <p className="text-gray-400">Pendiente</p>
-                    <p className="font-semibold text-red-600">{formatMonto(r.saldoPendiente)}</p>
-                  </div>
-                </div>
-              </button>
-            ))}
-          </div>
-          <FieldError msg={errors.reservaId?.message} />
-          <input type="hidden" {...register("reservaId")} />
-        </section>
-      )}
-
-      {/* ── Datos del pago ──────────────────────────────────────────── */}
+      {/* ── Datos del pago ──────────────────────────────────────── */}
       {selectedReserva && (
         <section className="rounded-xl border border-gray-200 bg-white p-5">
-          <h2 className="text-sm font-semibold text-gray-900 mb-4">Datos del pago</h2>
+          <div className="mb-4 flex items-center gap-2">
+            <span
+              className="h-3 w-3 rounded-full shrink-0"
+              style={{ backgroundColor: selectedReserva.quintaColor }}
+            />
+            <h2 className="text-sm font-semibold text-gray-900">
+              Pago — {selectedReserva.clienteNombre} {selectedReserva.clienteApellido} · {selectedReserva.quintaNombre}
+            </h2>
+          </div>
+
           <div className="space-y-4">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
@@ -339,19 +335,19 @@ export function RegistrarPagoForm({ clientes }: Props) {
         </section>
       )}
 
-      {/* ── Actions ─────────────────────────────────────────────────── */}
+      {/* ── Actions ─────────────────────────────────────────────── */}
       <div className="flex gap-3 justify-end">
         <button
           type="button"
           onClick={() => router.back()}
-          className="rounded-lg border border-gray-200 px-5 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50 transition"
+          className="min-h-[44px] rounded-lg border border-gray-200 px-5 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50 transition"
         >
           Cancelar
         </button>
         <button
           type="submit"
           disabled={isSubmitting || !selectedReserva}
-          className="flex items-center gap-2 rounded-lg bg-gray-900 px-5 py-2.5 text-sm font-medium text-white hover:bg-gray-700 transition disabled:opacity-60 disabled:cursor-not-allowed"
+          className="flex min-h-[44px] items-center gap-2 rounded-lg bg-gray-900 px-5 py-2.5 text-sm font-medium text-white hover:bg-gray-700 transition disabled:opacity-60 disabled:cursor-not-allowed"
         >
           {isSubmitting && <Loader2 className="h-4 w-4 animate-spin" />}
           Registrar pago
