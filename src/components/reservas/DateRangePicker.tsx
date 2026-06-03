@@ -92,7 +92,7 @@ export function DateRangePicker({
   // ── Helpers ───────────────────────────────────────────────────────────────
 
   function isBlocked(iso: string) {
-    return blockedRanges.some((r) => iso >= r.start && iso <= r.end);
+    return blockedRanges.some((r) => iso >= r.start && iso < r.end);
   }
 
   // Displayed range uses hover preview during step 1

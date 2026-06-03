@@ -20,8 +20,8 @@ export async function GET(req: NextRequest) {
     where: {
       quintaId,
       estado: { in: ["PENDIENTE", "CONFIRMADA"] },
-      fechaInicio: { lte: new Date(hasta) },
-      fechaFin:    { gte: new Date(desde) },
+      fechaInicio: { lt: new Date(hasta) },
+      fechaFin:    { gt: new Date(desde) },
       ...(excludeId ? { id: { not: excludeId } } : {}),
     },
     include: {

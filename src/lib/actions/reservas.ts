@@ -34,8 +34,8 @@ async function checkConflicto(
     where: {
       quintaId,
       estado: { in: ["PENDIENTE", "CONFIRMADA"] },
-      fechaInicio: { lte: fechaFin },
-      fechaFin:    { gte: fechaInicio },
+      fechaInicio: { lt: fechaFin },
+      fechaFin:    { gt: fechaInicio },
       ...(excludeId ? { id: { not: excludeId } } : {}),
     },
     include: { cliente: { select: { nombre: true, apellido: true } } },
