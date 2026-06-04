@@ -649,6 +649,7 @@ type MonthEntry = { year: number; month: number };
 
 export function CalendarioClient({
   initialReservas,
+  quintas,
 }: CalendarioClientProps) {
   const now = new Date();
   const cy  = now.getFullYear();
@@ -666,6 +667,8 @@ export function CalendarioClient({
   const [activeBar, setActiveBar] = useState<ReservaEvento | null>(null);
   const [activeDay, setActiveDay] = useState<string | null>(null);
 
+  const calHeaderRef     = useRef<HTMLDivElement>(null);
+  const [monthLabelTop, setMonthLabelTop] = useState(132); // 56 app + ~76 cal header estimate
   const blockRefs        = useRef(new Map<string, HTMLDivElement>());
   const fetchedKeys      = useRef(new Set<string>([
     monthKey(shiftMonth(cy, cm, -1).year, shiftMonth(cy, cm, -1).month),
@@ -674,6 +677,21 @@ export function CalendarioClient({
   ]));
   const isFetchingFuture = useRef(false);
   const isFetchingPast   = useRef(false);
+
+  // ── Measure calendar header height for month-label top ───────────────────
+
+  useEffect(() => {
+    const el = calHeaderRef.current;
+    if (!el) return;
+    const update = () => {
+      // rect.bottom when at top of page = app header (56px) + cal header height
+      setMonthLabelTop(Math.round(56 + el.offsetHeight));
+    };
+    update();
+    const ro = new ResizeObserver(update);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
 
   // ── Data fetching ─────────────────────────────────────────────────────────
 
@@ -777,8 +795,8 @@ export function CalendarioClient({
       if (scrollHeight - scrollY - clientHeight < 500) loadFuture();
       if (scrollY < 300) loadPast();
 
-      // app header = 56px, sticky label ≈ 48px → threshold 110px
-      const threshold = 110;
+      // app header (56) + cal header + month label (≈48)
+      const threshold = monthLabelTop + 48;
       let bestTop = -Infinity;
       let bestKey: string | null = null;
       Array.from(blockRefs.current.entries()).forEach(([key, blockEl]) => {
@@ -805,8 +823,9 @@ export function CalendarioClient({
     const blockEl = blockRefs.current.get(key);
     if (blockEl) {
       blockEl.scrollIntoView({ behavior: "instant", block: "start" });
-      // Clear app header (56px) + sticky label (≈48px)
-      window.scrollBy(0, -104);
+      const calH = calHeaderRef.current?.offsetHeight ?? 76;
+      // app header (56) + cal header + month label (≈48)
+      window.scrollBy(0, -(56 + calH + 48));
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -848,8 +867,57 @@ export function CalendarioClient({
 
   return (
     <>
-      {/* Sticky month/year label — clears 56px app header */}
-      <div className="sticky top-14 z-10 border-b border-gray-200 bg-white px-4 py-3">
+      {/* ── Sticky calendar header ─────────────────────────────── */}
+      <div
+        ref={calHeaderRef}
+        className="sticky top-14 z-30 w-full border-b border-gray-200 bg-white px-4 py-3"
+      >
+        {/* Mobile: two rows */}
+        <div className="flex flex-col gap-1 md:hidden">
+          <p className="text-lg font-semibold text-gray-900">Calendario</p>
+          <div className="flex items-center gap-4">
+            {quintas.map((q) => (
+              <span key={q.id} className="flex items-center gap-1.5">
+                <span
+                  className="inline-block h-3 w-3 rounded-full shrink-0"
+                  style={{ backgroundColor: q.colorHex }}
+                />
+                <span className="text-xs text-gray-600">{q.nombre}</span>
+              </span>
+            ))}
+            <span className="flex items-center gap-1.5">
+              <span className="inline-block h-3 w-3 rounded-full shrink-0 bg-gray-400 opacity-50" />
+              <span className="text-xs text-gray-600">Pendiente</span>
+            </span>
+          </div>
+        </div>
+
+        {/* Desktop: single row */}
+        <div className="hidden md:flex items-center justify-between">
+          <p className="text-lg font-semibold text-gray-900">Calendario</p>
+          <div className="flex items-center gap-4">
+            {quintas.map((q) => (
+              <span key={q.id} className="flex items-center gap-1.5">
+                <span
+                  className="inline-block h-3 w-3 rounded-full shrink-0"
+                  style={{ backgroundColor: q.colorHex }}
+                />
+                <span className="text-xs text-gray-600">{q.nombre}</span>
+              </span>
+            ))}
+            <span className="flex items-center gap-1.5">
+              <span className="inline-block h-3 w-3 rounded-full shrink-0 bg-gray-400 opacity-50" />
+              <span className="text-xs text-gray-600">Pendiente</span>
+            </span>
+          </div>
+        </div>
+      </div>
+
+      {/* ── Sticky month/year label — clears app header + cal header ── */}
+      <div
+        className="sticky z-20 border-b border-gray-200 bg-white px-4 py-3"
+        style={{ top: `${monthLabelTop}px` }}
+      >
         <p className="text-base font-semibold text-gray-900">{headerLabel}</p>
       </div>
 

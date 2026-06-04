@@ -241,7 +241,7 @@ export function DashboardShell({ userName, userRole, children }: DashboardShellP
       </div>
 
       {/* ── Mobile bottom navigation ─────────────────────────────── */}
-      <nav className="fixed bottom-0 left-0 right-0 z-30 flex h-[60px] items-stretch border-t border-gray-200 bg-white lg:hidden">
+      <nav className="fixed bottom-0 left-0 right-0 z-20 flex h-[60px] items-stretch border-t border-gray-200 bg-white lg:hidden">
         {BOTTOM_NAV_ITEMS.map((item) => {
           const Icon = item.icon;
           const active = pathname === item.href || pathname.startsWith(item.href + "/");
