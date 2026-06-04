@@ -5,7 +5,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { Loader2, Search } from "lucide-react";
+import { Loader2, Search, X } from "lucide-react";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
 import { cn } from "@/lib/utils";
@@ -86,12 +86,109 @@ const inputCls = (err?: string) =>
       : "border-gray-300 focus:border-gray-400 focus:ring-gray-200"
   );
 
+// ── Form fields (shared between desktop section and mobile sheet) ─────────────
+
+function PagoFields({
+  selectedReserva,
+  register,
+  errors,
+}: {
+  selectedReserva: ReservaFlat;
+  register: ReturnType<typeof useForm<PagoFormValues>>["register"];
+  errors: ReturnType<typeof useForm<PagoFormValues>>["formState"]["errors"];
+}) {
+  return (
+    <div className="space-y-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div>
+          <Label required>Monto</Label>
+          <div className="relative">
+            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-gray-400">$</span>
+            <input
+              type="number"
+              min="0.01"
+              step="0.01"
+              max={selectedReserva.saldoPendiente}
+              {...register("monto", { valueAsNumber: true })}
+              className={cn(inputCls(errors.monto?.message), "pl-7")}
+            />
+          </div>
+          <FieldError msg={errors.monto?.message} />
+          <p className="mt-1 text-xs text-gray-400">
+            Saldo pendiente: {formatMonto(selectedReserva.saldoPendiente)}
+          </p>
+        </div>
+        <div>
+          <Label required>Fecha</Label>
+          <input
+            type="date"
+            {...register("fecha")}
+            className={inputCls(errors.fecha?.message)}
+          />
+          <FieldError msg={errors.fecha?.message} />
+        </div>
+      </div>
+
+      <div>
+        <Label required>Método de pago</Label>
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+          {METODO_OPTIONS.map((opt) => (
+            <label
+              key={opt.value}
+              className="flex cursor-pointer items-center gap-2 rounded-lg border-2 border-gray-200 p-3 text-sm transition has-[:checked]:border-gray-900 has-[:checked]:bg-gray-50 hover:border-gray-300"
+            >
+              <input
+                type="radio"
+                value={opt.value}
+                {...register("metodoPago")}
+                className="sr-only"
+              />
+              <span className="font-medium text-gray-900">{opt.label}</span>
+            </label>
+          ))}
+        </div>
+        <FieldError msg={errors.metodoPago?.message} />
+      </div>
+
+      <div>
+        <Label>Notas</Label>
+        <textarea
+          {...register("notas")}
+          rows={2}
+          placeholder="Ej: Transferencia bancaria ref. 123..."
+          className={cn(inputCls(errors.notas?.message), "resize-none")}
+        />
+      </div>
+    </div>
+  );
+}
+
 // ── Main ──────────────────────────────────────────────────────────────────────
 
 export function RegistrarPagoForm({ clientes, defaultReservaId, defaultClienteId }: Props) {
   const router = useRouter();
   const [query, setQuery] = useState("");
   const [selectedReserva, setSelectedReserva] = useState<ReservaFlat | null>(null);
+  const [showSheet, setShowSheet] = useState(false);
+  const [sheetVisible, setSheetVisible] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
+  const formRef = useRef<HTMLElement>(null);
+
+  useEffect(() => {
+    const check = () => setIsMobile(window.innerWidth < 768);
+    check();
+    window.addEventListener("resize", check);
+    return () => window.removeEventListener("resize", check);
+  }, []);
+
+  // Animate sheet in
+  useEffect(() => {
+    if (showSheet) {
+      requestAnimationFrame(() => setSheetVisible(true));
+    } else {
+      setSheetVisible(false);
+    }
+  }, [showSheet]);
 
   const {
     register,
@@ -106,17 +203,15 @@ export function RegistrarPagoForm({ clientes, defaultReservaId, defaultClienteId
     },
   });
 
-  // Flatten all reservas from all clients
   const todasLasReservas: ReservaFlat[] = clientes.flatMap((c) =>
     c.reservasConDeuda.map((r) => ({
       ...r,
-      clienteId:      c.id,
-      clienteNombre:  c.nombre,
+      clienteId:       c.id,
+      clienteNombre:   c.nombre,
       clienteApellido: c.apellido,
     }))
   );
 
-  // Pre-select from URL params on mount
   const didAutoSelect = useRef(false);
   useEffect(() => {
     if (didAutoSelect.current) return;
@@ -133,7 +228,6 @@ export function RegistrarPagoForm({ clientes, defaultReservaId, defaultClienteId
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Filter by search query
   const filtered = todasLasReservas.filter((r) => {
     if (!query.trim()) return true;
     const q = query.toLowerCase();
@@ -147,6 +241,18 @@ export function RegistrarPagoForm({ clientes, defaultReservaId, defaultClienteId
     setSelectedReserva(r);
     setValue("reservaId", r.id);
     setValue("monto", Math.round(r.saldoPendiente * 100) / 100);
+    if (isMobile) {
+      setShowSheet(true);
+    } else {
+      setTimeout(() => {
+        formRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+      }, 50);
+    }
+  }
+
+  function closeSheet() {
+    setSheetVisible(false);
+    setTimeout(() => setShowSheet(false), 300);
   }
 
   const onSubmit = async (data: PagoFormValues) => {
@@ -167,7 +273,6 @@ export function RegistrarPagoForm({ clientes, defaultReservaId, defaultClienteId
           <h2 className="text-sm font-semibold text-gray-900 mb-3">
             Reservas con saldo pendiente
           </h2>
-          {/* Search */}
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400 pointer-events-none" />
             <input
@@ -289,9 +394,9 @@ export function RegistrarPagoForm({ clientes, defaultReservaId, defaultClienteId
         <input type="hidden" {...register("reservaId")} />
       </section>
 
-      {/* ── Datos del pago ──────────────────────────────────────── */}
+      {/* ── Datos del pago — Desktop only ──────────────────────── */}
       {selectedReserva && (
-        <section className="rounded-xl border border-gray-200 bg-white p-5">
+        <section ref={formRef} className="hidden md:block rounded-xl border border-gray-200 bg-white p-5">
           <div className="mb-4 flex items-center gap-2">
             <span
               className="h-3 w-3 rounded-full shrink-0"
@@ -301,74 +406,12 @@ export function RegistrarPagoForm({ clientes, defaultReservaId, defaultClienteId
               Pago — {selectedReserva.clienteNombre} {selectedReserva.clienteApellido} · {selectedReserva.quintaNombre}
             </h2>
           </div>
-
-          <div className="space-y-4">
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div>
-                <Label required>Monto</Label>
-                <div className="relative">
-                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-gray-400">$</span>
-                  <input
-                    type="number"
-                    min="0.01"
-                    step="0.01"
-                    max={selectedReserva.saldoPendiente}
-                    {...register("monto", { valueAsNumber: true })}
-                    className={cn(inputCls(errors.monto?.message), "pl-7")}
-                  />
-                </div>
-                <FieldError msg={errors.monto?.message} />
-                <p className="mt-1 text-xs text-gray-400">
-                  Saldo pendiente: {formatMonto(selectedReserva.saldoPendiente)}
-                </p>
-              </div>
-              <div>
-                <Label required>Fecha</Label>
-                <input
-                  type="date"
-                  {...register("fecha")}
-                  className={inputCls(errors.fecha?.message)}
-                />
-                <FieldError msg={errors.fecha?.message} />
-              </div>
-            </div>
-
-            <div>
-              <Label required>Método de pago</Label>
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                {METODO_OPTIONS.map((opt) => (
-                  <label
-                    key={opt.value}
-                    className="flex cursor-pointer items-center gap-2 rounded-lg border-2 border-gray-200 p-3 text-sm transition has-[:checked]:border-gray-900 has-[:checked]:bg-gray-50 hover:border-gray-300"
-                  >
-                    <input
-                      type="radio"
-                      value={opt.value}
-                      {...register("metodoPago")}
-                      className="sr-only"
-                    />
-                    <span className="font-medium text-gray-900">{opt.label}</span>
-                  </label>
-                ))}
-              </div>
-              <FieldError msg={errors.metodoPago?.message} />
-            </div>
-
-            <div>
-              <Label>Notas</Label>
-              <textarea
-                {...register("notas")}
-                rows={2}
-                placeholder="Ej: Transferencia bancaria ref. 123..."
-                className={cn(inputCls(errors.notas?.message), "resize-none")}
-              />
-            </div>
-          </div>
+          <PagoFields selectedReserva={selectedReserva} register={register} errors={errors} />
         </section>
       )}
 
-      {/* ── Actions ─────────────────────────────────────────────── */}
-      <div className="flex gap-3 justify-end">
+      {/* ── Actions — Desktop only ──────────────────────────────── */}
+      <div className="hidden md:flex gap-3 justify-end">
         <button
           type="button"
           onClick={() => router.back()}
@@ -385,6 +428,93 @@ export function RegistrarPagoForm({ clientes, defaultReservaId, defaultClienteId
           Registrar pago
         </button>
       </div>
+
+      {/* ── Mobile cancel button (no sheet open) ───────────────── */}
+      <div className="md:hidden flex justify-end">
+        <button
+          type="button"
+          onClick={() => router.back()}
+          className="min-h-[44px] rounded-lg border border-gray-200 px-5 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50 transition"
+        >
+          Cancelar
+        </button>
+      </div>
+
+      {/* ── Mobile bottom sheet ─────────────────────────────────── */}
+      {showSheet && selectedReserva && (
+        <div className="md:hidden fixed inset-0 z-50">
+          {/* Backdrop */}
+          <div
+            className="absolute inset-0 bg-black/50 transition-opacity duration-300"
+            style={{ opacity: sheetVisible ? 1 : 0 }}
+            onClick={closeSheet}
+          />
+
+          {/* Sheet */}
+          <div
+            className="absolute bottom-0 left-0 right-0 bg-white rounded-t-2xl flex flex-col transition-transform duration-300 ease-out"
+            style={{
+              height: "85dvh",
+              transform: sheetVisible ? "translateY(0)" : "translateY(100%)",
+            }}
+          >
+            {/* Handle */}
+            <div className="flex justify-center pt-3 pb-1 shrink-0">
+              <div className="w-10 h-1 rounded-full bg-gray-300" />
+            </div>
+
+            {/* Header */}
+            <div className="flex items-center justify-between px-5 py-3 border-b border-gray-100 shrink-0">
+              <h2 className="text-base font-semibold text-gray-900">Registrar Pago</h2>
+              <button
+                type="button"
+                onClick={closeSheet}
+                className="flex h-9 w-9 items-center justify-center rounded-lg text-gray-500 hover:bg-gray-100 transition"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            {/* Scrollable content */}
+            <div className="flex-1 overflow-y-auto px-5 py-4 space-y-4 pb-6">
+              {/* Reserva summary */}
+              <div className="rounded-xl bg-gray-50 border border-gray-100 p-4 space-y-1">
+                <p className="font-medium text-gray-900">
+                  {selectedReserva.clienteNombre} {selectedReserva.clienteApellido}
+                </p>
+                <div className="flex items-center gap-1.5">
+                  <span
+                    className="h-2 w-2 rounded-full shrink-0"
+                    style={{ backgroundColor: selectedReserva.quintaColor }}
+                  />
+                  <span className="text-sm text-gray-600">{selectedReserva.quintaNombre}</span>
+                </div>
+                <p className="text-sm text-gray-500">
+                  {formatFecha(selectedReserva.fechaInicio)} → {formatFecha(selectedReserva.fechaFin)}
+                </p>
+                <p className="text-sm font-semibold text-red-600 pt-1">
+                  Saldo pendiente: {formatMonto(selectedReserva.saldoPendiente)}
+                </p>
+              </div>
+
+              {/* Form fields */}
+              <PagoFields selectedReserva={selectedReserva} register={register} errors={errors} />
+            </div>
+
+            {/* Sticky confirm button */}
+            <div className="shrink-0 px-5 py-4 border-t border-gray-100 bg-white">
+              <button
+                type="submit"
+                disabled={isSubmitting}
+                className="flex w-full min-h-[56px] items-center justify-center gap-2 rounded-xl bg-gray-900 px-5 text-sm font-semibold text-white hover:bg-gray-700 transition disabled:opacity-60 disabled:cursor-not-allowed"
+              >
+                {isSubmitting && <Loader2 className="h-4 w-4 animate-spin" />}
+                Confirmar pago
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </form>
   );
 }
