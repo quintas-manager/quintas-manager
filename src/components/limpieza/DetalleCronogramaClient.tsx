@@ -74,11 +74,11 @@ export function DetalleCronogramaClient({
   return (
     <div className="space-y-4">
       {/* Botón principal: Enviar a todos */}
-      <div className="flex justify-end">
+      <div className="flex sm:justify-end">
         <button
           onClick={handleEnviarTodos}
           disabled={loading || configurados.length === 0}
-          className="flex items-center gap-2 rounded-lg bg-green-700 px-4 py-2.5 text-sm font-medium text-white hover:bg-green-800 transition disabled:opacity-60"
+          className="flex w-full sm:w-auto items-center justify-center gap-2 rounded-lg bg-green-700 px-4 py-3 text-sm font-medium text-white hover:bg-green-800 transition disabled:opacity-60 min-h-[44px]"
         >
           {loading
             ? <Loader2 className="h-4 w-4 animate-spin" />
@@ -122,7 +122,7 @@ export function DetalleCronogramaClient({
                 <button
                   onClick={() => handleEnviarUno(c)}
                   disabled={!tieneNumero}
-                  className="flex shrink-0 items-center gap-1.5 rounded-lg border border-gray-200 px-3 py-1.5 text-xs font-medium text-gray-600 hover:bg-gray-50 transition disabled:opacity-40 disabled:cursor-not-allowed"
+                  className="flex shrink-0 items-center gap-1.5 rounded-lg border border-gray-200 px-3 py-2 text-xs font-medium text-gray-600 hover:bg-gray-50 transition disabled:opacity-40 disabled:cursor-not-allowed min-h-[44px]"
                 >
                   <Send className="h-3.5 w-3.5" />
                   Enviar

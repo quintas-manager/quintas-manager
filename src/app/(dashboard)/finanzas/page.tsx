@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
-import { BarChart3, TrendingUp, ArrowRight } from "lucide-react";
+import { TrendingUp, ArrowRight } from "lucide-react";
 
 export default async function FinanzasPage() {
   const quintas = await prisma.quinta.findMany({
@@ -11,13 +11,7 @@ export default async function FinanzasPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center gap-3">
-        <BarChart3 className="h-6 w-6 text-gray-700" />
-        <div>
-          <h1 className="text-xl font-semibold text-gray-900">Finanzas</h1>
-          <p className="text-sm text-gray-500">Resumen financiero por quinta</p>
-        </div>
-      </div>
+      <p className="text-sm text-gray-500">Resumen financiero por quinta</p>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {quintas.map((q) => (

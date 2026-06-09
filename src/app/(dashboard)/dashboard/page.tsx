@@ -285,18 +285,14 @@ export default async function DashboardPage() {
 
   return (
     <div className="space-y-6">
-      {/* Title */}
-      <div>
-        <h1 className="text-xl font-semibold text-gray-900">Dashboard</h1>
-        <p className="text-sm text-gray-500 capitalize">
-          {now.toLocaleDateString("es-AR", {
-            weekday: "long",
-            day: "numeric",
-            month: "long",
-            year: "numeric",
-          })}
-        </p>
-      </div>
+      <p className="text-sm text-gray-500 capitalize">
+        {now.toLocaleDateString("es-AR", {
+          weekday: "long",
+          day: "numeric",
+          month: "long",
+          year: "numeric",
+        })}
+      </p>
 
       {/* ── Alertas ── */}
       {(alertasManana.length > 0 || sinSena.length > 0) && (

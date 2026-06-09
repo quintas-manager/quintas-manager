@@ -62,10 +62,7 @@ export default async function ClientesPage({ searchParams }: PageProps) {
     <div className="space-y-5">
       {/* Header */}
       <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-lg font-semibold text-gray-900">Clientes</h1>
-          <p className="text-sm text-gray-500">{total} en total</p>
-        </div>
+        <p className="text-sm text-gray-500">{total} en total</p>
         <Link
           href="/clientes/nuevo"
           className="flex min-h-[44px] items-center gap-2 rounded-xl bg-gray-900 px-4 py-2 text-sm font-medium text-white hover:bg-gray-700 transition"

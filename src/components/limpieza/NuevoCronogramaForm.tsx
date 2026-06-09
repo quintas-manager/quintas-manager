@@ -179,55 +179,107 @@ export function NuevoCronogramaForm({
         <div className="border-b border-gray-100 px-5 py-3">
           <h3 className="text-sm font-semibold text-gray-700">Asignación por día</h3>
         </div>
-        {/* Column headers */}
-        <div className="grid grid-cols-[90px_1fr_1fr_1fr] gap-3 px-5 py-2 bg-gray-50 border-b border-gray-100">
+        {/* Column headers — desktop only */}
+        <div className="hidden md:grid grid-cols-[90px_1fr_1fr_1fr] gap-3 px-5 py-2 bg-gray-50 border-b border-gray-100">
           <div className="text-xs font-medium text-gray-500">Día</div>
           <div className="text-xs font-medium text-gray-500">Principal</div>
           <div className="text-xs font-medium text-gray-500">Secundario</div>
           <div className="text-xs font-medium text-gray-500">Notas para Silvana</div>
         </div>
-        <div className="divide-y divide-gray-50">
+        <div className="divide-y divide-gray-100">
           {DIAS.map((nombre, i) => {
             const d = dias[i];
             const isDup = d.lugarPrincipalId && duplicados.has(d.lugarPrincipalId);
             return (
-              <div
-                key={nombre}
-                className="grid grid-cols-[90px_1fr_1fr_1fr] items-center gap-3 px-5 py-3"
-              >
-                <div className="flex items-center gap-1.5">
-                  <span className="text-sm font-medium text-gray-700">{nombre}</span>
-                  {isDup && (
-                    <AlertTriangle className="h-3.5 w-3.5 text-orange-400 shrink-0" />
-                  )}
+              <div key={nombre}>
+                {/* Desktop row */}
+                <div className="hidden md:grid grid-cols-[90px_1fr_1fr_1fr] items-center gap-3 px-5 py-3">
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-sm font-medium text-gray-700">{nombre}</span>
+                    {isDup && (
+                      <AlertTriangle className="h-3.5 w-3.5 text-orange-400 shrink-0" />
+                    )}
+                  </div>
+                  <select
+                    value={d.lugarPrincipalId}
+                    onChange={(e) => updateDia(i, "lugarPrincipalId", e.target.value)}
+                    className={selectCls}
+                  >
+                    <option value="">— Elegir —</option>
+                    {lugares.map((l) => (
+                      <option key={l.id} value={l.id}>{l.nombre}</option>
+                    ))}
+                  </select>
+                  <select
+                    value={d.lugarSecundarioId}
+                    onChange={(e) => updateDia(i, "lugarSecundarioId", e.target.value)}
+                    className={selectCls}
+                  >
+                    <option value="">Ninguno</option>
+                    {lugares.map((l) => (
+                      <option key={l.id} value={l.id}>{l.nombre}</option>
+                    ))}
+                  </select>
+                  <input
+                    type="text"
+                    value={d.notasSilvana}
+                    onChange={(e) => updateDia(i, "notasSilvana", e.target.value)}
+                    placeholder="Ej: no limpiar hab. 2, revisar pileta..."
+                    className={inputCls}
+                  />
                 </div>
-                <select
-                  value={d.lugarPrincipalId}
-                  onChange={(e) => updateDia(i, "lugarPrincipalId", e.target.value)}
-                  className={selectCls}
-                >
-                  <option value="">— Elegir —</option>
-                  {lugares.map((l) => (
-                    <option key={l.id} value={l.id}>{l.nombre}</option>
-                  ))}
-                </select>
-                <select
-                  value={d.lugarSecundarioId}
-                  onChange={(e) => updateDia(i, "lugarSecundarioId", e.target.value)}
-                  className={selectCls}
-                >
-                  <option value="">Ninguno</option>
-                  {lugares.map((l) => (
-                    <option key={l.id} value={l.id}>{l.nombre}</option>
-                  ))}
-                </select>
-                <input
-                  type="text"
-                  value={d.notasSilvana}
-                  onChange={(e) => updateDia(i, "notasSilvana", e.target.value)}
-                  placeholder="Ej: no limpiar hab. 2, revisar pileta..."
-                  className={inputCls}
-                />
+
+                {/* Mobile card */}
+                <div className="md:hidden px-4 py-4 space-y-3">
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-sm font-semibold text-gray-800">{nombre}</span>
+                    {isDup && (
+                      <AlertTriangle className="h-3.5 w-3.5 text-orange-400 shrink-0" />
+                    )}
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-gray-500 mb-1.5">
+                      Lugar principal
+                    </label>
+                    <select
+                      value={d.lugarPrincipalId}
+                      onChange={(e) => updateDia(i, "lugarPrincipalId", e.target.value)}
+                      className={`${selectCls} min-h-[44px]`}
+                    >
+                      <option value="">— Elegir —</option>
+                      {lugares.map((l) => (
+                        <option key={l.id} value={l.id}>{l.nombre}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-gray-500 mb-1.5">
+                      Lugar secundario
+                    </label>
+                    <select
+                      value={d.lugarSecundarioId}
+                      onChange={(e) => updateDia(i, "lugarSecundarioId", e.target.value)}
+                      className={`${selectCls} min-h-[44px]`}
+                    >
+                      <option value="">Ninguno</option>
+                      {lugares.map((l) => (
+                        <option key={l.id} value={l.id}>{l.nombre}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-gray-500 mb-1.5">
+                      Notas
+                    </label>
+                    <input
+                      type="text"
+                      value={d.notasSilvana}
+                      onChange={(e) => updateDia(i, "notasSilvana", e.target.value)}
+                      placeholder="Ej: no limpiar hab. 2, revisar pileta..."
+                      className={`${inputCls} min-h-[44px]`}
+                    />
+                  </div>
+                </div>
               </div>
             );
           })}
@@ -260,11 +312,11 @@ export function NuevoCronogramaForm({
       )}
 
       {/* Acciones */}
-      <div className="flex gap-3 justify-end">
+      <div className="flex flex-col sm:flex-row gap-3 sm:justify-end">
         <button
           onClick={() => handleSubmit(false)}
           disabled={isSubmitting}
-          className="flex items-center gap-2 rounded-lg border border-gray-200 px-4 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50 transition disabled:opacity-60"
+          className="flex items-center justify-center gap-2 rounded-lg border border-gray-200 px-4 py-3 text-sm font-medium text-gray-700 hover:bg-gray-50 transition disabled:opacity-60 min-h-[44px]"
         >
           {isSubmitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
           Guardar borrador
@@ -272,7 +324,7 @@ export function NuevoCronogramaForm({
         <button
           onClick={() => handleSubmit(true)}
           disabled={isSubmitting}
-          className="flex items-center gap-2 rounded-lg bg-green-700 px-4 py-2.5 text-sm font-medium text-white hover:bg-green-800 transition disabled:opacity-60"
+          className="flex items-center justify-center gap-2 rounded-lg bg-green-700 px-4 py-3 text-sm font-medium text-white hover:bg-green-800 transition disabled:opacity-60 min-h-[44px]"
         >
           {isSubmitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
           Guardar y enviar

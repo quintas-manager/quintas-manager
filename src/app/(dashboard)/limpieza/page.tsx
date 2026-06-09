@@ -25,10 +25,7 @@ export default async function LimpiezaPage() {
   return (
     <div className="space-y-5">
       <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-lg font-semibold text-gray-900">Limpieza</h2>
-          <p className="text-sm text-gray-500 mt-0.5">Cronogramas semanales de limpieza</p>
-        </div>
+        <p className="text-sm text-gray-500">Cronogramas semanales de limpieza</p>
         <Link
           href="/limpieza/nueva"
           className="flex items-center gap-2 rounded-lg bg-gray-900 px-4 py-2.5 text-sm font-medium text-white hover:bg-gray-700 transition"

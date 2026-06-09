@@ -245,14 +245,16 @@ export function DashboardShell({ userName, userRole, children }: DashboardShellP
         {/* Page content — pt-14 on mobile to clear fixed header */}
         <main
           className={cn(
-            "flex-1 pt-14 lg:pt-0",
-            !isCalendario && "overflow-y-auto p-4 lg:p-6 lg:pb-6",
-          )}
-          style={
+            "flex-1",
             isCalendario
-              ? { paddingBottom: "calc(60px + env(safe-area-inset-bottom))" }
-              : { paddingBottom: "calc(76px + env(safe-area-inset-bottom))" }
-          }
+              ? "pt-14 lg:pt-0"
+              : "overflow-y-auto px-4 pt-14 lg:px-6 lg:pt-6",
+          )}
+          style={{
+            paddingBottom: isCalendario
+              ? "calc(60px + env(safe-area-inset-bottom))"
+              : "calc(76px + env(safe-area-inset-bottom))",
+          }}
         >
           {children}
         </main>

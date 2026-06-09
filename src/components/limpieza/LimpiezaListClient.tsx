@@ -74,7 +74,7 @@ export function LimpiezaListClient({ cronogramas, contactos }: Props) {
         </button>
       </div>
 
-      {/* Table */}
+      {/* Table / Cards */}
       <div className="rounded-2xl border border-gray-200 bg-white overflow-hidden">
         {cronogramas.length === 0 ? (
           <div className="py-16 text-center">
@@ -83,53 +83,92 @@ export function LimpiezaListClient({ cronogramas, contactos }: Props) {
             <p className="text-xs text-gray-400 mt-1">Creá el primero con el botón de arriba.</p>
           </div>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b border-gray-100 bg-gray-50">
-                  <th className="px-5 py-3 text-left text-xs font-medium text-gray-500">Semana</th>
-                  <th className="px-5 py-3 text-left text-xs font-medium text-gray-500">Creado por</th>
-                  <th className="px-5 py-3 text-left text-xs font-medium text-gray-500">Estado</th>
-                  <th className="px-5 py-3 text-left text-xs font-medium text-gray-500">Fecha envío</th>
-                  <th className="px-5 py-3" />
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-50">
-                {cronogramas.map((c) => (
-                  <tr key={c.id} className="hover:bg-gray-50 transition">
-                    <td className="px-5 py-3 font-medium text-gray-900 whitespace-nowrap">
-                      {fmtSemana(c.semanaInicio)}
-                    </td>
-                    <td className="px-5 py-3 text-gray-600">{c.creadoPor}</td>
-                    <td className="px-5 py-3">
-                      {c.enviado ? (
-                        <span className="inline-flex items-center gap-1 rounded-full bg-green-100 px-2.5 py-0.5 text-xs font-medium text-green-700">
-                          <CheckCircle2 className="h-3 w-3" />
-                          Enviado
-                        </span>
-                      ) : (
-                        <span className="inline-flex items-center gap-1 rounded-full bg-yellow-100 px-2.5 py-0.5 text-xs font-medium text-yellow-700">
-                          <Clock className="h-3 w-3" />
-                          Borrador
-                        </span>
-                      )}
-                    </td>
-                    <td className="px-5 py-3 text-gray-500 text-xs">
-                      {c.fechaEnvio ? fmtDate(c.fechaEnvio) : "—"}
-                    </td>
-                    <td className="px-5 py-3 text-right">
-                      <Link
-                        href={`/limpieza/${c.id}`}
-                        className="rounded-lg border border-gray-200 px-3 py-1.5 text-xs font-medium text-gray-600 hover:bg-gray-100 transition"
-                      >
-                        Ver
-                      </Link>
-                    </td>
+          <>
+            {/* Desktop table */}
+            <div className="hidden md:block overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-gray-100 bg-gray-50">
+                    <th className="px-5 py-3 text-left text-xs font-medium text-gray-500">Semana</th>
+                    <th className="px-5 py-3 text-left text-xs font-medium text-gray-500">Creado por</th>
+                    <th className="px-5 py-3 text-left text-xs font-medium text-gray-500">Estado</th>
+                    <th className="px-5 py-3 text-left text-xs font-medium text-gray-500">Fecha envío</th>
+                    <th className="px-5 py-3" />
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                </thead>
+                <tbody className="divide-y divide-gray-50">
+                  {cronogramas.map((c) => (
+                    <tr key={c.id} className="hover:bg-gray-50 transition">
+                      <td className="px-5 py-3 font-medium text-gray-900 whitespace-nowrap">
+                        {fmtSemana(c.semanaInicio)}
+                      </td>
+                      <td className="px-5 py-3 text-gray-600">{c.creadoPor}</td>
+                      <td className="px-5 py-3">
+                        {c.enviado ? (
+                          <span className="inline-flex items-center gap-1 rounded-full bg-green-100 px-2.5 py-0.5 text-xs font-medium text-green-700">
+                            <CheckCircle2 className="h-3 w-3" />
+                            Enviado
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center gap-1 rounded-full bg-yellow-100 px-2.5 py-0.5 text-xs font-medium text-yellow-700">
+                            <Clock className="h-3 w-3" />
+                            Borrador
+                          </span>
+                        )}
+                      </td>
+                      <td className="px-5 py-3 text-gray-500 text-xs">
+                        {c.fechaEnvio ? fmtDate(c.fechaEnvio) : "—"}
+                      </td>
+                      <td className="px-5 py-3 text-right">
+                        <Link
+                          href={`/limpieza/${c.id}`}
+                          className="rounded-lg border border-gray-200 px-3 py-1.5 text-xs font-medium text-gray-600 hover:bg-gray-100 transition"
+                        >
+                          Ver
+                        </Link>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Mobile cards */}
+            <div className="md:hidden divide-y divide-gray-100">
+              {cronogramas.map((c) => (
+                <div key={c.id} className="px-4 py-4 space-y-3">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="text-sm font-medium text-gray-900 leading-tight">
+                        {fmtSemana(c.semanaInicio)}
+                      </p>
+                      <p className="text-xs text-gray-500 mt-0.5">Creado por {c.creadoPor}</p>
+                    </div>
+                    {c.enviado ? (
+                      <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-green-100 px-2.5 py-0.5 text-xs font-medium text-green-700">
+                        <CheckCircle2 className="h-3 w-3" />
+                        Enviado
+                      </span>
+                    ) : (
+                      <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-yellow-100 px-2.5 py-0.5 text-xs font-medium text-yellow-700">
+                        <Clock className="h-3 w-3" />
+                        Borrador
+                      </span>
+                    )}
+                  </div>
+                  {c.fechaEnvio && (
+                    <p className="text-xs text-gray-400">Enviado el {fmtDate(c.fechaEnvio)}</p>
+                  )}
+                  <Link
+                    href={`/limpieza/${c.id}`}
+                    className="flex w-full items-center justify-center min-h-[44px] rounded-lg border border-gray-200 text-sm font-medium text-gray-700 hover:bg-gray-50 transition"
+                  >
+                    Ver cronograma
+                  </Link>
+                </div>
+              ))}
+            </div>
+          </>
         )}
       </div>
 
