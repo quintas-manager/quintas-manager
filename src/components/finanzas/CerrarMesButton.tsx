@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Lock, Loader2, AlertTriangle } from "lucide-react";
 import { toast } from "sonner";
+import { cn } from "@/lib/utils";
 import { cerrarMes } from "@/lib/actions/finanzas";
 
 const fmt = (n: number) =>
@@ -20,6 +21,7 @@ interface Props {
   parteMatias: number;
   reintegrosGraciela: number;
   reintegrosMatias: number;
+  triggerClassName?: string;
 }
 
 export function CerrarMesButton({
@@ -27,6 +29,7 @@ export function CerrarMesButton({
   cobrarGraciela, cobrarMatias,
   parteGraciela, parteMatias,
   reintegrosGraciela, reintegrosMatias,
+  triggerClassName,
 }: Props) {
   const router  = useRouter();
   const [open, setOpen]       = useState(false);
@@ -50,7 +53,11 @@ export function CerrarMesButton({
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className="flex w-full sm:w-auto items-center justify-center gap-2 rounded-lg bg-gray-900 px-4 py-2 text-sm font-medium text-white hover:bg-gray-700 transition min-h-[56px] sm:min-h-0"
+        className={cn(
+          "flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-medium text-white transition",
+          "bg-gray-900 hover:bg-gray-700",
+          triggerClassName,
+        )}
       >
         <Lock className="h-4 w-4" />
         Cerrar mes
