@@ -317,18 +317,17 @@ export function DashboardShell({ userName, userRole, children }: DashboardShellP
             <span>Clientes</span>
           </Link>
 
-          {/* Menú */}
-          <button
-            type="button"
-            onClick={() => setMobileOpen(true)}
+          {/* Limpieza */}
+          <Link
+            href="/limpieza"
             className={cn(
               "flex flex-1 flex-col items-center justify-center gap-0.5 text-[10px] font-medium transition-colors",
-              mobileOpen ? "text-gray-900" : "text-gray-400 hover:text-gray-600",
+              isActive("/limpieza") ? "text-gray-900" : "text-gray-400 hover:text-gray-600",
             )}
           >
-            <Menu className="h-5 w-5" />
-            <span>Menú</span>
-          </button>
+            <Sparkles className="h-5 w-5" />
+            <span>Limpieza</span>
+          </Link>
         </div>
       </nav>
     </div>
