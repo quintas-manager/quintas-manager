@@ -36,7 +36,6 @@ const NAV_ITEMS: NavItem[] = [
   { label: "Configuración", href: "/configuracion", icon: Settings, adminOnly: true },
 ];
 
-// Items shown in bottom nav (always visible)
 const BOTTOM_NAV_ITEMS: NavItem[] = [
   { label: "Dashboard",  href: "/dashboard",  icon: LayoutDashboard },
   { label: "Calendario", href: "/calendario", icon: CalendarDays },
@@ -177,13 +176,16 @@ export function DashboardShell({ userName, userRole, children }: DashboardShellP
   const pathname = usePathname();
   const [mobileOpen, setMobileOpen] = useState(false);
   const isAdmin = userRole === "ADMIN";
+  const isCalendario = pathname === "/calendario";
 
-  // Extra nav items accessible from the mobile "Menú" drawer
   const menuItems = NAV_ITEMS.filter(
     (i) =>
       !BOTTOM_NAV_ITEMS.some((b) => b.href === i.href) &&
       (!i.adminOnly || isAdmin),
   );
+
+  const isActive = (href: string) =>
+    pathname === href || pathname.startsWith(href + "/");
 
   return (
     <div className="flex min-h-screen bg-gray-50">
@@ -213,8 +215,8 @@ export function DashboardShell({ userName, userRole, children }: DashboardShellP
 
       {/* ── Main content ────────────────────────────────────────── */}
       <div className="flex flex-1 flex-col lg:pl-64">
-        {/* Header */}
-        <header className="sticky top-0 z-20 flex h-14 items-center gap-3 border-b border-gray-200 bg-white px-4 lg:px-6">
+        {/* Header — fixed on mobile, static on desktop */}
+        <header className="fixed left-0 right-0 top-0 z-40 flex h-14 items-center gap-3 border-b border-gray-200 bg-white px-4 lg:static lg:z-20 lg:px-6">
           <button
             onClick={() => setMobileOpen(true)}
             className="inline-flex min-h-[44px] min-w-[44px] items-center justify-center rounded-lg text-gray-500 hover:bg-gray-100 hover:text-gray-700 lg:hidden"
@@ -222,23 +224,34 @@ export function DashboardShell({ userName, userRole, children }: DashboardShellP
           >
             <Menu className="h-5 w-5" />
           </button>
-          <h1 className="text-sm font-semibold text-gray-900 lg:text-base">
+          <h1 className="flex-1 text-sm font-semibold text-gray-900 lg:text-base">
             {resolveTitle(pathname)}
           </h1>
+          {/* Calendar legend — visible only on /calendario on mobile */}
+          {isCalendario && (
+            <div className="flex items-center gap-3 lg:hidden">
+              <span className="flex items-center gap-1">
+                <span className="h-2 w-2 shrink-0 rounded-full bg-green-600" />
+                <span className="text-[10px] text-gray-600">El Descanso</span>
+              </span>
+              <span className="flex items-center gap-1">
+                <span className="h-2 w-2 shrink-0 rounded-full bg-blue-600" />
+                <span className="text-[10px] text-gray-600">La Tranquila</span>
+              </span>
+            </div>
+          )}
         </header>
 
-        {/* Page content */}
+        {/* Page content — pt-14 on mobile to clear fixed header */}
         <main
           className={cn(
-            "flex-1",
-            pathname === "/calendario"
-              ? "lg:pb-0"
-              : "overflow-y-auto p-4 lg:p-6 lg:pb-6",
+            "flex-1 pt-14 lg:pt-0",
+            !isCalendario && "overflow-y-auto p-4 lg:p-6 lg:pb-6",
           )}
           style={
-            pathname === "/calendario"
-              ? { paddingBottom: 'calc(60px + env(safe-area-inset-bottom))' }
-              : { paddingBottom: 'calc(76px + env(safe-area-inset-bottom))' }
+            isCalendario
+              ? { paddingBottom: "calc(60px + env(safe-area-inset-bottom))" }
+              : { paddingBottom: "calc(76px + env(safe-area-inset-bottom))" }
           }
         >
           {children}
@@ -246,39 +259,77 @@ export function DashboardShell({ userName, userRole, children }: DashboardShellP
       </div>
 
       {/* ── Mobile bottom navigation ─────────────────────────────── */}
-      <nav className="fixed bottom-0 left-0 right-0 z-20 flex flex-col border-t border-gray-200 bg-white lg:hidden" style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}>
-      <div className="flex h-[60px] items-stretch">
-        {BOTTOM_NAV_ITEMS.map((item) => {
-          const Icon = item.icon;
-          const active = pathname === item.href || pathname.startsWith(item.href + "/");
-          return (
-            <Link
-              key={item.href}
-              href={item.href}
-              className={cn(
-                "flex flex-1 flex-col items-center justify-center gap-0.5 text-[10px] font-medium transition-colors",
-                active ? "text-gray-900" : "text-gray-400 hover:text-gray-600",
-              )}
-            >
-              <Icon className={cn("h-5 w-5", active && "text-gray-900")} />
-              <span>{item.label}</span>
-            </Link>
-          );
-        })}
+      <nav
+        className="fixed bottom-0 left-0 right-0 z-20 overflow-visible border-t border-gray-200 bg-white lg:hidden"
+        style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
+      >
+        <div className="flex h-[60px] items-stretch justify-around px-2">
+          {/* Dashboard */}
+          <Link
+            href="/dashboard"
+            className={cn(
+              "flex flex-1 flex-col items-center justify-center gap-0.5 text-[10px] font-medium transition-colors",
+              isActive("/dashboard") ? "text-gray-900" : "text-gray-400 hover:text-gray-600",
+            )}
+          >
+            <LayoutDashboard className="h-5 w-5" />
+            <span>Dashboard</span>
+          </Link>
 
-        {/* "Menú" — opens the drawer with remaining nav items */}
-        <button
-          type="button"
-          onClick={() => setMobileOpen(true)}
-          className={cn(
-            "flex flex-1 flex-col items-center justify-center gap-0.5 text-[10px] font-medium transition-colors",
-            mobileOpen ? "text-gray-900" : "text-gray-400 hover:text-gray-600",
-          )}
-        >
-          <Menu className="h-5 w-5" />
-          <span>Menú</span>
-        </button>
-      </div>
+          {/* Reservas */}
+          <Link
+            href="/reservas"
+            className={cn(
+              "flex flex-1 flex-col items-center justify-center gap-0.5 text-[10px] font-medium transition-colors",
+              isActive("/reservas") ? "text-gray-900" : "text-gray-400 hover:text-gray-600",
+            )}
+          >
+            <BookOpen className="h-5 w-5" />
+            <span>Reservas</span>
+          </Link>
+
+          {/* Calendario — central featured */}
+          <Link
+            href="/calendario"
+            className="flex flex-1 flex-col items-center justify-end pb-1"
+            aria-label="Calendario"
+          >
+            <div
+              className={cn(
+                "flex h-[52px] w-[52px] items-center justify-center rounded-full shadow-lg transition-colors",
+                isActive("/calendario") ? "bg-green-700" : "bg-green-600",
+              )}
+              style={{ transform: "translateY(-12px)" }}
+            >
+              <CalendarDays className="h-[26px] w-[26px] text-white" />
+            </div>
+          </Link>
+
+          {/* Clientes */}
+          <Link
+            href="/clientes"
+            className={cn(
+              "flex flex-1 flex-col items-center justify-center gap-0.5 text-[10px] font-medium transition-colors",
+              isActive("/clientes") ? "text-gray-900" : "text-gray-400 hover:text-gray-600",
+            )}
+          >
+            <Users className="h-5 w-5" />
+            <span>Clientes</span>
+          </Link>
+
+          {/* Menú */}
+          <button
+            type="button"
+            onClick={() => setMobileOpen(true)}
+            className={cn(
+              "flex flex-1 flex-col items-center justify-center gap-0.5 text-[10px] font-medium transition-colors",
+              mobileOpen ? "text-gray-900" : "text-gray-400 hover:text-gray-600",
+            )}
+          >
+            <Menu className="h-5 w-5" />
+            <span>Menú</span>
+          </button>
+        </div>
       </nav>
     </div>
   );
