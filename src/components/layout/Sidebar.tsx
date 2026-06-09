@@ -232,16 +232,22 @@ export function DashboardShell({ userName, userRole, children }: DashboardShellP
           className={cn(
             "flex-1",
             pathname === "/calendario"
-              ? "pb-[60px] lg:pb-0"
-              : "overflow-y-auto p-4 pb-[76px] lg:p-6 lg:pb-6",
+              ? "lg:pb-0"
+              : "overflow-y-auto p-4 lg:p-6 lg:pb-6",
           )}
+          style={
+            pathname === "/calendario"
+              ? { paddingBottom: 'calc(60px + env(safe-area-inset-bottom))' }
+              : { paddingBottom: 'calc(76px + env(safe-area-inset-bottom))' }
+          }
         >
           {children}
         </main>
       </div>
 
       {/* ── Mobile bottom navigation ─────────────────────────────── */}
-      <nav className="fixed bottom-0 left-0 right-0 z-20 flex h-[60px] items-stretch border-t border-gray-200 bg-white lg:hidden">
+      <nav className="fixed bottom-0 left-0 right-0 z-20 flex flex-col border-t border-gray-200 bg-white lg:hidden" style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}>
+      <div className="flex h-[60px] items-stretch">
         {BOTTOM_NAV_ITEMS.map((item) => {
           const Icon = item.icon;
           const active = pathname === item.href || pathname.startsWith(item.href + "/");
@@ -272,6 +278,7 @@ export function DashboardShell({ userName, userRole, children }: DashboardShellP
           <Menu className="h-5 w-5" />
           <span>Menú</span>
         </button>
+      </div>
       </nav>
     </div>
   );
