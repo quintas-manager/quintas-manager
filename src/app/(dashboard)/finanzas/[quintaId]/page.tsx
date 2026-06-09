@@ -35,7 +35,7 @@ export default async function FinanzasQuintaPage({
   const anios = Array.from(byAnio.keys()).sort((a, b) => b - a);
 
   return (
-    <div className="max-w-3xl mx-auto space-y-6">
+    <div className="max-w-3xl mx-auto space-y-6 pt-4">
       {/* Header */}
       <div className="flex items-center gap-3">
         <Link
@@ -74,35 +74,35 @@ export default async function FinanzasQuintaPage({
               return (
                 <div
                   key={`${m.anio}-${m.mes}`}
-                  className="flex items-center justify-between rounded-xl border border-gray-200 bg-white px-5 py-4 gap-4"
+                  className="flex flex-col gap-3 rounded-xl border border-gray-200 bg-white p-4 sm:flex-row sm:items-center sm:justify-between sm:gap-4 sm:px-5 sm:py-4"
                 >
-                  <div className="flex items-center gap-3 min-w-0">
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <span className="text-sm font-semibold text-gray-900">
-                          {MESES[m.mes]} {m.anio}
-                        </span>
-                        <span
-                          className={cn(
-                            "inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium",
-                            m.cerrado
-                              ? "bg-gray-100 text-gray-600"
-                              : "bg-amber-50 text-amber-700 ring-1 ring-amber-200"
-                          )}
-                        >
-                          {m.cerrado ? "Cerrado" : "Abierto"}
-                        </span>
-                      </div>
-                      <div className="flex items-center gap-4 mt-1 text-xs text-gray-500">
-                        <span>Ingresos: <span className="text-green-600 font-medium">{fmt(m.totalIngresos)}</span></span>
-                        <span>Gastos: <span className="text-red-600 font-medium">{fmt(m.totalGastos)}</span></span>
-                      </div>
+                  {/* Info */}
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm font-semibold text-gray-900">
+                        {MESES[m.mes]} {m.anio}
+                      </span>
+                      <span
+                        className={cn(
+                          "inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium",
+                          m.cerrado
+                            ? "bg-gray-100 text-gray-600"
+                            : "bg-amber-50 text-amber-700 ring-1 ring-amber-200"
+                        )}
+                      >
+                        {m.cerrado ? "Cerrado" : "Abierto"}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-4 mt-1 text-xs text-gray-500">
+                      <span>Ingresos: <span className="text-green-600 font-medium">{fmt(m.totalIngresos)}</span></span>
+                      <span>Gastos: <span className="text-red-600 font-medium">{fmt(m.totalGastos)}</span></span>
                     </div>
                   </div>
 
-                  <div className="flex items-center gap-4 shrink-0">
-                    <div className="text-right">
-                      <div className="flex items-center gap-1 justify-end">
+                  {/* Resultado + link */}
+                  <div className="flex items-center justify-between gap-3 sm:shrink-0">
+                    <div>
+                      <div className="flex items-center gap-1">
                         {esPositivo && <TrendingUp  className="h-3.5 w-3.5 text-green-500" />}
                         {esNegativo && <TrendingDown className="h-3.5 w-3.5 text-red-500" />}
                         {!esPositivo && !esNegativo && <Minus className="h-3.5 w-3.5 text-gray-400" />}
@@ -119,7 +119,7 @@ export default async function FinanzasQuintaPage({
                     </div>
                     <Link
                       href={`/finanzas/${params.quintaId}/${m.anio}/${m.mes}`}
-                      className="rounded-lg border border-gray-200 px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50 transition"
+                      className="flex flex-1 sm:flex-none items-center justify-center rounded-lg border border-gray-200 px-3 py-2 text-xs font-medium text-gray-700 hover:bg-gray-50 transition min-h-[40px]"
                     >
                       Ver detalle
                     </Link>

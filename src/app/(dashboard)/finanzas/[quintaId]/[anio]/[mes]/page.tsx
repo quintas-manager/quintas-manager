@@ -77,9 +77,9 @@ export default async function MesDetallePage({
   const cobrarMatias        = esCerrado ? data.cierre!.cobrarMatias        : data.cobrarMatias;
 
   return (
-    <div className="max-w-3xl mx-auto space-y-5">
+    <div className="max-w-3xl mx-auto space-y-5 pt-4">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-center gap-3">
           <Link
             href={`/finanzas/${params.quintaId}`}
@@ -219,7 +219,7 @@ export default async function MesDetallePage({
       {/* ── Resultado ─────────────────────────────────────────────── */}
       <section className="rounded-xl border border-gray-200 bg-white p-5">
         <SectionTitle>Resultado</SectionTitle>
-        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
           {[
             { label: "Total ingresos", value: totalIngresos, color: "text-green-600" },
             { label: "Total gastos",   value: totalGastos,   color: "text-red-600" },
@@ -288,7 +288,7 @@ export default async function MesDetallePage({
               </div>
               <div className="flex justify-between items-center mt-3 pt-3 border-t border-gray-200">
                 <span className="text-sm font-semibold text-gray-900">Total</span>
-                <span className="text-lg font-bold text-green-600">{fmt(total)}</span>
+                <span className="text-2xl font-bold text-green-600">{fmt(total)}</span>
               </div>
             </div>
           ))}

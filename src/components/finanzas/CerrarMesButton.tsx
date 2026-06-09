@@ -50,7 +50,7 @@ export function CerrarMesButton({
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className="flex items-center gap-2 rounded-lg bg-gray-900 px-4 py-2 text-sm font-medium text-white hover:bg-gray-700 transition"
+        className="flex w-full sm:w-auto items-center justify-center gap-2 rounded-lg bg-gray-900 px-4 py-2 text-sm font-medium text-white hover:bg-gray-700 transition min-h-[56px] sm:min-h-0"
       >
         <Lock className="h-4 w-4" />
         Cerrar mes
@@ -59,7 +59,7 @@ export function CerrarMesButton({
       {open && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <div className="fixed inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setOpen(false)} onPointerUp={() => setOpen(false)} />
-          <div className="relative w-full max-w-md rounded-2xl bg-white shadow-xl">
+          <div className="relative w-[90%] max-w-md rounded-2xl bg-white shadow-xl">
             <div className="border-b border-gray-100 px-5 py-4">
               <div className="flex items-center gap-2">
                 <AlertTriangle className="h-5 w-5 text-amber-500" />
@@ -114,11 +114,11 @@ export function CerrarMesButton({
               </div>
             </div>
 
-            <div className="flex gap-2 border-t border-gray-100 px-5 py-4">
+            <div className="flex flex-col-reverse sm:flex-row gap-3 border-t border-gray-100 px-5 py-4">
               <button
                 type="button"
                 onClick={() => setOpen(false)}
-                className="flex-1 rounded-lg border border-gray-200 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 transition"
+                className="flex-1 rounded-lg border border-gray-200 px-4 py-3 text-sm font-medium text-gray-700 hover:bg-gray-50 transition min-h-[44px]"
               >
                 Cancelar
               </button>
@@ -126,7 +126,7 @@ export function CerrarMesButton({
                 type="button"
                 onClick={handleCerrar}
                 disabled={loading}
-                className="flex-1 flex items-center justify-center gap-2 rounded-lg bg-gray-900 px-4 py-2 text-sm font-medium text-white hover:bg-gray-700 transition disabled:opacity-60"
+                className="flex-1 flex items-center justify-center gap-2 rounded-lg bg-gray-900 px-4 py-3 text-sm font-medium text-white hover:bg-gray-700 transition disabled:opacity-60 min-h-[44px]"
               >
                 {loading && <Loader2 className="h-4 w-4 animate-spin" />}
                 Confirmar cierre
