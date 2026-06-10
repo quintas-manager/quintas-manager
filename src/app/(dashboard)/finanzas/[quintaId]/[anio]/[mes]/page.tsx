@@ -34,6 +34,9 @@ export default async function MesDetallePage({
   const parteMatias        = esCerrado ? data.cierre!.parteMatias        : data.parteMatias;
   const reintegrosGraciela = esCerrado ? data.cierre!.reintegrosGraciela : data.totalReintegrosGraciela;
   const reintegrosMatias   = esCerrado ? data.cierre!.reintegrosMatias   : data.totalReintegrosMatias;
+  const retirosGraciela    = esCerrado ? data.cierre!.retirosGraciela    : data.totalRetirosGraciela;
+  const retirosMatias      = esCerrado ? data.cierre!.retirosMatias      : data.totalRetirosMatias;
+  const retirosRocio       = esCerrado ? data.cierre!.retirosRocio       : data.totalRetirosRocio;
   const cobrarGraciela     = esCerrado ? data.cierre!.cobrarGraciela     : data.cobrarGraciela;
   const cobrarMatias       = esCerrado ? data.cierre!.cobrarMatias       : data.cobrarMatias;
 
@@ -52,6 +55,9 @@ export default async function MesDetallePage({
       parteMatias={parteMatias}
       reintegrosGraciela={reintegrosGraciela}
       reintegrosMatias={reintegrosMatias}
+      retirosGraciela={retirosGraciela}
+      retirosMatias={retirosMatias}
+      retirosRocio={retirosRocio}
       cobrarGraciela={cobrarGraciela}
       cobrarMatias={cobrarMatias}
     />

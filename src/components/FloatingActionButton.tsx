@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Plus, CalendarPlus, Clock, Receipt, Wallet, X } from "lucide-react";
+import { Plus, CalendarPlus, Clock, Receipt, Wallet, Banknote, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const ACTIONS = [
@@ -10,6 +10,7 @@ const ACTIONS = [
   { label: "Reserva Pendiente", icon: Clock,        href: "/reservas/pendiente", color: "text-amber-500" },
   { label: "Agregar Gasto",     icon: Receipt,      href: "/gastos/nueva",       color: "text-gray-700" },
   { label: "Registrar Pago",    icon: Wallet,       href: "/pagos/nueva",        color: "text-gray-700" },
+  { label: "Registrar Retiro",  icon: Banknote,     href: "/retiros/nueva",      color: "text-orange-600" },
 ] as const;
 
 export function FloatingActionButton() {

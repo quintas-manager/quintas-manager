@@ -1,0 +1,4 @@
+-- AlterTable
+ALTER TABLE "CierreMes" ADD COLUMN     "retirosGraciela" DECIMAL(10,2) NOT NULL DEFAULT 0,
+ADD COLUMN     "retirosMatias" DECIMAL(10,2) NOT NULL DEFAULT 0,
+ADD COLUMN     "retirosRocio" DECIMAL(10,2) NOT NULL DEFAULT 0;

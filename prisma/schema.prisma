@@ -47,6 +47,12 @@ enum MetodoPago {
   MERCADOPAGO
 }
 
+enum RetiroPor {
+  GRACIELA
+  MATIAS
+  ROCIO
+}
+
 model User {
   id          String               @id @default(cuid())
   name        String
@@ -59,6 +65,7 @@ model User {
   pagos       Pago[]
   cierresMes  CierreMes[]
   cronogramas CronogramaLimpieza[]
+  retiros     Retiro[]
 }
 
 model Quinta {
@@ -75,6 +82,7 @@ model Quinta {
   precios           PrecioTemporada[]
   gastos            Gasto[]
   cierresMes        CierreMes[]
+  retiros           Retiro[]
 }
 
 model Cliente {
@@ -183,6 +191,21 @@ model Pago {
   creadoPor   User       @relation(fields: [creadoPorId], references: [id])
 }
 
+model Retiro {
+  id           String    @id @default(cuid())
+  quintaId     String
+  creadoPorId  String
+  monto        Decimal   @db.Decimal(10, 2)
+  fecha        DateTime
+  realizadoPor RetiroPor
+  notas        String?
+  mes          Int
+  anio         Int
+  createdAt    DateTime  @default(now())
+  quinta       Quinta    @relation(fields: [quintaId], references: [id])
+  creadoPor    User      @relation(fields: [creadoPorId], references: [id])
+}
+
 model CierreMes {
   id                   String   @id @default(cuid())
   quintaId             String
@@ -195,6 +218,9 @@ model CierreMes {
   parteMatias          Decimal  @db.Decimal(10, 2)
   reintegrosGraciela   Decimal  @db.Decimal(10, 2)
   reintegrosMatias     Decimal  @db.Decimal(10, 2)
+  retirosGraciela      Decimal  @default(0) @db.Decimal(10, 2)
+  retirosMatias        Decimal  @default(0) @db.Decimal(10, 2)
+  retirosRocio         Decimal  @default(0) @db.Decimal(10, 2)
   cobrarGraciela       Decimal  @db.Decimal(10, 2)
   cobrarMatias         Decimal  @db.Decimal(10, 2)
   cerradoPorId         String

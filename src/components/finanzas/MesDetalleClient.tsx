@@ -7,7 +7,7 @@ import { es } from "date-fns/locale";
 import { ChevronLeft, Lock, CheckCircle2, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { CerrarMesButton } from "@/components/finanzas/CerrarMesButton";
-import type { MesCalculado, PagoDetalle, GastoDetalle } from "@/lib/actions/finanzas";
+import type { MesCalculado, PagoDetalle, GastoDetalle, RetiroDetalle } from "@/lib/actions/finanzas";
 
 // ── Formatters ────────────────────────────────────────────────────────────────
 
@@ -18,6 +18,15 @@ const METODO_LABELS: Record<string, string> = {
 const PAGADOR_LABELS: Record<string, string> = {
   CAJA: "Caja", GRACIELA: "Graciela", MATIAS: "Matías", ROCIO: "Rocío",
 };
+const RETIRADOR_LABELS: Record<string, string> = {
+  GRACIELA: "Graciela", MATIAS: "Matías", ROCIO: "Rocío",
+};
+const RETIRADOR_COLORS: Record<string, string> = {
+  GRACIELA: "bg-purple-100 text-purple-700",
+  MATIAS:   "bg-blue-100 text-blue-700",
+  ROCIO:    "bg-pink-100 text-pink-700",
+};
+
 const PAGADOR_COLORS: Record<string, string> = {
   GRACIELA: "bg-purple-100 text-purple-700",
   MATIAS:   "bg-blue-100 text-blue-700",
@@ -89,6 +98,9 @@ interface Props {
   parteMatias: number;
   reintegrosGraciela: number;
   reintegrosMatias: number;
+  retirosGraciela: number;
+  retirosMatias: number;
+  retirosRocio: number;
   cobrarGraciela: number;
   cobrarMatias: number;
 }
@@ -100,10 +112,12 @@ export function MesDetalleClient({
   totalIngresos, totalGastos, resultado,
   parteGraciela, parteMatias,
   reintegrosGraciela, reintegrosMatias,
+  retirosGraciela, retirosMatias, retirosRocio,
   cobrarGraciela, cobrarMatias,
 }: Props) {
-  const [selectedPago,  setSelectedPago]  = useState<PagoDetalle | null>(null);
-  const [selectedGasto, setSelectedGasto] = useState<GastoDetalle | null>(null);
+  const [selectedPago,   setSelectedPago]   = useState<PagoDetalle | null>(null);
+  const [selectedGasto,  setSelectedGasto]  = useState<GastoDetalle | null>(null);
+  const [selectedRetiro, setSelectedRetiro] = useState<RetiroDetalle | null>(null);
 
   const cerrarMesProps = {
     quintaId, mes, anio, mesNombre,
@@ -235,6 +249,49 @@ export function MesDetalleClient({
         </div>
       </section>
 
+      {/* ── Retiros ─────────────────────────────────────────────────── */}
+      <section className="rounded-xl border border-orange-200 bg-white overflow-hidden">
+        <div className="px-4 py-3 border-b border-orange-100">
+          <SectionTitle>Retiros del mes</SectionTitle>
+        </div>
+        {data.retiros.length === 0 ? (
+          <p className="px-4 py-5 text-sm text-gray-400">Sin retiros registrados este mes.</p>
+        ) : (
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="bg-orange-50 border-b border-orange-100">
+                <th className="px-4 py-2 text-left text-xs font-medium text-gray-500">Fecha</th>
+                <th className="px-4 py-2 text-left text-xs font-medium text-gray-500">Quién retiró</th>
+                <th className="px-4 py-2 text-right text-xs font-medium text-gray-500">Monto</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-orange-50">
+              {data.retiros.map((r) => (
+                <tr
+                  key={r.id}
+                  className="hover:bg-orange-50 cursor-pointer active:bg-orange-100 transition-colors"
+                  onClick={() => setSelectedRetiro(r)}
+                >
+                  <td className="px-4 py-3 text-gray-500 whitespace-nowrap text-xs">{fmtShort(r.fecha)}</td>
+                  <td className="px-4 py-3">
+                    <span className={cn("rounded-full px-2.5 py-0.5 text-xs font-medium", RETIRADOR_COLORS[r.realizadoPor] ?? "bg-gray-100 text-gray-600")}>
+                      {RETIRADOR_LABELS[r.realizadoPor] ?? r.realizadoPor}
+                    </span>
+                  </td>
+                  <td className="px-4 py-3 text-right font-semibold text-gray-900 whitespace-nowrap">{fmt(r.monto)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+        <div className="flex items-center justify-between px-4 py-3 border-t border-orange-100 bg-orange-50">
+          <span className="text-sm font-semibold text-gray-900">Total retiros</span>
+          <span className="text-sm font-bold text-orange-600">
+            {fmt(data.retiros.reduce((s, r) => s + r.monto, 0))}
+          </span>
+        </div>
+      </section>
+
       {/* ── Resultado ───────────────────────────────────────────────── */}
       <section>
         <SectionTitle>Resultado</SectionTitle>
@@ -249,6 +306,12 @@ export function MesDetalleClient({
               <span className="text-sm text-gray-600">Total Gastos</span>
               <span className="text-sm font-semibold text-red-600">{fmt(totalGastos)}</span>
             </div>
+            {retirosRocio > 0 && (
+              <div className="flex justify-between items-center">
+                <span className="text-sm text-gray-600">Retiros Rocío</span>
+                <span className="text-sm font-semibold text-orange-600">- {fmt(retirosRocio)}</span>
+              </div>
+            )}
             <div className="flex justify-between items-center pt-2 mt-1 border-t border-gray-200">
               <span className="text-sm font-semibold text-gray-900">Resultado neto</span>
               <span className={cn("text-base font-bold", resultado >= 0 ? "text-green-600" : "text-red-600")}>
@@ -312,20 +375,34 @@ export function MesDetalleClient({
         <SectionTitle>Cobro final</SectionTitle>
         <div className="space-y-3">
           {[
-            { nombre: "Graciela", parte: parteGraciela, reintegros: reintegrosGraciela, total: cobrarGraciela },
-            { nombre: "Matías",   parte: parteMatias,   reintegros: reintegrosMatias,   total: cobrarMatias },
-          ].map(({ nombre, parte, reintegros, total }) => (
+            { nombre: "Graciela", parte: parteGraciela, reintegros: reintegrosGraciela, retiros: retirosGraciela, total: cobrarGraciela },
+            { nombre: "Matías",   parte: parteMatias,   reintegros: reintegrosMatias,   retiros: retirosMatias,   total: cobrarMatias },
+          ].map(({ nombre, parte, reintegros, retiros, total }) => (
             <div key={nombre} className="rounded-xl border border-gray-200 bg-white p-5">
               <p className="text-sm text-gray-500 mb-1">👤 {nombre} cobra</p>
-              <p className="text-3xl font-bold text-green-600 mb-4">{fmt(total)}</p>
+              <p className={cn("text-3xl font-bold mb-4", total >= 0 ? "text-green-600" : "text-red-600")}>
+                {fmt(total)}
+              </p>
               <div className="space-y-1.5 pt-3 border-t border-gray-100 text-xs text-gray-500">
                 <div className="flex justify-between">
                   <span>Parte del resultado</span>
                   <span className="font-medium text-gray-700">{fmt(parte)}</span>
                 </div>
-                <div className="flex justify-between">
-                  <span>Reintegros pendientes</span>
-                  <span className="font-medium text-gray-700">{fmt(reintegros)}</span>
+                {reintegros > 0 && (
+                  <div className="flex justify-between">
+                    <span>+ Reintegros pendientes</span>
+                    <span className="font-medium text-gray-700">{fmt(reintegros)}</span>
+                  </div>
+                )}
+                {retiros > 0 && (
+                  <div className="flex justify-between">
+                    <span>- Retiros realizados</span>
+                    <span className="font-medium text-orange-600">{fmt(retiros)}</span>
+                  </div>
+                )}
+                <div className="flex justify-between pt-1.5 border-t border-gray-100">
+                  <span className="font-semibold text-gray-700">Total a cobrar</span>
+                  <span className={cn("font-bold", total >= 0 ? "text-green-600" : "text-red-600")}>{fmt(total)}</span>
                 </div>
               </div>
             </div>
@@ -360,6 +437,26 @@ export function MesDetalleClient({
                 value={METODO_LABELS[selectedPago.metodoPago] ?? selectedPago.metodoPago}
               />
               <DetailRow label="Monto" value={fmt(selectedPago.monto)} highlight />
+            </>
+          )}
+        </div>
+      </BottomSheet>
+
+      {/* ── Retiro bottom sheet ─────────────────────────────────────── */}
+      <BottomSheet open={!!selectedRetiro} onClose={() => setSelectedRetiro(null)}>
+        <div className="px-5 pb-8 pt-5 space-y-1">
+          <p className="text-base font-semibold text-gray-900 pr-12 mb-3">Detalle del retiro</p>
+          {selectedRetiro && (
+            <>
+              <DetailRow label="Fecha"       value={fmtFull(selectedRetiro.fecha)} />
+              <div className="flex items-start justify-between gap-3 py-2 border-b border-gray-100">
+                <span className="text-xs text-gray-500 shrink-0 pt-0.5">Quién retiró</span>
+                <span className={cn("rounded-full px-2.5 py-0.5 text-xs font-medium", RETIRADOR_COLORS[selectedRetiro.realizadoPor] ?? "bg-gray-100 text-gray-600")}>
+                  {RETIRADOR_LABELS[selectedRetiro.realizadoPor] ?? selectedRetiro.realizadoPor}
+                </span>
+              </div>
+              {selectedRetiro.notas && <DetailRow label="Notas" value={selectedRetiro.notas} />}
+              <DetailRow label="Monto" value={fmt(selectedRetiro.monto)} highlight />
             </>
           )}
         </div>

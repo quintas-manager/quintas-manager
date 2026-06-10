@@ -32,6 +32,14 @@ export interface ReintegroDetalle {
   monto: number;
 }
 
+export interface RetiroDetalle {
+  id: string;
+  fecha: string;
+  realizadoPor: string;
+  monto: number;
+  notas: string | null;
+}
+
 export interface MesCalculado {
   quintaId: string;
   quintaNombre: string;
@@ -49,6 +57,10 @@ export interface MesCalculado {
   reintegrosMatias: ReintegroDetalle[];
   totalReintegrosGraciela: number;
   totalReintegrosMatias: number;
+  retiros: RetiroDetalle[];
+  totalRetirosGraciela: number;
+  totalRetirosMatias: number;
+  totalRetirosRocio: number;
   cobrarGraciela: number;
   cobrarMatias: number;
   cierre: {
@@ -62,6 +74,9 @@ export interface MesCalculado {
     parteMatias: number;
     reintegrosGraciela: number;
     reintegrosMatias: number;
+    retirosGraciela: number;
+    retirosMatias: number;
+    retirosRocio: number;
     cobrarGraciela: number;
     cobrarMatias: number;
   } | null;
@@ -88,7 +103,7 @@ export async function calcularMes(
 ): Promise<MesCalculado> {
   const { inicio, fin } = mesRange(mes, anio);
 
-  const [quinta, pagos, gastos, reintegrosPendientes, cierre] = await Promise.all([
+  const [quinta, pagos, gastos, reintegrosPendientes, retiros, cierre] = await Promise.all([
     prisma.quinta.findUniqueOrThrow({
       where: { id: quintaId },
       select: { id: true, nombre: true, colorHex: true },
@@ -125,6 +140,11 @@ export async function calcularMes(
       orderBy: { fecha: "asc" },
     }),
 
+    prisma.retiro.findMany({
+      where: { quintaId, mes, anio },
+      orderBy: { fecha: "asc" },
+    }),
+
     prisma.cierreMes.findUnique({
       where: { quintaId_mes_anio: { quintaId, mes, anio } },
       include: { cerradoPor: { select: { name: true } } },
@@ -133,9 +153,19 @@ export async function calcularMes(
 
   const totalIngresos = pagos.reduce((s, p) => s + Number(p.monto), 0);
   const totalGastos   = gastos.reduce((s, g) => s + Number(g.monto), 0);
-  const resultado     = totalIngresos - totalGastos;
-  const parteGraciela = resultado / 2;
-  const parteMatias   = resultado / 2;
+
+  const retirosG      = retiros.filter((r) => r.realizadoPor === "GRACIELA");
+  const retirosM      = retiros.filter((r) => r.realizadoPor === "MATIAS");
+  const retirosR      = retiros.filter((r) => r.realizadoPor === "ROCIO");
+  const totalRetirosG = retirosG.reduce((s, r) => s + Number(r.monto), 0);
+  const totalRetirosM = retirosM.reduce((s, r) => s + Number(r.monto), 0);
+  const totalRetirosR = retirosR.reduce((s, r) => s + Number(r.monto), 0);
+
+  // Rocío no participa en la división; sus retiros se descuentan del resultado antes de dividir
+  const resultado          = totalIngresos - totalGastos;
+  const resultadoAjustado  = resultado - totalRetirosR;
+  const parteGraciela      = resultadoAjustado / 2;
+  const parteMatias        = resultadoAjustado / 2;
 
   const reintegrosG = reintegrosPendientes.filter((g) => g.pagadoPor === "GRACIELA");
   const reintegrosM = reintegrosPendientes.filter((g) => g.pagadoPor === "MATIAS");
@@ -189,8 +219,19 @@ export async function calcularMes(
     totalReintegrosGraciela: totalReintG,
     totalReintegrosMatias:   totalReintM,
 
-    cobrarGraciela: parteGraciela + totalReintG,
-    cobrarMatias:   parteMatias   + totalReintM,
+    retiros: retiros.map((r) => ({
+      id:           r.id,
+      fecha:        fmtDate(r.fecha),
+      realizadoPor: r.realizadoPor,
+      monto:        Number(r.monto),
+      notas:        r.notas,
+    })),
+    totalRetirosGraciela: totalRetirosG,
+    totalRetirosMatias:   totalRetirosM,
+    totalRetirosRocio:    totalRetirosR,
+
+    cobrarGraciela: parteGraciela + totalReintG - totalRetirosG,
+    cobrarMatias:   parteMatias   + totalReintM - totalRetirosM,
 
     cierre: cierre
       ? {
@@ -204,6 +245,9 @@ export async function calcularMes(
           parteMatias:         Number(cierre.parteMatias),
           reintegrosGraciela:  Number(cierre.reintegrosGraciela),
           reintegrosMatias:    Number(cierre.reintegrosMatias),
+          retirosGraciela:     Number(cierre.retirosGraciela),
+          retirosMatias:       Number(cierre.retirosMatias),
+          retirosRocio:        Number(cierre.retirosRocio),
           cobrarGraciela:      Number(cierre.cobrarGraciela),
           cobrarMatias:        Number(cierre.cobrarMatias),
         }
@@ -240,6 +284,9 @@ export async function cerrarMes(
         parteMatias:         data.parteMatias,
         reintegrosGraciela:  data.totalReintegrosGraciela,
         reintegrosMatias:    data.totalReintegrosMatias,
+        retirosGraciela:     data.totalRetirosGraciela,
+        retirosMatias:       data.totalRetirosMatias,
+        retirosRocio:        data.totalRetirosRocio,
         cobrarGraciela:      data.cobrarGraciela,
         cobrarMatias:        data.cobrarMatias,
         cerradoPorId:        session.user.id,
