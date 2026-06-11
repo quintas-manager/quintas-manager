@@ -4,10 +4,18 @@ import { useState } from "react";
 import Link from "next/link";
 import { format, parseISO } from "date-fns";
 import { es } from "date-fns/locale";
-import { ChevronLeft, Lock, CheckCircle2, X } from "lucide-react";
+import { ChevronLeft, Lock, CheckCircle2, X, Pencil, Loader2 } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { CerrarMesButton } from "@/components/finanzas/CerrarMesButton";
+import { actualizarGasto } from "@/lib/actions/gastos";
+import { gastoSchema, type GastoFormValues } from "@/lib/schemas/gastos";
 import type { MesCalculado, PagoDetalle, GastoDetalle, RetiroDetalle } from "@/lib/actions/finanzas";
+
+export interface CategoriaOpt { id: string; nombre: string }
 
 // ── Formatters ────────────────────────────────────────────────────────────────
 
@@ -91,6 +99,7 @@ interface Props {
   mesNombre: string;
   esCerrado: boolean;
   data: MesCalculado;
+  categorias: CategoriaOpt[];
   totalIngresos: number;
   totalGastos: number;
   resultado: number;
@@ -107,17 +116,156 @@ interface Props {
 
 // ── Main component ────────────────────────────────────────────────────────────
 
+const PAGADORES = [
+  { value: "CAJA",     label: "Caja" },
+  { value: "GRACIELA", label: "Graciela" },
+  { value: "MATIAS",   label: "Matías" },
+  { value: "ROCIO",    label: "Rocío" },
+] as const;
+
+const inputCls = (err?: string) =>
+  cn(
+    "w-full rounded-lg border px-3 py-2 text-sm outline-none transition focus:ring-2 focus:ring-offset-0",
+    err ? "border-red-400 focus:ring-red-200" : "border-gray-300 focus:border-gray-400 focus:ring-gray-200",
+  );
+
+function EditGastoForm({
+  gasto,
+  categorias,
+  onCancel,
+  onSaved,
+}: {
+  gasto: GastoDetalle;
+  categorias: CategoriaOpt[];
+  onCancel: () => void;
+  onSaved: () => void;
+}) {
+  const { register, handleSubmit, watch, formState: { errors, isSubmitting } } =
+    useForm<GastoFormValues>({
+      resolver: zodResolver(gastoSchema),
+      defaultValues: {
+        quintaId:    gasto.quintaId,
+        categoriaId: gasto.categoriaId,
+        descripcion: gasto.descripcion,
+        monto:       gasto.monto,
+        fecha:       gasto.fecha,
+        pagadoPor:   gasto.pagadoPor as GastoFormValues["pagadoPor"],
+        notas:       gasto.notas ?? "",
+      },
+    });
+
+  const onSubmit = async (data: GastoFormValues) => {
+    const result = await actualizarGasto(gasto.id, data);
+    if (result.success) {
+      toast.success("Gasto actualizado");
+      onSaved();
+    } else {
+      toast.error(result.error);
+    }
+  };
+
+  return (
+    <form onSubmit={handleSubmit(onSubmit)} className="px-5 pb-8 pt-5 space-y-4">
+      <p className="text-base font-semibold text-gray-900 pr-12">Editar gasto</p>
+
+      <div>
+        <label className="block text-xs font-medium text-gray-700 mb-1">Descripción <span className="text-red-500">*</span></label>
+        <input {...register("descripcion")} className={inputCls(errors.descripcion?.message)} />
+        {errors.descripcion && <p className="mt-1 text-xs text-red-500">{errors.descripcion.message}</p>}
+      </div>
+
+      <div className="grid grid-cols-2 gap-3">
+        <div>
+          <label className="block text-xs font-medium text-gray-700 mb-1">Monto <span className="text-red-500">*</span></label>
+          <div className="relative">
+            <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm text-gray-400">$</span>
+            <input
+              type="number" min={0} step="0.01"
+              {...register("monto", { valueAsNumber: true })}
+              className={cn(inputCls(errors.monto?.message), "pl-6")}
+            />
+          </div>
+          {errors.monto && <p className="mt-1 text-xs text-red-500">{errors.monto.message}</p>}
+        </div>
+        <div>
+          <label className="block text-xs font-medium text-gray-700 mb-1">Fecha <span className="text-red-500">*</span></label>
+          <input type="date" {...register("fecha")} className={inputCls(errors.fecha?.message)} />
+          {errors.fecha && <p className="mt-1 text-xs text-red-500">{errors.fecha.message}</p>}
+        </div>
+      </div>
+
+      <div>
+        <label className="block text-xs font-medium text-gray-700 mb-1">Categoría <span className="text-red-500">*</span></label>
+        <select {...register("categoriaId")} className={inputCls(errors.categoriaId?.message)}>
+          <option value="">Seleccioná...</option>
+          {categorias.map((c) => (
+            <option key={c.id} value={c.id}>{c.nombre}</option>
+          ))}
+        </select>
+        {errors.categoriaId && <p className="mt-1 text-xs text-red-500">{errors.categoriaId.message}</p>}
+      </div>
+
+      <div>
+        <label className="block text-xs font-medium text-gray-700 mb-1">Pagado por <span className="text-red-500">*</span></label>
+        <div className="flex gap-2 flex-wrap">
+          {PAGADORES.map((p) => (
+            <label
+              key={p.value}
+              className={cn(
+                "flex cursor-pointer items-center gap-1.5 rounded-lg border px-3 py-2 text-sm transition",
+                watch("pagadoPor") === p.value
+                  ? p.value === "CAJA"
+                    ? "border-gray-900 bg-gray-900 text-white"
+                    : "border-blue-600 bg-blue-50 text-blue-700"
+                  : "border-gray-200 text-gray-600 hover:border-gray-400",
+              )}
+            >
+              <input type="radio" value={p.value} {...register("pagadoPor")} className="sr-only" />
+              {p.label}
+            </label>
+          ))}
+        </div>
+      </div>
+
+      <div>
+        <label className="block text-xs font-medium text-gray-700 mb-1">Notas</label>
+        <textarea {...register("notas")} rows={2} className={cn(inputCls(), "resize-none")} placeholder="Información adicional..." />
+      </div>
+
+      <div className="flex gap-2 pt-1">
+        <button
+          type="button"
+          onClick={onCancel}
+          className="flex-1 rounded-lg border border-gray-200 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 transition"
+        >
+          Cancelar
+        </button>
+        <button
+          type="submit"
+          disabled={isSubmitting}
+          className="flex-1 flex items-center justify-center gap-2 rounded-lg bg-green-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-green-700 transition disabled:opacity-60"
+        >
+          {isSubmitting && <Loader2 className="h-4 w-4 animate-spin" />}
+          Guardar cambios
+        </button>
+      </div>
+    </form>
+  );
+}
+
 export function MesDetalleClient({
-  quintaId, mes, anio, mesNombre, esCerrado, data,
+  quintaId, mes, anio, mesNombre, esCerrado, data, categorias,
   totalIngresos, totalGastos, resultado,
   parteGraciela, parteMatias,
   reintegrosGraciela, reintegrosMatias,
   retirosGraciela, retirosMatias, retirosRocio,
   cobrarGraciela, cobrarMatias,
 }: Props) {
+  const router = useRouter();
   const [selectedPago,   setSelectedPago]   = useState<PagoDetalle | null>(null);
   const [selectedGasto,  setSelectedGasto]  = useState<GastoDetalle | null>(null);
   const [selectedRetiro, setSelectedRetiro] = useState<RetiroDetalle | null>(null);
+  const [editingGasto,   setEditingGasto]   = useState(false);
 
   const cerrarMesProps = {
     quintaId, mes, anio, mesNombre,
@@ -463,29 +611,54 @@ export function MesDetalleClient({
       </BottomSheet>
 
       {/* ── Gasto bottom sheet ───────────────────────────────────────── */}
-      <BottomSheet open={!!selectedGasto} onClose={() => setSelectedGasto(null)}>
-        <div className="px-5 pb-8 pt-5 space-y-1">
-          <p className="text-base font-semibold text-gray-900 pr-12 mb-3">Detalle del gasto</p>
-          {selectedGasto && (
-            <>
-              <DetailRow label="Fecha"       value={fmtFull(selectedGasto.fecha)} />
-              <DetailRow label="Categoría"   value={selectedGasto.categoriaNombre} />
-              <DetailRow label="Descripción" value={selectedGasto.descripcion} />
-              <div className="flex items-start justify-between gap-3 py-2 border-b border-gray-100">
-                <span className="text-xs text-gray-500 shrink-0 pt-0.5">Pagado por</span>
-                <span
-                  className={cn(
-                    "rounded-full px-2.5 py-0.5 text-xs font-medium",
-                    PAGADOR_COLORS[selectedGasto.pagadoPor] ?? "bg-gray-100 text-gray-600"
-                  )}
+      <BottomSheet
+        open={!!selectedGasto}
+        onClose={() => { setSelectedGasto(null); setEditingGasto(false); }}
+      >
+        {selectedGasto && editingGasto ? (
+          <EditGastoForm
+            gasto={selectedGasto}
+            categorias={categorias}
+            onCancel={() => setEditingGasto(false)}
+            onSaved={() => {
+              setSelectedGasto(null);
+              setEditingGasto(false);
+              router.refresh();
+            }}
+          />
+        ) : selectedGasto ? (
+          <div className="px-5 pb-8 pt-5 space-y-1">
+            <div className="flex items-center justify-between pr-12 mb-3">
+              <p className="text-base font-semibold text-gray-900">Detalle del gasto</p>
+              {!esCerrado && (
+                <button
+                  type="button"
+                  onClick={() => setEditingGasto(true)}
+                  className="flex items-center gap-1.5 rounded-lg border border-gray-200 px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50 transition"
                 >
-                  {PAGADOR_LABELS[selectedGasto.pagadoPor] ?? selectedGasto.pagadoPor}
-                </span>
-              </div>
-              <DetailRow label="Monto" value={fmt(selectedGasto.monto)} highlight />
-            </>
-          )}
-        </div>
+                  <Pencil className="h-3.5 w-3.5" />
+                  Editar
+                </button>
+              )}
+            </div>
+            <DetailRow label="Fecha"       value={fmtFull(selectedGasto.fecha)} />
+            <DetailRow label="Categoría"   value={selectedGasto.categoriaNombre} />
+            <DetailRow label="Descripción" value={selectedGasto.descripcion} />
+            <div className="flex items-start justify-between gap-3 py-2 border-b border-gray-100">
+              <span className="text-xs text-gray-500 shrink-0 pt-0.5">Pagado por</span>
+              <span
+                className={cn(
+                  "rounded-full px-2.5 py-0.5 text-xs font-medium",
+                  PAGADOR_COLORS[selectedGasto.pagadoPor] ?? "bg-gray-100 text-gray-600"
+                )}
+              >
+                {PAGADOR_LABELS[selectedGasto.pagadoPor] ?? selectedGasto.pagadoPor}
+              </span>
+            </div>
+            {selectedGasto.notas && <DetailRow label="Notas" value={selectedGasto.notas} />}
+            <DetailRow label="Monto" value={fmt(selectedGasto.monto)} highlight />
+          </div>
+        ) : null}
       </BottomSheet>
 
     </div>

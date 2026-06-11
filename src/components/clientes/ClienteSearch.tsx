@@ -89,63 +89,65 @@ export function ClienteSearch({
 
   return (
     <>
-      <div ref={containerRef} className="relative">
-        <div className="relative">
-          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
-          <input
-            value={search}
-            onChange={(e) => { setSearch(e.target.value); setOpen(true); }}
-            onFocus={() => setOpen(true)}
-            placeholder={placeholder}
-            className={cn(
-              "w-full rounded-lg border py-2 pl-9 pr-9 text-sm outline-none transition focus:ring-2 focus:ring-offset-0",
-              error
-                ? "border-red-400 focus:ring-red-200"
-                : "border-gray-300 focus:border-gray-400 focus:ring-gray-200"
-            )}
-          />
-          {fetching && (
-            <Loader2 className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 animate-spin text-gray-400" />
-          )}
-        </div>
+      <div className="space-y-3">
+        <button
+          type="button"
+          onClick={() => setShowModal(true)}
+          className="flex w-full items-center justify-center gap-2 rounded-lg bg-green-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-green-700 transition"
+        >
+          <UserPlus className="h-4 w-4" />
+          + Nuevo cliente
+        </button>
 
-        {open && (
-          <div className="absolute z-20 mt-1 w-full overflow-hidden rounded-xl border border-gray-200 bg-white shadow-lg">
-            <div className="max-h-52 overflow-y-auto">
-              {clientes.length === 0 && !fetching && (
-                <p className="px-4 py-3 text-sm text-gray-400">Sin resultados</p>
+        <div ref={containerRef} className="relative">
+          <p className="text-xs text-gray-500 mb-1.5">O buscar cliente existente</p>
+          <div className="relative">
+            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+            <input
+              value={search}
+              onChange={(e) => { setSearch(e.target.value); setOpen(true); }}
+              onFocus={() => setOpen(true)}
+              placeholder={placeholder}
+              className={cn(
+                "w-full rounded-lg border py-2 pl-9 pr-9 text-sm outline-none transition focus:ring-2 focus:ring-offset-0",
+                error
+                  ? "border-red-400 focus:ring-red-200"
+                  : "border-gray-300 focus:border-gray-400 focus:ring-gray-200"
               )}
-              {clientes.slice(0, 8).map((c) => (
-                <button
-                  key={c.id}
-                  type="button"
-                  onClick={() => { onChange(c.id); setOpen(false); setSearch(""); }}
-                  className="flex w-full items-center justify-between px-4 py-2.5 text-left transition hover:bg-gray-50"
-                >
-                  <div>
-                    <p className="text-sm font-medium text-gray-900">
-                      {c.nombre} {c.apellido}
-                    </p>
-                    <p className="text-xs text-gray-500">{c.telefono}</p>
-                  </div>
-                  {c.dni && <span className="text-xs text-gray-400">{c.dni}</span>}
-                </button>
-              ))}
-            </div>
-            <div className="border-t border-gray-100 px-3 py-2">
-              <button
-                type="button"
-                onClick={() => { setOpen(false); setShowModal(true); }}
-                className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm text-gray-600 transition hover:bg-gray-50"
-              >
-                <UserPlus className="h-4 w-4" />
-                Nuevo cliente
-              </button>
-            </div>
+            />
+            {fetching && (
+              <Loader2 className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 animate-spin text-gray-400" />
+            )}
           </div>
-        )}
 
-        {error && <p className="mt-1 text-xs text-red-500">{error}</p>}
+          {open && (
+            <div className="absolute z-20 mt-1 w-full overflow-hidden rounded-xl border border-gray-200 bg-white shadow-lg">
+              <div className="max-h-52 overflow-y-auto">
+                {clientes.length === 0 && !fetching && (
+                  <p className="px-4 py-3 text-sm text-gray-400">Sin resultados</p>
+                )}
+                {clientes.slice(0, 8).map((c) => (
+                  <button
+                    key={c.id}
+                    type="button"
+                    onClick={() => { onChange(c.id); setOpen(false); setSearch(""); }}
+                    className="flex w-full items-center justify-between px-4 py-2.5 text-left transition hover:bg-gray-50"
+                  >
+                    <div>
+                      <p className="text-sm font-medium text-gray-900">
+                        {c.nombre} {c.apellido}
+                      </p>
+                      <p className="text-xs text-gray-500">{c.telefono}</p>
+                    </div>
+                    {c.dni && <span className="text-xs text-gray-400">{c.dni}</span>}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {error && <p className="mt-1 text-xs text-red-500">{error}</p>}
+        </div>
       </div>
 
       {showModal && (

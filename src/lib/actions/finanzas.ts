@@ -20,9 +20,12 @@ export interface GastoDetalle {
   id: string;
   fecha: string;
   categoriaNombre: string;
+  categoriaId: string;
   descripcion: string;
   monto: number;
   pagadoPor: string;
+  notas: string | null;
+  quintaId: string;
 }
 
 export interface ReintegroDetalle {
@@ -128,7 +131,7 @@ export async function calcularMes(
         fecha: { gte: inicio, lte: fin },
       },
       orderBy: { fecha: "asc" },
-      include: { categoria: { select: { nombre: true } } },
+      include: { categoria: { select: { nombre: true, id: true } } },
     }),
 
     prisma.gasto.findMany({
@@ -194,9 +197,12 @@ export async function calcularMes(
       id:              g.id,
       fecha:           fmtDate(g.fecha),
       categoriaNombre: g.categoria.nombre,
+      categoriaId:     g.categoria.id,
       descripcion:     g.descripcion,
       monto:           Number(g.monto),
       pagadoPor:       g.pagadoPor,
+      notas:           g.notas,
+      quintaId:        g.quintaId,
     })),
     totalGastos,
 

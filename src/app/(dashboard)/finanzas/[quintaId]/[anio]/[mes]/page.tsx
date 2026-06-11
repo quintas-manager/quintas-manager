@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import { calcularMes } from "@/lib/actions/finanzas";
 import { MesDetalleClient } from "@/components/finanzas/MesDetalleClient";
+import { prisma } from "@/lib/prisma";
 
 const MESES = [
   "", "Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio",
@@ -17,12 +18,16 @@ export default async function MesDetallePage({
 
   if (isNaN(mes) || isNaN(anio) || mes < 1 || mes > 12) notFound();
 
-  let data;
-  try {
-    data = await calcularMes(params.quintaId, mes, anio);
-  } catch {
-    notFound();
-  }
+  const [data, categorias] = await Promise.all([
+    calcularMes(params.quintaId, mes, anio).catch(() => null),
+    prisma.categoriaGasto.findMany({
+      where:   { activa: true },
+      select:  { id: true, nombre: true },
+      orderBy: { nombre: "asc" },
+    }),
+  ]);
+
+  if (!data) notFound();
 
   const mesNombre  = `${MESES[mes]} ${anio}`;
   const esCerrado  = !!data.cierre;
@@ -48,6 +53,7 @@ export default async function MesDetallePage({
       mesNombre={mesNombre}
       esCerrado={esCerrado}
       data={data}
+      categorias={categorias}
       totalIngresos={totalIngresos}
       totalGastos={totalGastos}
       resultado={resultado}
