@@ -262,8 +262,7 @@ export function DashboardShell({ userName, userRole, children }: DashboardShellP
 
       {/* ── Mobile bottom navigation ─────────────────────────────── */}
       <nav
-        className="fixed bottom-0 left-0 right-0 z-20 overflow-visible border-t border-gray-200 bg-white lg:hidden"
-        style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
+        className="fixed bottom-0 left-0 right-0 z-20 bg-white border-t border-gray-200 pb-[env(safe-area-inset-bottom)] lg:hidden"
       >
         <div className="flex h-[60px] items-stretch justify-around px-2">
           {/* Dashboard */}
