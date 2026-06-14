@@ -1,12 +1,11 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter, usePathname, useSearchParams } from "next/navigation";
-import { useCallback, useState } from "react";
-import { format, parseISO } from "date-fns";
+import { useMemo, useState } from "react";
+import { format, parseISO, startOfToday, isBefore } from "date-fns";
 import { es } from "date-fns/locale";
 import {
-  Pencil, XCircle, ChevronLeft, ChevronRight, Search, X,
+  Pencil, XCircle, Search, X,
   Phone, PawPrint, Users, ExternalLink,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -35,23 +34,10 @@ interface ReservaRow {
   tieneMascota: boolean;
 }
 
-interface QuintaFilter {
-  id: string;
-  nombre: string;
-}
+type Chip = "proximas" | "canceladas" | "todas";
 
 interface Props {
   reservas: ReservaRow[];
-  quintas: QuintaFilter[];
-  total: number;
-  page: number;
-  pageSize: number;
-  defaultFiltros: {
-    quinta?: string;
-    estado?: string;
-    desde?: string;
-    hasta?: string;
-  };
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -69,6 +55,12 @@ const ESTADO_CONFIG: Record<string, { label: string; cls: string }> = {
   CONFIRMADA: { label: "Confirmada", cls: "bg-green-100 text-green-700 ring-1 ring-green-200" },
   CANCELADA:  { label: "Cancelada",  cls: "bg-red-100 text-red-600 ring-1 ring-red-200" },
   COMPLETADA: { label: "Completada", cls: "bg-blue-100 text-blue-700 ring-1 ring-blue-200" },
+};
+
+const CHIP_LABELS: Record<Chip, string> = {
+  proximas:   "Próximas",
+  canceladas: "Canceladas",
+  todas:      "Todas",
 };
 
 const fmt = (iso: string) => format(parseISO(iso), "d/MM/yy", { locale: es });
@@ -97,7 +89,6 @@ function ReservaDrawer({
 
   return (
     <div className="fixed inset-0 z-50 flex justify-end">
-      {/* Backdrop */}
       <div
         className="absolute inset-0 bg-black/40 backdrop-blur-sm"
         onClick={onClose}
@@ -105,9 +96,7 @@ function ReservaDrawer({
         aria-hidden="true"
       />
 
-      {/* Drawer panel */}
       <div className="relative flex h-full w-full max-w-md flex-col bg-white shadow-2xl overflow-hidden">
-        {/* Header */}
         <div className="flex items-start justify-between border-b border-gray-100 px-5 py-4">
           <div>
             <div className="flex items-center gap-2 flex-wrap">
@@ -129,9 +118,7 @@ function ReservaDrawer({
           </button>
         </div>
 
-        {/* Scrollable content */}
         <div className="flex-1 overflow-y-auto p-5 space-y-5">
-          {/* Quinta */}
           <div
             className="flex items-center gap-3 rounded-xl p-4"
             style={{ backgroundColor: reserva.quintaColor + "1A" }}
@@ -145,7 +132,6 @@ function ReservaDrawer({
             <span className="font-medium text-gray-900">{reserva.quintaNombre}</span>
           </div>
 
-          {/* Reserva info */}
           <div className="rounded-xl border border-gray-100 bg-gray-50 divide-y divide-gray-100">
             <Row label="Fechas" value={`${fmt(reserva.fechaInicio)} → ${fmt(reserva.fechaFin)}`} />
             <Row label="Tipo" value={TIPO_LABELS[reserva.tipoAlquiler] ?? reserva.tipoAlquiler} />
@@ -172,13 +158,11 @@ function ReservaDrawer({
             />
           </div>
 
-          {/* Financiero */}
           <div className="rounded-xl border border-gray-100 bg-gray-50 divide-y divide-gray-100">
             <Row label="Monto total" value={formatMonto(reserva.montoTotal)} />
             <Row label="Seña acordada" value={reserva.sena != null ? formatMonto(reserva.sena) : "—"} />
           </div>
 
-          {/* Cliente */}
           <div className="rounded-xl border border-gray-100 bg-gray-50 divide-y divide-gray-100">
             <Row
               label="Teléfono"
@@ -194,7 +178,6 @@ function ReservaDrawer({
             />
           </div>
 
-          {/* Notas */}
           {reserva.notas && (
             <div className="rounded-xl border border-gray-100 bg-gray-50 p-4">
               <p className="text-xs font-medium text-gray-500 mb-1">Notas</p>
@@ -203,7 +186,6 @@ function ReservaDrawer({
           )}
         </div>
 
-        {/* Footer actions */}
         <div className="border-t border-gray-100 p-4 flex flex-wrap gap-2">
           <Link
             href={`/reservas/${reserva.id}`}
@@ -253,103 +235,81 @@ function Row({ label, value }: { label: string; value: React.ReactNode }) {
 
 // ── Component ─────────────────────────────────────────────────────────────────
 
-export function ReservasTable({
-  reservas, quintas, total, page, pageSize, defaultFiltros,
-}: Props) {
-  const router = useRouter();
-  const pathname = usePathname();
-  const searchParams = useSearchParams();
-
-  const [quinta,  setQuinta]  = useState(defaultFiltros.quinta  ?? "");
-  const [estado,  setEstado]  = useState(defaultFiltros.estado  ?? "");
-  const [desde,   setDesde]   = useState(defaultFiltros.desde   ?? "");
-  const [hasta,   setHasta]   = useState(defaultFiltros.hasta   ?? "");
-
+export function ReservasTable({ reservas }: Props) {
+  const [busqueda,       setBusqueda]       = useState("");
+  const [chip,           setChip]           = useState<Chip>("proximas");
   const [cancelModal,    setCancelModal]    = useState<{ id: string; nombre: string } | null>(null);
   const [confirmarModal, setConfirmarModal] = useState<{ id: string; nombre: string } | null>(null);
   const [drawerReserva,  setDrawerReserva]  = useState<ReservaRow | null>(null);
 
-  const totalPages = Math.ceil(total / pageSize);
+  const filtered = useMemo(() => {
+    const today = startOfToday();
 
-  const pushParams = useCallback(
-    (overrides: Record<string, string>) => {
-      const params = new URLSearchParams(searchParams.toString());
-      for (const [k, v] of Object.entries(overrides)) {
-        if (v) params.set(k, v); else params.delete(k);
-      }
-      params.set("page", "1");
-      router.push(`${pathname}?${params.toString()}`);
-    },
-    [pathname, router, searchParams],
-  );
+    let list: ReservaRow[];
 
-  const applyFiltros = () => { pushParams({ quinta, estado, desde, hasta }); };
+    if (chip === "proximas") {
+      list = reservas
+        .filter((r) =>
+          ["CONFIRMADA", "PENDIENTE"].includes(r.estado) &&
+          !isBefore(parseISO(r.fechaInicio), today),
+        );
+    } else if (chip === "canceladas") {
+      list = [...reservas]
+        .filter((r) => ["CANCELADA", "COMPLETADA"].includes(r.estado))
+        .sort((a, b) => parseISO(b.fechaInicio).getTime() - parseISO(a.fechaInicio).getTime());
+    } else {
+      list = reservas; // already sorted asc from server
+    }
 
-  const clearFiltros = () => {
-    setQuinta(""); setEstado(""); setDesde(""); setHasta("");
-    router.push(pathname);
-  };
+    if (busqueda.trim()) {
+      const q = busqueda.toLowerCase().trim();
+      list = list.filter(
+        (r) =>
+          r.clienteNombre.toLowerCase().includes(q) ||
+          r.clienteApellido.toLowerCase().includes(q),
+      );
+    }
 
-  const selectCls =
-    "rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-700 shadow-sm outline-none focus:ring-2 focus:ring-gray-300 focus:ring-offset-0";
+    return list;
+  }, [reservas, chip, busqueda]);
 
   return (
     <div className="space-y-4">
-      {/* ── Filtros ──────────────────────────────────────────────── */}
-      <div className="rounded-xl border border-gray-200 bg-white p-4">
-        <div className="flex flex-wrap items-end gap-3">
-          <div className="flex flex-col gap-1 min-w-[160px]">
-            <label className="text-xs font-medium text-gray-600">Quinta</label>
-            <select value={quinta} onChange={(e) => setQuinta(e.target.value)} className={selectCls}>
-              <option value="">Todas</option>
-              {quintas.map((q) => <option key={q.id} value={q.id}>{q.nombre}</option>)}
-            </select>
-          </div>
+      {/* ── Search + chips ──────────────────────────────────────── */}
+      <div className="space-y-3">
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400 pointer-events-none" />
+          <input
+            type="text"
+            placeholder="Buscar cliente..."
+            value={busqueda}
+            onChange={(e) => setBusqueda(e.target.value)}
+            className="w-full min-h-[44px] rounded-xl border border-gray-200 bg-white pl-9 pr-4 text-sm text-gray-700 outline-none focus:ring-2 focus:ring-gray-300 focus:ring-offset-0"
+          />
+        </div>
 
-          <div className="flex flex-col gap-1 min-w-[140px]">
-            <label className="text-xs font-medium text-gray-600">Estado</label>
-            <select value={estado} onChange={(e) => setEstado(e.target.value)} className={selectCls}>
-              <option value="">Todos</option>
-              <option value="PENDIENTE">Pendiente</option>
-              <option value="CONFIRMADA">Confirmada</option>
-              <option value="CANCELADA">Cancelada</option>
-              <option value="COMPLETADA">Completada</option>
-            </select>
-          </div>
-
-          <div className="flex flex-col gap-1">
-            <label className="text-xs font-medium text-gray-600">Desde</label>
-            <input type="date" value={desde} onChange={(e) => setDesde(e.target.value)} className={selectCls} />
-          </div>
-
-          <div className="flex flex-col gap-1">
-            <label className="text-xs font-medium text-gray-600">Hasta</label>
-            <input type="date" value={hasta} onChange={(e) => setHasta(e.target.value)} className={selectCls} />
-          </div>
-
-          <div className="flex gap-2 ml-auto">
+        <div className="flex gap-2">
+          {(["proximas", "canceladas", "todas"] as Chip[]).map((c) => (
             <button
+              key={c}
               type="button"
-              onClick={clearFiltros}
-              className="min-h-[40px] rounded-lg border border-gray-200 px-4 py-2 text-sm text-gray-500 hover:bg-gray-50 transition"
+              onClick={() => setChip(c)}
+              className={cn(
+                "min-h-[36px] rounded-full px-4 py-1 text-sm font-medium transition-colors",
+                chip === c
+                  ? "bg-green-600 text-white"
+                  : "bg-gray-100 text-gray-600 hover:bg-gray-200",
+              )}
             >
-              Limpiar
+              {CHIP_LABELS[c]}
             </button>
-            <button
-              type="button"
-              onClick={applyFiltros}
-              className="flex min-h-[40px] items-center gap-2 rounded-lg bg-gray-900 px-4 py-2 text-sm font-medium text-white hover:bg-gray-700 transition"
-            >
-              <Search className="h-3.5 w-3.5" />
-              Filtrar
-            </button>
-          </div>
+          ))}
         </div>
       </div>
 
-      {/* ── Table ────────────────────────────────────────────────── */}
+      {/* ── List ────────────────────────────────────────────────── */}
       <div className="rounded-xl border border-gray-200 bg-white overflow-hidden">
-        {reservas.length === 0 ? (
+        {filtered.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-16 text-gray-400">
             <Search className="h-8 w-8 mb-3 opacity-40" />
             <p className="text-sm">No se encontraron reservas</p>
@@ -369,9 +329,9 @@ export function ReservasTable({
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-50">
-                  {reservas.map((r) => {
-                    const estadoCfg    = ESTADO_CONFIG[r.estado] ?? ESTADO_CONFIG.PENDIENTE;
-                    const puedeEditar  = ["PENDIENTE", "CONFIRMADA"].includes(r.estado);
+                  {filtered.map((r) => {
+                    const estadoCfg     = ESTADO_CONFIG[r.estado] ?? ESTADO_CONFIG.PENDIENTE;
+                    const puedeEditar   = ["PENDIENTE", "CONFIRMADA"].includes(r.estado);
                     const puedeCancelar = puedeEditar;
                     return (
                       <tr
@@ -407,7 +367,7 @@ export function ReservasTable({
                           <span className={cn(
                             "inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium",
                             estadoCfg.cls,
-                            r.estado === "PENDIENTE" && "font-semibold ring-2"
+                            r.estado === "PENDIENTE" && "font-semibold ring-2",
                           )}>
                             {estadoCfg.label}
                           </span>
@@ -452,9 +412,9 @@ export function ReservasTable({
 
             {/* ── Mobile cards ───────────────────────────── */}
             <div className="md:hidden divide-y divide-gray-100">
-              {reservas.map((r) => {
-                const estadoCfg    = ESTADO_CONFIG[r.estado] ?? ESTADO_CONFIG.PENDIENTE;
-                const puedeEditar  = ["PENDIENTE", "CONFIRMADA"].includes(r.estado);
+              {filtered.map((r) => {
+                const estadoCfg     = ESTADO_CONFIG[r.estado] ?? ESTADO_CONFIG.PENDIENTE;
+                const puedeEditar   = ["PENDIENTE", "CONFIRMADA"].includes(r.estado);
                 const puedeCancelar = puedeEditar;
                 return (
                   <button
@@ -463,7 +423,6 @@ export function ReservasTable({
                     className="w-full text-left p-4 hover:bg-gray-50 transition-colors"
                     onClick={() => setDrawerReserva(r)}
                   >
-                    {/* Top row */}
                     <div className="flex items-start justify-between gap-2 mb-2">
                       <div className="min-w-0">
                         <p className="font-medium text-gray-900 truncate">
@@ -479,7 +438,6 @@ export function ReservasTable({
                       </span>
                     </div>
 
-                    {/* Detail row */}
                     <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs text-gray-600 mb-3">
                       <span>{fmt(r.fechaInicio)} → {fmt(r.fechaFin)}</span>
                       <span className="font-medium text-gray-900">{formatMonto(r.montoTotal)}</span>
@@ -487,7 +445,6 @@ export function ReservasTable({
                       <span className="text-gray-500">Seña: {r.sena != null ? formatMonto(r.sena) : "—"}</span>
                     </div>
 
-                    {/* Actions */}
                     <div className="flex gap-2" onClick={(e) => e.stopPropagation()} onPointerUp={(e) => e.stopPropagation()}>
                       {puedeEditar && (
                         <Link
@@ -522,34 +479,9 @@ export function ReservasTable({
             </div>
           </>
         )}
-
-        {/* Pagination */}
-        {totalPages > 1 && (
-          <div className="flex items-center justify-between border-t border-gray-100 px-4 py-3">
-            <p className="text-xs text-gray-500">
-              {total} resultado{total !== 1 ? "s" : ""} · página {page} de {totalPages}
-            </p>
-            <div className="flex gap-1">
-              <button
-                disabled={page <= 1}
-                onClick={() => pushParams({ page: String(page - 1) })}
-                className="flex min-h-[44px] min-w-[44px] items-center justify-center rounded-lg text-gray-400 hover:bg-gray-100 disabled:opacity-40 transition"
-              >
-                <ChevronLeft className="h-4 w-4" />
-              </button>
-              <button
-                disabled={page >= totalPages}
-                onClick={() => pushParams({ page: String(page + 1) })}
-                className="flex min-h-[44px] min-w-[44px] items-center justify-center rounded-lg text-gray-400 hover:bg-gray-100 disabled:opacity-40 transition"
-              >
-                <ChevronRight className="h-4 w-4" />
-              </button>
-            </div>
-          </div>
-        )}
       </div>
 
-      {/* Detail drawer */}
+      {/* Modals */}
       {drawerReserva && (
         <ReservaDrawer
           reserva={drawerReserva}
@@ -557,7 +489,6 @@ export function ReservasTable({
           onCancelar={(r) => setCancelModal(r)}
         />
       )}
-
       {cancelModal && (
         <CancelarModal
           reservaId={cancelModal.id}
