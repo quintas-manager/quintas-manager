@@ -9,7 +9,8 @@
     "lint": "next lint",
     "seed": "ts-node --compiler-options '{\"module\":\"CommonJS\",\"moduleResolution\":\"node\"}' prisma/seed.ts",
     "db:reset": "npx prisma migrate reset --force && npm run seed",
-    "generate-icons": "node scripts/generate-icons.js"
+    "generate-icons": "node scripts/generate-icons.js",
+    "clean-data": "ts-node --compiler-options '{\"module\":\"CommonJS\",\"moduleResolution\":\"node\"}' scripts/clean-data.ts"
   },
   "dependencies": {
     "@auth/prisma-adapter": "^2.11.2",
