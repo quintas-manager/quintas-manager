@@ -511,10 +511,14 @@ interface CalendarioClientProps {
 
 type MonthEntry = { year: number; month: number };
 
+const STICKY_H = 48; // sticky month-label bar height in px
+
 export function CalendarioClient({ initialReservas, quintas }: CalendarioClientProps) {
   const now = new Date();
   const cy  = now.getFullYear();
   const cm  = now.getMonth();
+
+  const containerRef = useRef<HTMLDivElement>(null);
 
   const [months, setMonths] = useState<MonthEntry[]>(() => [
     shiftMonth(cy, cm, -1),
@@ -527,7 +531,6 @@ export function CalendarioClient({ initialReservas, quintas }: CalendarioClientP
   const [activeBar, setActiveBar] = useState<ReservaEvento | null>(null);
   const [activeDay, setActiveDay] = useState<string | null>(null);
 
-  const monthLabelTop    = 56;
   const blockRefs        = useRef(new Map<string, HTMLDivElement>());
   const fetchedKeys      = useRef(new Set<string>([
     monthKey(shiftMonth(cy, cm, -1).year, shiftMonth(cy, cm, -1).month),
@@ -536,6 +539,7 @@ export function CalendarioClient({ initialReservas, quintas }: CalendarioClientP
   ]));
   const isFetchingFuture = useRef(false);
   const isFetchingPast   = useRef(false);
+  const headerTimer      = useRef<ReturnType<typeof setTimeout>>();
 
   // ── Data fetching ─────────────────────────────────────────────────────────
 
@@ -591,8 +595,11 @@ export function CalendarioClient({ initialReservas, quintas }: CalendarioClientP
     if (isFetchingPast.current) return;
     isFetchingPast.current = true;
 
-    const prevScrollY = window.scrollY;
-    const prevHeight  = document.documentElement.scrollHeight;
+    const container = containerRef.current;
+    if (!container) { isFetchingPast.current = false; return; }
+
+    const prevScrollTop = container.scrollTop;
+    const prevHeight    = container.scrollHeight;
 
     setMonths((prev) => {
       const first = prev[0];
@@ -617,8 +624,8 @@ export function CalendarioClient({ initialReservas, quintas }: CalendarioClientP
 
       requestAnimationFrame(() => {
         requestAnimationFrame(() => {
-          const delta = document.documentElement.scrollHeight - prevHeight;
-          window.scrollTo(0, prevScrollY + delta);
+          const delta = container.scrollHeight - prevHeight;
+          container.scrollTop = prevScrollTop + delta;
         });
       });
 
@@ -629,42 +636,52 @@ export function CalendarioClient({ initialReservas, quintas }: CalendarioClientP
   // ── Scroll: lazy load + sticky header update ──────────────────────────────
 
   useEffect(() => {
+    const container = containerRef.current;
+    if (!container) return;
+
     const onScroll = () => {
-      const scrollY      = window.scrollY;
-      const scrollHeight = document.documentElement.scrollHeight;
-      const clientHeight = window.innerHeight;
+      const { scrollTop, scrollHeight, clientHeight } = container;
 
-      if (scrollHeight - scrollY - clientHeight < 500) loadFuture();
-      if (scrollY < 300) loadPast();
+      // Lazy load triggers — immediate, no debounce needed
+      if (scrollHeight - scrollTop - clientHeight < 500) loadFuture();
+      if (scrollTop < 80) loadPast();
 
-      const threshold = monthLabelTop + 48;
-      let bestTop = -Infinity;
-      let bestKey: string | null = null;
-      Array.from(blockRefs.current.entries()).forEach(([key, blockEl]) => {
-        const top = blockEl.getBoundingClientRect().top;
-        if (top <= threshold && top > bestTop) {
-          bestTop = top;
-          bestKey = key;
+      // Header label update — debounced to avoid firing every pixel
+      clearTimeout(headerTimer.current);
+      headerTimer.current = setTimeout(() => {
+        const containerTop = container.getBoundingClientRect().top;
+        let bestTop = -Infinity;
+        let bestKey: string | null = null;
+        Array.from(blockRefs.current.entries()).forEach(([key, blockEl]) => {
+          const top = blockEl.getBoundingClientRect().top - containerTop;
+          if (top <= STICKY_H && top > bestTop) {
+            bestTop = top;
+            bestKey = key;
+          }
+        });
+        if (bestKey) {
+          const [yr, mo] = (bestKey as string).split("-").map(Number);
+          setHeaderLabel(`${MONTH_NAMES[mo - 1].toUpperCase()} ${yr}`);
         }
-      });
-      if (bestKey) {
-        const [yr, mo] = (bestKey as string).split("-").map(Number);
-        setHeaderLabel(`${MONTH_NAMES[mo - 1].toUpperCase()} ${yr}`);
-      }
+      }, 100);
     };
 
-    window.addEventListener("scroll", onScroll, { passive: true });
-    return () => window.removeEventListener("scroll", onScroll);
+    container.addEventListener("scroll", onScroll, { passive: true });
+    return () => {
+      container.removeEventListener("scroll", onScroll);
+      clearTimeout(headerTimer.current);
+    };
   }, [loadFuture, loadPast]);
 
   // ── Initial scroll to current month ──────────────────────────────────────
 
   useEffect(() => {
-    const key     = monthKey(cy, cm);
-    const blockEl = blockRefs.current.get(key);
-    if (blockEl) {
-      blockEl.scrollIntoView({ behavior: "instant", block: "start" });
-      window.scrollBy(0, -(56 + 48));
+    const container = containerRef.current;
+    const blockEl   = blockRefs.current.get(monthKey(cy, cm));
+    if (container && blockEl) {
+      const containerTop = container.getBoundingClientRect().top;
+      const blockTop     = blockEl.getBoundingClientRect().top;
+      container.scrollTop += blockTop - containerTop - STICKY_H;
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -694,50 +711,52 @@ export function CalendarioClient({ initialReservas, quintas }: CalendarioClientP
 
   return (
     <>
-      {/* Sticky month/year label */}
+      {/* Self-contained scroll container — prevents body scroll interference */}
       <div
-        className="sticky z-20 border-b border-gray-200 bg-white px-4 py-3"
-        style={{ top: "56px" }}
+        ref={containerRef}
+        className="h-full overflow-y-auto overscroll-contain"
       >
-        <p className="text-base font-semibold text-gray-900">{headerLabel}</p>
+        {/* Sticky month/year label — top:0 relative to this container */}
+        <div className="sticky top-0 z-20 border-b border-gray-200 bg-white px-4 py-3">
+          <p className="text-base font-semibold text-gray-900">{headerLabel}</p>
+        </div>
+
+        {/* Month cards */}
+        <div className="flex flex-col py-4">
+          {months.map(({ year, month }, idx) => {
+            const prevYear          = idx > 0 ? months[idx - 1].year : null;
+            const showYearSeparator = prevYear !== null && prevYear !== year;
+
+            return (
+              <div key={monthKey(year, month)}>
+                {showYearSeparator && (
+                  <div className="mx-3 mb-4 flex items-center gap-3">
+                    <div className="h-px flex-1 bg-gray-200" />
+                    <span className="text-sm font-semibold text-gray-400">{year}</span>
+                    <div className="h-px flex-1 bg-gray-200" />
+                  </div>
+                )}
+                <MonthBlock
+                  year={year}
+                  month={month}
+                  reservas={reservas}
+                  selectedDate={activeDay}
+                  onDayTap={handleDayTap}
+                  onPillTap={handlePillTap}
+                  onRef={makeOnRef(monthKey(year, month))}
+                />
+              </div>
+            );
+          })}
+          <div className="h-20" />
+        </div>
       </div>
 
-      {/* Month cards */}
-      <div className="flex flex-col py-4">
-        {months.map(({ year, month }, idx) => {
-          const prevYear         = idx > 0 ? months[idx - 1].year : null;
-          const showYearSeparator = prevYear !== null && prevYear !== year;
-
-          return (
-            <div key={monthKey(year, month)}>
-              {showYearSeparator && (
-                <div className="mx-3 mb-4 flex items-center gap-3">
-                  <div className="h-px flex-1 bg-gray-200" />
-                  <span className="text-sm font-semibold text-gray-400">{year}</span>
-                  <div className="h-px flex-1 bg-gray-200" />
-                </div>
-              )}
-              <MonthBlock
-                year={year}
-                month={month}
-                reservas={reservas}
-                selectedDate={activeDay}
-                onDayTap={handleDayTap}
-                onPillTap={handlePillTap}
-                onRef={makeOnRef(monthKey(year, month))}
-              />
-            </div>
-          );
-        })}
-        <div className="h-20" />
-      </div>
-
-      {/* Reservation detail sheet */}
+      {/* Bottom sheets — outside the scroll container, position:fixed escapes it */}
       <BottomSheet open={activeBar !== null} onClose={closeBarSheet}>
         {activeBar && <ReservationSheet reserva={activeBar} onClose={closeBarSheet} />}
       </BottomSheet>
 
-      {/* Day options sheet */}
       <BottomSheet open={activeDay !== null} onClose={closeDaySheet}>
         {activeDay && (
           <DaySheet
