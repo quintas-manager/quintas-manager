@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { format, parseISO } from "date-fns";
+import { format } from "date-fns";
 import { es } from "date-fns/locale";
 import {
   CalendarPlus,
@@ -46,12 +46,12 @@ function todayStr() {
   return toIso(n.getFullYear(), n.getMonth(), n.getDate());
 }
 
-// Timezone-safe date comparison (UTC-X servers like Argentina)
-function coversDia(r: ReservaEvento, iso: string): boolean {
-  return iso >= r.fechaInicio.substring(0, 10) && iso <= r.fechaFin.substring(0, 10);
+function nextDayIso(iso: string): string {
+  const [y, m, d] = iso.split("-").map(Number);
+  const dt = new Date(y, m - 1, d + 1);
+  return `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, "0")}-${String(dt.getDate()).padStart(2, "0")}`;
 }
 
-// Format "vie 4 jul" using local date to avoid UTC shift
 function fmtDateShort(isoStr: string) {
   const [y, m, d] = isoStr.substring(0, 10).split("-").map(Number);
   return format(new Date(y, m - 1, d), "EEE d MMM", { locale: es });
@@ -68,7 +68,7 @@ function fmtPeso(n: number) {
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
-const WEEKDAYS = ["Dom", "Lun", "Mar", "Mié", "Jue", "Vie", "Sáb"];
+const WEEKDAYS_SHORT = ["DOM", "LUN", "MAR", "MIÉ", "JUE", "VIE", "SÁB"];
 
 const MONTH_NAMES = [
   "Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio",
@@ -90,77 +90,6 @@ const ESTADO_CONFIG: Record<string, { label: string; cls: string }> = {
   COMPLETADA: { label: "Completada", cls: "bg-blue-100 text-blue-700"  },
 };
 
-// ── Event bar types & computation ─────────────────────────────────────────────
-
-type Cell = { day: number; iso: string; current: boolean };
-
-interface EventBar {
-  id:              string;
-  startCol:        number;
-  endCol:          number;
-  lane:            number;
-  color:           string;
-  clienteNombre:   string;
-  clienteApellido: string;
-  isPendiente:     boolean;
-  startsHere:      boolean;
-  endsHere:        boolean;
-  reserva:         ReservaEvento;
-}
-
-const MAX_LANES = 3;
-
-function computeWeekBars(week: Cell[], reservas: ReservaEvento[]): EventBar[] {
-  const candidates: Omit<EventBar, "lane">[] = [];
-
-  for (const r of reservas) {
-    const rStart = r.fechaInicio.substring(0, 10);
-    const rEnd   = r.fechaFin.substring(0, 10);
-
-    const coveredCols = week
-      .map((cell, col) => ({ cell, col }))
-      .filter(({ cell }) => cell.current && cell.iso >= rStart && cell.iso <= rEnd)
-      .map(({ col }) => col);
-
-    if (coveredCols.length === 0) continue;
-
-    const startCol = coveredCols[0];
-    const endCol   = coveredCols[coveredCols.length - 1];
-
-    candidates.push({
-      id:              r.id,
-      startCol,
-      endCol,
-      color:           r.quintaColor,
-      clienteNombre:   r.clienteNombre,
-      clienteApellido: r.clienteApellido,
-      isPendiente:     r.estado === "PENDIENTE",
-      startsHere:      week[startCol].iso === rStart,
-      endsHere:        week[endCol].iso   === rEnd,
-      reserva:         r,
-    });
-  }
-
-  candidates.sort(
-    (a, b) =>
-      a.startCol - b.startCol ||
-      (b.endCol - b.startCol) - (a.endCol - a.startCol),
-  );
-
-  const laneEnds: number[] = [];
-  const result: EventBar[]  = [];
-
-  for (const bar of candidates) {
-    let lane = laneEnds.findIndex((end) => end < bar.startCol);
-    if (lane === -1) lane = laneEnds.length;
-    if (lane >= MAX_LANES) continue;
-    laneEnds[lane] = bar.endCol;
-    result.push({ ...bar, lane });
-  }
-
-  return result;
-}
-
 // ── BottomSheet ───────────────────────────────────────────────────────────────
 
 function BottomSheet({
@@ -174,7 +103,6 @@ function BottomSheet({
 }) {
   return (
     <>
-      {/* Backdrop */}
       <div
         className={cn(
           "fixed inset-0 z-40 bg-black/60 transition-opacity duration-300",
@@ -183,7 +111,6 @@ function BottomSheet({
         onClick={onClose}
         onPointerUp={onClose}
       />
-      {/* Sheet — full width on mobile, centred max-w on desktop */}
       <div
         className={cn(
           "fixed bottom-0 left-0 right-0 z-50 mx-auto max-w-xl rounded-t-2xl bg-white shadow-2xl",
@@ -191,7 +118,6 @@ function BottomSheet({
           open ? "translate-y-0" : "translate-y-full",
         )}
         style={{ maxHeight: "85dvh", overflowY: "auto" }}
-        // Prevent taps inside the sheet from closing it
         onClick={(e) => e.stopPropagation()}
       >
         {children}
@@ -214,10 +140,8 @@ function ReservationSheet({
 
   return (
     <div className="px-4 pb-10 pt-3">
-      {/* Drag handle */}
       <div className="mx-auto mb-4 h-1 w-12 rounded-full bg-gray-200" />
 
-      {/* Name + close */}
       <div className="mb-4 flex items-start justify-between gap-3">
         <div className="min-w-0">
           <p className="text-xl font-semibold text-gray-900">
@@ -244,9 +168,7 @@ function ReservationSheet({
         </button>
       </div>
 
-      {/* Detail rows */}
       <div className="space-y-3 rounded-2xl border border-gray-100 bg-gray-50 p-4">
-        {/* Dates */}
         <div className="flex items-center gap-3">
           <Calendar className="h-4 w-4 shrink-0 text-gray-400" />
           <p className="text-sm text-gray-700">
@@ -263,7 +185,6 @@ function ReservationSheet({
           </p>
         </div>
 
-        {/* Personas + mascota */}
         {(reserva.cantidadPersonas || reserva.tieneMascota) && (
           <div className="flex items-center gap-3">
             <Users className="h-4 w-4 shrink-0 text-gray-400" />
@@ -281,22 +202,18 @@ function ReservationSheet({
           </div>
         )}
 
-        {/* Monto */}
         {reserva.montoTotal > 0 && (
           <div className="flex items-center gap-3">
             <Banknote className="h-4 w-4 shrink-0 text-gray-400" />
             <p className="text-sm text-gray-700">
               <span className="font-medium">{fmtPeso(reserva.montoTotal)}</span>
               {reserva.sena != null && reserva.sena > 0 && (
-                <span className="ml-2 text-gray-400">
-                  · seña {fmtPeso(reserva.sena)}
-                </span>
+                <span className="ml-2 text-gray-400">· seña {fmtPeso(reserva.sena)}</span>
               )}
             </p>
           </div>
         )}
 
-        {/* Notas */}
         {reserva.notas && (
           <div className="flex items-start gap-3">
             <FileText className="mt-0.5 h-4 w-4 shrink-0 text-gray-400" />
@@ -305,7 +222,6 @@ function ReservationSheet({
         )}
       </div>
 
-      {/* Actions */}
       <div className="mt-4 flex gap-2">
         <button
           onClick={() => { router.push(`/reservas/${reserva.id}`); onClose(); }}
@@ -341,7 +257,11 @@ function DaySheet({
   const router = useRouter();
 
   const dayReservas = useMemo(
-    () => reservas.filter((r) => coversDia(r, dateIso)),
+    () => reservas.filter((r) => {
+      const rStart = r.fechaInicio.substring(0, 10);
+      const rEnd   = r.fechaFin.substring(0, 10);
+      return dateIso >= rStart && dateIso <= rEnd;
+    }),
     [reservas, dateIso],
   );
 
@@ -350,13 +270,10 @@ function DaySheet({
 
   return (
     <div className="px-4 pb-10 pt-3">
-      {/* Drag handle */}
       <div className="mx-auto mb-4 h-1 w-12 rounded-full bg-gray-200" />
 
-      {/* Date label */}
       <p className="mb-4 capitalize text-base font-semibold text-gray-900">{label}</p>
 
-      {/* Create options */}
       <div className="mb-4 space-y-2">
         <button
           onClick={() => { onClose(); router.push(`/reservas/nueva?fecha=${dateIso}`); }}
@@ -385,7 +302,6 @@ function DaySheet({
         </button>
       </div>
 
-      {/* Existing reservations for this day */}
       {dayReservas.length > 0 && (
         <>
           <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-gray-400">
@@ -426,64 +342,25 @@ function DaySheet({
 
 // ── MonthBlock ────────────────────────────────────────────────────────────────
 
+type Cell = { day: number; iso: string; current: boolean };
+
 interface MonthBlockProps {
   year:         number;
   month:        number;
   reservas:     ReservaEvento[];
   selectedDate: string | null;
   onDayTap:     (iso: string) => void;
-  onBarTap:     (reserva: ReservaEvento) => void;
+  onPillTap:    (reserva: ReservaEvento) => void;
   onRef:        (el: HTMLDivElement | null) => void;
 }
 
-function MonthBlock({
-  year,
-  month,
-  reservas,
-  selectedDate,
-  onDayTap,
-  onBarTap,
-  onRef,
-}: MonthBlockProps) {
-  const today   = todayStr();
-  const firstWd = firstWeekday(year, month);
-  const numDays = daysInMonth(year, month);
+function MonthBlock({ year, month, reservas, selectedDate, onDayTap, onPillTap, onRef }: MonthBlockProps) {
+  const today    = todayStr();
+  const firstWd  = firstWeekday(year, month);
+  const numDays  = daysInMonth(year, month);
+  const tapStart = useRef<{ x: number; y: number } | null>(null);
 
-  // Day-cell tap detection via pointer events
-  const tapStart    = useRef<{ x: number; y: number } | null>(null);
-  // Bar tap detection via touch events (prevents scroll stealing on iOS)
-  const barTouchStart = useRef<{ x: number; y: number } | null>(null);
-
-  function onPointerDown(e: React.PointerEvent) {
-    tapStart.current = { x: e.clientX, y: e.clientY };
-  }
-  function onPointerCancel() {
-    tapStart.current = null;
-  }
-  function isTap(e: React.PointerEvent): boolean {
-    if (!tapStart.current) return false;
-    const moved = Math.abs(e.clientX - tapStart.current.x) + Math.abs(e.clientY - tapStart.current.y);
-    tapStart.current = null;
-    return moved < 10;
-  }
-
-  function onBarTouchStart(e: React.TouchEvent) {
-    barTouchStart.current = { x: e.touches[0].clientX, y: e.touches[0].clientY };
-  }
-  function makeBarTouchEnd(reserva: ReservaEvento) {
-    return (e: React.TouchEvent) => {
-      if (!barTouchStart.current) return;
-      const dx = Math.abs(e.changedTouches[0].clientX - barTouchStart.current.x);
-      const dy = Math.abs(e.changedTouches[0].clientY - barTouchStart.current.y);
-      barTouchStart.current = null;
-      if (dx < 10 && dy < 10) {
-        e.preventDefault();
-        e.stopPropagation();
-        onBarTap(reserva);
-      }
-    };
-  }
-
+  // Build flat cell array (leading prev-month + current days + trailing next-month)
   const cells = useMemo<Cell[]>(() => {
     const out: Cell[] = [];
     const pm       = shiftMonth(year, month, -1);
@@ -504,136 +381,123 @@ function MonthBlock({
     return out;
   }, [year, month, firstWd, numDays]);
 
-  const weeks = useMemo<Cell[][]>(() => {
-    const result: Cell[][] = [];
-    for (let i = 0; i < cells.length; i += 7) result.push(cells.slice(i, i + 7));
-    return result;
-  }, [cells]);
+  // Precompute iso → reservas[] for every day in this month
+  const dayMap = useMemo(() => {
+    const map        = new Map<string, ReservaEvento[]>();
+    const monthStart = toIso(year, month, 1);
+    const monthEnd   = toIso(year, month, numDays);
 
-  const weekBars = useMemo<EventBar[][]>(
-    () => weeks.map((w) => computeWeekBars(w, reservas)),
-    [weeks, reservas],
-  );
+    for (const r of reservas) {
+      const rStart = r.fechaInicio.substring(0, 10);
+      const rEnd   = r.fechaFin.substring(0, 10);
+      const from   = rStart < monthStart ? monthStart : rStart;
+      const to     = rEnd   > monthEnd   ? monthEnd   : rEnd;
+      if (from > to) continue;
+
+      let cur = from;
+      while (cur <= to) {
+        if (!map.has(cur)) map.set(cur, []);
+        map.get(cur)!.push(r);
+        cur = nextDayIso(cur);
+      }
+    }
+    return map;
+  }, [year, month, numDays, reservas]);
+
+  function onPointerDown(e: React.PointerEvent) {
+    tapStart.current = { x: e.clientX, y: e.clientY };
+  }
+  function onPointerCancel() { tapStart.current = null; }
+  function isTap(e: React.PointerEvent): boolean {
+    if (!tapStart.current) return false;
+    const moved = Math.abs(e.clientX - tapStart.current.x) + Math.abs(e.clientY - tapStart.current.y);
+    tapStart.current = null;
+    return moved < 10;
+  }
 
   return (
-    <div ref={onRef}>
+    <div ref={onRef} className="mx-3 mb-8 rounded-2xl bg-white shadow-sm p-4">
       {/* Month heading */}
-      <div className="border-b border-gray-200 bg-gray-50 px-4 pb-2.5 pt-5">
-        <h2 className="text-sm font-bold uppercase tracking-widest text-gray-600">
-          {MONTH_NAMES[month]} {year}
-        </h2>
-      </div>
+      <h2 className="font-bold text-xl mb-4 tracking-wide text-gray-900">
+        {MONTH_NAMES[month].toUpperCase()} {year}
+      </h2>
 
-      {/* Weekday labels */}
-      <div className="grid grid-cols-7 border-b border-gray-200 bg-gray-50">
-        {WEEKDAYS.map((w, i) => (
-          <div
-            key={w}
-            className={cn(
-              "py-1.5 text-center text-[10px] font-semibold uppercase tracking-wider text-gray-400",
-              i < 6 && "border-r border-gray-100",
-            )}
-          >
-            {w}
+      {/* Weekday headers */}
+      <div className="grid grid-cols-7 mb-2">
+        {WEEKDAYS_SHORT.map((d) => (
+          <div key={d} className="py-1 text-center text-xs font-medium text-gray-400">
+            {d}
           </div>
         ))}
       </div>
 
-      {/* Week rows */}
-      {weeks.map((week, wi) => {
-        const bars     = weekBars[wi];
-        const numLanes = bars.length > 0 ? Math.max(...bars.map((b) => b.lane)) + 1 : 0;
+      {/* Day cells */}
+      <div className="grid grid-cols-7">
+        {cells.map((cell, i) => {
+          const isToday    = cell.current && cell.iso === today;
+          const isSelected = cell.current && cell.iso === selectedDate;
+          const dayReservas = cell.current ? (dayMap.get(cell.iso) ?? []) : [];
+          const pills = dayReservas.slice(0, 2);
 
-        return (
-          <div key={wi} className="border-b border-gray-100 last:border-b-0">
-            {/* Day number cells */}
-            <div className="grid grid-cols-7">
-              {week.map((cell, col) => {
-                const isToday    = cell.current && cell.iso === today;
-                const isSelected = cell.current && cell.iso === selectedDate;
-                return (
-                  <div
-                    key={col}
-                    onPointerDown={cell.current ? onPointerDown : undefined}
-                    onPointerUp={cell.current ? (e) => { if (isTap(e)) onDayTap(cell.iso); } : undefined}
-                    onPointerCancel={onPointerCancel}
-                    className={cn(
-                      "flex min-h-[40px] cursor-pointer select-none items-start justify-center pt-1.5",
-                      col < 6 && "border-r border-gray-100",
-                      !cell.current
-                        ? "pointer-events-none bg-gray-50/70"
-                        : isSelected
-                        ? "bg-blue-50/40"
-                        : "bg-white",
-                    )}
-                  >
-                    <span
-                      className={cn(
-                        "flex h-7 w-7 items-center justify-center rounded-full leading-none transition-colors",
-                        isToday && !isSelected && "bg-red-500 text-sm font-bold text-white",
-                        isSelected && !isToday  && "bg-gray-800 text-sm font-semibold text-white",
-                        isSelected && isToday   && "bg-red-500 text-sm font-bold text-white",
-                        !isToday && !isSelected && cell.current  && "text-sm text-gray-900",
-                        !cell.current && "text-xs text-gray-300",
-                      )}
-                    >
-                      {cell.day}
-                    </span>
-                  </div>
-                );
-              })}
-            </div>
-
-            {/* Event bars lane */}
-            {numLanes > 0 ? (
-              <div
-                className="relative"
-                style={{ height: `${numLanes * 30 + 4}px` }}
-              >
-                {/* Column dividers */}
-                <div className="pointer-events-none absolute inset-0 grid grid-cols-7">
-                  {[0, 1, 2, 3, 4, 5].map((i) => (
-                    <div key={i} className="h-full border-r border-gray-100" />
-                  ))}
-                  <div className="h-full" />
-                </div>
-
-                {/* Bars */}
-                {bars.map((bar) => (
-                  <div
-                    key={`${bar.id}-${bar.lane}`}
-                    className="absolute flex cursor-pointer select-none items-center overflow-hidden"
-                    style={{
-                      left:   `calc(${bar.startCol} / 7 * 100% + ${bar.startsHere ? 2 : 0}px)`,
-                      right:  `calc(${6 - bar.endCol} / 7 * 100% + ${bar.endsHere  ? 2 : 0}px)`,
-                      top:    `${bar.lane * 30 + 2}px`,
-                      height: "28px",
-                      minHeight: "28px",
-                      backgroundColor: bar.color,
-                      opacity:         bar.isPendiente ? 0.5 : 1,
-                      borderRadius: [
-                        bar.startsHere ? 4 : 0,
-                        bar.endsHere   ? 4 : 0,
-                        bar.endsHere   ? 4 : 0,
-                        bar.startsHere ? 4 : 0,
-                      ].map((v) => `${v}px`).join(" "),
-                    }}
-                    onTouchStart={onBarTouchStart}
-                    onTouchEnd={makeBarTouchEnd(bar.reserva)}
-                    onClick={() => onBarTap(bar.reserva)}
-                  >
-                    <span className="truncate whitespace-nowrap px-1.5 text-[11px] font-medium leading-none text-white">
-                      {bar.clienteNombre} {bar.clienteApellido}
-                    </span>
-                  </div>
-                ))}
+          return (
+            <div
+              key={i}
+              onPointerDown={cell.current ? onPointerDown : undefined}
+              onPointerUp={cell.current ? (e) => { if (isTap(e)) onDayTap(cell.iso); } : undefined}
+              onPointerCancel={onPointerCancel}
+              className={cn(
+                "min-h-[52px] overflow-hidden border border-gray-100 p-1 select-none",
+                cell.current ? "cursor-pointer" : "pointer-events-none",
+                isSelected && !isToday ? "bg-gray-50" : "",
+              )}
+            >
+              {/* Day number */}
+              <div className="mb-0.5 flex justify-center">
+                {isToday ? (
+                  <span className="flex h-7 w-7 items-center justify-center rounded-full bg-green-600 text-sm font-medium text-white">
+                    {cell.day}
+                  </span>
+                ) : (
+                  <span className={cn(
+                    "flex h-7 w-7 items-center justify-center text-sm font-medium",
+                    cell.current ? "text-gray-900" : "text-gray-300",
+                  )}>
+                    {cell.day}
+                  </span>
+                )}
               </div>
-            ) : (
-              <div className="h-1.5" />
-            )}
-          </div>
-        );
-      })}
+
+              {/* Reservation pills */}
+              {pills.length > 0 && (
+                <div className="space-y-0.5">
+                  {pills.map((r) => {
+                    const isPendiente = r.estado === "PENDIENTE";
+                    return (
+                      <button
+                        key={r.id}
+                        type="button"
+                        onPointerDown={(e) => e.stopPropagation()}
+                        onClick={(e) => { e.stopPropagation(); onPillTap(r); }}
+                        className={cn(
+                          "block w-full truncate rounded-full px-1.5 py-0.5 text-center text-[9px] leading-tight",
+                          isPendiente ? "border border-dashed opacity-70" : "",
+                        )}
+                        style={
+                          isPendiente
+                            ? { backgroundColor: r.quintaColor + "18", color: r.quintaColor, borderColor: r.quintaColor }
+                            : { backgroundColor: r.quintaColor + "28", color: r.quintaColor }
+                        }
+                      >
+                        {r.clienteNombre}
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
     </div>
   );
 }
@@ -647,15 +511,12 @@ interface CalendarioClientProps {
 
 type MonthEntry = { year: number; month: number };
 
-export function CalendarioClient({
-  initialReservas,
-  quintas,
-}: CalendarioClientProps) {
+export function CalendarioClient({ initialReservas, quintas }: CalendarioClientProps) {
   const now = new Date();
   const cy  = now.getFullYear();
   const cm  = now.getMonth();
 
-  const [months,      setMonths]      = useState<MonthEntry[]>(() => [
+  const [months, setMonths] = useState<MonthEntry[]>(() => [
     shiftMonth(cy, cm, -1),
     { year: cy, month: cm },
     shiftMonth(cy, cm, 1),
@@ -663,11 +524,10 @@ export function CalendarioClient({
   const [reservas,    setReservas]    = useState(initialReservas);
   const [headerLabel, setHeaderLabel] = useState(`${MONTH_NAMES[cm].toUpperCase()} ${cy}`);
 
-  // Sheet state
   const [activeBar, setActiveBar] = useState<ReservaEvento | null>(null);
   const [activeDay, setActiveDay] = useState<string | null>(null);
 
-  const monthLabelTop    = 56; // fixed app header height
+  const monthLabelTop    = 56;
   const blockRefs        = useRef(new Map<string, HTMLDivElement>());
   const fetchedKeys      = useRef(new Set<string>([
     monthKey(shiftMonth(cy, cm, -1).year, shiftMonth(cy, cm, -1).month),
@@ -731,7 +591,6 @@ export function CalendarioClient({
     if (isFetchingPast.current) return;
     isFetchingPast.current = true;
 
-    // Capture scroll state before prepending months
     const prevScrollY = window.scrollY;
     const prevHeight  = document.documentElement.scrollHeight;
 
@@ -756,7 +615,6 @@ export function CalendarioClient({
         isFetchingPast.current = false;
       }
 
-      // Restore scroll after DOM updates so prepended content doesn't jump
       requestAnimationFrame(() => {
         requestAnimationFrame(() => {
           const delta = document.documentElement.scrollHeight - prevHeight;
@@ -768,7 +626,7 @@ export function CalendarioClient({
     });
   }, [fetchRange]);
 
-  // ── Scroll: lazy load + sticky header update (window scroll) ──────────────
+  // ── Scroll: lazy load + sticky header update ──────────────────────────────
 
   useEffect(() => {
     const onScroll = () => {
@@ -779,7 +637,6 @@ export function CalendarioClient({
       if (scrollHeight - scrollY - clientHeight < 500) loadFuture();
       if (scrollY < 300) loadPast();
 
-      // app header (56) + cal header + month label (≈48)
       const threshold = monthLabelTop + 48;
       let bestTop = -Infinity;
       let bestKey: string | null = null;
@@ -807,7 +664,6 @@ export function CalendarioClient({
     const blockEl = blockRefs.current.get(key);
     if (blockEl) {
       blockEl.scrollIntoView({ behavior: "instant", block: "start" });
-      // app header (56) + month label (≈48)
       window.scrollBy(0, -(56 + 48));
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -825,22 +681,10 @@ export function CalendarioClient({
 
   // ── Sheet handlers ────────────────────────────────────────────────────────
 
-  const handleDayTap = useCallback((iso: string) => {
-    setActiveDay(iso);
-  }, []);
-
-  const handleBarTap = useCallback((reserva: ReservaEvento) => {
-    setActiveBar(reserva);
-  }, []);
-
-  const closeDaySheet = useCallback(() => {
-    setActiveDay(null);
-  }, []);
-
-  const closeBarSheet = useCallback(() => {
-    setActiveBar(null);
-  }, []);
-
+  const handleDayTap  = useCallback((iso: string)          => { setActiveDay(iso); },   []);
+  const handlePillTap = useCallback((reserva: ReservaEvento) => { setActiveBar(reserva); }, []);
+  const closeDaySheet = useCallback(() => { setActiveDay(null); },  []);
+  const closeBarSheet = useCallback(() => { setActiveBar(null); }, []);
   const handleReservaTapFromDay = useCallback((r: ReservaEvento) => {
     setActiveDay(null);
     setActiveBar(r);
@@ -850,7 +694,7 @@ export function CalendarioClient({
 
   return (
     <>
-      {/* ── Sticky month/year label — clears app header ── */}
+      {/* Sticky month/year label */}
       <div
         className="sticky z-20 border-b border-gray-200 bg-white px-4 py-3"
         style={{ top: "56px" }}
@@ -858,31 +702,42 @@ export function CalendarioClient({
         <p className="text-base font-semibold text-gray-900">{headerLabel}</p>
       </div>
 
-      {/* Month list — grows naturally, window handles scroll */}
-      <div className="flex flex-col">
-        {months.map(({ year, month }) => (
-          <MonthBlock
-            key={monthKey(year, month)}
-            year={year}
-            month={month}
-            reservas={reservas}
-            selectedDate={activeDay}
-            onDayTap={handleDayTap}
-            onBarTap={handleBarTap}
-            onRef={makeOnRef(monthKey(year, month))}
-          />
-        ))}
+      {/* Month cards */}
+      <div className="flex flex-col py-4">
+        {months.map(({ year, month }, idx) => {
+          const prevYear         = idx > 0 ? months[idx - 1].year : null;
+          const showYearSeparator = prevYear !== null && prevYear !== year;
+
+          return (
+            <div key={monthKey(year, month)}>
+              {showYearSeparator && (
+                <div className="mx-3 mb-4 flex items-center gap-3">
+                  <div className="h-px flex-1 bg-gray-200" />
+                  <span className="text-sm font-semibold text-gray-400">{year}</span>
+                  <div className="h-px flex-1 bg-gray-200" />
+                </div>
+              )}
+              <MonthBlock
+                year={year}
+                month={month}
+                reservas={reservas}
+                selectedDate={activeDay}
+                onDayTap={handleDayTap}
+                onPillTap={handlePillTap}
+                onRef={makeOnRef(monthKey(year, month))}
+              />
+            </div>
+          );
+        })}
         <div className="h-20" />
       </div>
 
-      {/* Reservation detail bottom sheet */}
+      {/* Reservation detail sheet */}
       <BottomSheet open={activeBar !== null} onClose={closeBarSheet}>
-        {activeBar && (
-          <ReservationSheet reserva={activeBar} onClose={closeBarSheet} />
-        )}
+        {activeBar && <ReservationSheet reserva={activeBar} onClose={closeBarSheet} />}
       </BottomSheet>
 
-      {/* Day options bottom sheet */}
+      {/* Day options sheet */}
       <BottomSheet open={activeDay !== null} onClose={closeDaySheet}>
         {activeDay && (
           <DaySheet
