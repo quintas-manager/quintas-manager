@@ -21,9 +21,11 @@ export default async function ReservasPage({
   const page = Math.max(1, parseInt(searchParams.page ?? "1"));
   const skip = (page - 1) * PAGE_SIZE;
 
-  const where = {
+  const ACTIVE_STATES = ["CONFIRMADA", "PENDIENTE"];
+  const CLOSED_STATES = ["CANCELADA",  "COMPLETADA"];
+
+  const baseWhere = {
     ...(searchParams.quinta ? { quintaId: searchParams.quinta } : {}),
-    ...(searchParams.estado ? { estado: searchParams.estado as never } : {}),
     ...(searchParams.desde || searchParams.hasta
       ? {
           fechaInicio: {
@@ -34,17 +36,30 @@ export default async function ReservasPage({
       : {}),
   };
 
-  const [rawReservas, total, quintas] = await Promise.all([
-    prisma.reserva.findMany({
-      where,
-      include: {
-        quinta:  { select: { nombre: true, colorHex: true } },
-        cliente: { select: { nombre: true, apellido: true, telefono: true } },
-      },
-      orderBy: { createdAt: "desc" },
-      skip,
-      take: PAGE_SIZE,
-    }),
+  const where = {
+    ...baseWhere,
+    ...(searchParams.estado ? { estado: searchParams.estado as never } : {}),
+  };
+
+  const activeStates = searchParams.estado
+    ? ACTIVE_STATES.filter((s) => s === searchParams.estado)
+    : ACTIVE_STATES;
+  const closedStates = searchParams.estado
+    ? CLOSED_STATES.filter((s) => s === searchParams.estado)
+    : CLOSED_STATES;
+
+  const include = {
+    quinta:  { select: { nombre: true, colorHex: true } },
+    cliente: { select: { nombre: true, apellido: true, telefono: true } },
+  } as const;
+
+  const [activeReservas, closedReservas, total, quintas] = await Promise.all([
+    activeStates.length > 0
+      ? prisma.reserva.findMany({ where: { ...baseWhere, estado: { in: activeStates as never[] } }, include, orderBy: { fechaInicio: "asc"  } })
+      : Promise.resolve([]),
+    closedStates.length > 0
+      ? prisma.reserva.findMany({ where: { ...baseWhere, estado: { in: closedStates as never[] } }, include, orderBy: { fechaInicio: "desc" } })
+      : Promise.resolve([]),
     prisma.reserva.count({ where }),
     prisma.quinta.findMany({
       where: { activa: true },
@@ -52,6 +67,8 @@ export default async function ReservasPage({
       orderBy: { nombre: "asc" },
     }),
   ]);
+
+  const rawReservas = [...activeReservas, ...closedReservas].slice(skip, skip + PAGE_SIZE);
 
   const reservas = rawReservas.map((r) => ({
     id:               r.id,
