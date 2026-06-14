@@ -188,7 +188,7 @@ export function DashboardShell({ userName, userRole, children }: DashboardShellP
     pathname === href || pathname.startsWith(href + "/");
 
   return (
-    <div className="flex h-screen overflow-hidden bg-gray-50">
+    <div className="flex min-h-screen bg-gray-50">
       {/* ── Desktop sidebar ─────────────────────────────────────── */}
       <aside className="hidden lg:fixed lg:inset-y-0 lg:left-0 lg:flex lg:w-64 lg:flex-col">
         <SidebarInner userName={userName} userRole={userRole} pathname={pathname} />

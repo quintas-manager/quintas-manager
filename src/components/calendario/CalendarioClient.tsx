@@ -518,8 +518,6 @@ export function CalendarioClient({ initialReservas, quintas }: CalendarioClientP
   const cy  = now.getFullYear();
   const cm  = now.getMonth();
 
-  const containerRef = useRef<HTMLDivElement>(null);
-
   const [months, setMonths] = useState<MonthEntry[]>(() => [
     shiftMonth(cy, cm, -1),
     { year: cy, month: cm },
@@ -532,6 +530,7 @@ export function CalendarioClient({ initialReservas, quintas }: CalendarioClientP
   const [activeDay, setActiveDay] = useState<string | null>(null);
 
   const blockRefs        = useRef(new Map<string, HTMLDivElement>());
+  const visibleKeys      = useRef(new Set<string>());
   const fetchedKeys      = useRef(new Set<string>([
     monthKey(shiftMonth(cy, cm, -1).year, shiftMonth(cy, cm, -1).month),
     monthKey(cy, cm),
@@ -539,7 +538,6 @@ export function CalendarioClient({ initialReservas, quintas }: CalendarioClientP
   ]));
   const isFetchingFuture = useRef(false);
   const isFetchingPast   = useRef(false);
-  const headerTimer      = useRef<ReturnType<typeof setTimeout>>();
 
   // ── Data fetching ─────────────────────────────────────────────────────────
 
@@ -595,11 +593,8 @@ export function CalendarioClient({ initialReservas, quintas }: CalendarioClientP
     if (isFetchingPast.current) return;
     isFetchingPast.current = true;
 
-    const container = containerRef.current;
-    if (!container) { isFetchingPast.current = false; return; }
-
-    const prevScrollTop = container.scrollTop;
-    const prevHeight    = container.scrollHeight;
+    const prevScrollY = window.scrollY;
+    const prevHeight  = document.documentElement.scrollHeight;
 
     setMonths((prev) => {
       const first = prev[0];
@@ -624,8 +619,8 @@ export function CalendarioClient({ initialReservas, quintas }: CalendarioClientP
 
       requestAnimationFrame(() => {
         requestAnimationFrame(() => {
-          const delta = container.scrollHeight - prevHeight;
-          container.scrollTop = prevScrollTop + delta;
+          const delta = document.documentElement.scrollHeight - prevHeight;
+          window.scrollTo(0, prevScrollY + delta);
         });
       });
 
@@ -633,55 +628,64 @@ export function CalendarioClient({ initialReservas, quintas }: CalendarioClientP
     });
   }, [fetchRange]);
 
-  // ── Scroll: lazy load + sticky header update ──────────────────────────────
+  // ── IntersectionObserver: update sticky header label ─────────────────────
 
   useEffect(() => {
-    const container = containerRef.current;
-    if (!container) return;
-
-    const onScroll = () => {
-      const { scrollTop, scrollHeight, clientHeight } = container;
-
-      // Lazy load triggers — immediate, no debounce needed
-      if (scrollHeight - scrollTop - clientHeight < 500) loadFuture();
-      if (scrollTop < 80) loadPast();
-
-      // Header label update — debounced to avoid firing every pixel
-      clearTimeout(headerTimer.current);
-      headerTimer.current = setTimeout(() => {
-        const containerTop = container.getBoundingClientRect().top;
-        let bestTop = -Infinity;
-        let bestKey: string | null = null;
-        Array.from(blockRefs.current.entries()).forEach(([key, blockEl]) => {
-          const top = blockEl.getBoundingClientRect().top - containerTop;
-          if (top <= STICKY_H && top > bestTop) {
-            bestTop = top;
-            bestKey = key;
-          }
+    const io = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          const key = entry.target.getAttribute("data-month-key");
+          if (!key) return;
+          if (entry.isIntersecting) visibleKeys.current.add(key);
+          else visibleKeys.current.delete(key);
         });
-        if (bestKey) {
-          const [yr, mo] = (bestKey as string).split("-").map(Number);
-          setHeaderLabel(`${MONTH_NAMES[mo - 1].toUpperCase()} ${yr}`);
+
+        // Show the topmost currently-visible month
+        const first = months.find(({ year, month }) =>
+          visibleKeys.current.has(monthKey(year, month)),
+        );
+        if (first) {
+          setHeaderLabel(`${MONTH_NAMES[first.month].toUpperCase()} ${first.year}`);
         }
-      }, 100);
+      },
+      {
+        root: null,
+        threshold: 0,
+        rootMargin: "-56px 0px -60px 0px", // compensate fixed header + bottom nav
+      },
+    );
+
+    blockRefs.current.forEach((el, key) => {
+      el.setAttribute("data-month-key", key);
+      io.observe(el);
+    });
+
+    return () => io.disconnect();
+  }, [months]);
+
+  // ── Window scroll: lazy-load past / future months ─────────────────────────
+
+  useEffect(() => {
+    const onScroll = () => {
+      const scrollY      = window.scrollY;
+      const scrollHeight = document.documentElement.scrollHeight;
+      const clientHeight = window.innerHeight;
+
+      if (scrollHeight - scrollY - clientHeight < 500) loadFuture();
+      if (scrollY < 80) loadPast();
     };
 
-    container.addEventListener("scroll", onScroll, { passive: true });
-    return () => {
-      container.removeEventListener("scroll", onScroll);
-      clearTimeout(headerTimer.current);
-    };
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
   }, [loadFuture, loadPast]);
 
   // ── Initial scroll to current month ──────────────────────────────────────
 
   useEffect(() => {
-    const container = containerRef.current;
-    const blockEl   = blockRefs.current.get(monthKey(cy, cm));
-    if (container && blockEl) {
-      const containerTop = container.getBoundingClientRect().top;
-      const blockTop     = blockEl.getBoundingClientRect().top;
-      container.scrollTop += blockTop - containerTop - STICKY_H;
+    const blockEl = blockRefs.current.get(monthKey(cy, cm));
+    if (blockEl) {
+      blockEl.scrollIntoView({ behavior: "instant", block: "start" });
+      window.scrollBy(0, -(56 + STICKY_H));
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -711,48 +715,44 @@ export function CalendarioClient({ initialReservas, quintas }: CalendarioClientP
 
   return (
     <>
-      {/* Self-contained scroll container — prevents body scroll interference */}
+      {/* Sticky month/year label — clears fixed app header (56px) */}
       <div
-        ref={containerRef}
-        className="h-full overflow-y-auto overscroll-contain"
+        className="sticky z-20 border-b border-gray-200 bg-white px-4 py-3"
+        style={{ top: "56px" }}
       >
-        {/* Sticky month/year label — top:0 relative to this container */}
-        <div className="sticky top-0 z-20 border-b border-gray-200 bg-white px-4 py-3">
-          <p className="text-base font-semibold text-gray-900">{headerLabel}</p>
-        </div>
-
-        {/* Month cards */}
-        <div className="flex flex-col py-4">
-          {months.map(({ year, month }, idx) => {
-            const prevYear          = idx > 0 ? months[idx - 1].year : null;
-            const showYearSeparator = prevYear !== null && prevYear !== year;
-
-            return (
-              <div key={monthKey(year, month)}>
-                {showYearSeparator && (
-                  <div className="mx-3 mb-4 flex items-center gap-3">
-                    <div className="h-px flex-1 bg-gray-200" />
-                    <span className="text-sm font-semibold text-gray-400">{year}</span>
-                    <div className="h-px flex-1 bg-gray-200" />
-                  </div>
-                )}
-                <MonthBlock
-                  year={year}
-                  month={month}
-                  reservas={reservas}
-                  selectedDate={activeDay}
-                  onDayTap={handleDayTap}
-                  onPillTap={handlePillTap}
-                  onRef={makeOnRef(monthKey(year, month))}
-                />
-              </div>
-            );
-          })}
-          <div className="h-20" />
-        </div>
+        <p className="text-base font-semibold text-gray-900">{headerLabel}</p>
       </div>
 
-      {/* Bottom sheets — outside the scroll container, position:fixed escapes it */}
+      {/* Month cards — grow naturally, body handles scroll */}
+      <div className="flex flex-col py-4">
+        {months.map(({ year, month }, idx) => {
+          const prevYear          = idx > 0 ? months[idx - 1].year : null;
+          const showYearSeparator = prevYear !== null && prevYear !== year;
+
+          return (
+            <div key={monthKey(year, month)}>
+              {showYearSeparator && (
+                <div className="mx-3 mb-4 flex items-center gap-3">
+                  <div className="h-px flex-1 bg-gray-200" />
+                  <span className="text-sm font-semibold text-gray-400">{year}</span>
+                  <div className="h-px flex-1 bg-gray-200" />
+                </div>
+              )}
+              <MonthBlock
+                year={year}
+                month={month}
+                reservas={reservas}
+                selectedDate={activeDay}
+                onDayTap={handleDayTap}
+                onPillTap={handlePillTap}
+                onRef={makeOnRef(monthKey(year, month))}
+              />
+            </div>
+          );
+        })}
+        <div className="h-20" />
+      </div>
+
       <BottomSheet open={activeBar !== null} onClose={closeBarSheet}>
         {activeBar && <ReservationSheet reserva={activeBar} onClose={closeBarSheet} />}
       </BottomSheet>
