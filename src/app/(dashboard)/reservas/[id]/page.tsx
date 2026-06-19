@@ -151,7 +151,7 @@ export default async function ReservaDetailPage({ params }: { params: { id: stri
               value={
                 <span className="capitalize">
                   {formatFechaReservaLong(reserva.fechaInicio)}
-                  <span className="ml-1 text-xs text-gray-400 font-normal">a las 10:00 hs</span>
+                  <span className="ml-1 text-xs text-gray-400 font-normal">a las 14:00 hs</span>
                 </span>
               }
             />
@@ -160,7 +160,7 @@ export default async function ReservaDetailPage({ params }: { params: { id: stri
               value={
                 <span className="capitalize">
                   {formatFechaReservaLong(reserva.fechaFin)}
-                  <span className="ml-1 text-xs text-gray-400 font-normal">a las 14:00 hs</span>
+                  <span className="ml-1 text-xs text-gray-400 font-normal">a las 10:00 hs</span>
                 </span>
               }
             />
