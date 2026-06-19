@@ -10,7 +10,12 @@ export type ReservaEvento = {
   tipoAlquiler: string;
   estado: string;
   montoTotal: number;
+  montoTotalARS: number | null;
+  tipoCambioReserva: number | null;
+  monedaIngreso: string;
   sena: number | null;
+  senaARS: number | null;
+  tipoCambioSena: number | null;
   notas: string | null;
   motivoEvento: string | null;
   cantidadPersonas: number | null;

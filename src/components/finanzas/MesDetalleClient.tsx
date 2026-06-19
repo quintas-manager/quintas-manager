@@ -11,6 +11,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { formatUSD } from "@/lib/format";
+import { MontoDisplay } from "@/components/ui/MontoDisplay";
 import { CerrarMesButton } from "@/components/finanzas/CerrarMesButton";
 import { actualizarGasto } from "@/lib/actions/gastos";
 import { gastoSchema, type GastoFormValues } from "@/lib/schemas/gastos";
@@ -348,7 +349,16 @@ export function MesDetalleClient({
                 >
                   <td className="px-4 py-3 text-gray-500 whitespace-nowrap text-xs">{fmtShort(p.fecha)}</td>
                   <td className="px-4 py-3 font-medium text-gray-900 max-w-[120px] truncate">{p.clienteNombre}</td>
-                  <td className="px-4 py-3 text-right font-semibold text-gray-900 whitespace-nowrap">{fmt(p.monto)}</td>
+                  <td className="px-4 py-3 text-right whitespace-nowrap">
+                    <MontoDisplay
+                      montoUSD={p.monto}
+                      moneda={p.moneda}
+                      montoARS={p.montoARS}
+                      tipoCambio={p.tipoCambio}
+                      size="sm"
+                      className="items-end"
+                    />
+                  </td>
                 </tr>
               ))}
             </tbody>
@@ -574,17 +584,34 @@ export function MesDetalleClient({
           <p className="text-base font-semibold text-gray-900 pr-12 mb-3">Detalle del ingreso</p>
           {selectedPago && (
             <>
-              <DetailRow label="Fecha"    value={fmtFull(selectedPago.fecha)} />
-              <DetailRow label="Cliente"  value={selectedPago.clienteNombre} />
+              <DetailRow label="Fecha"   value={fmtFull(selectedPago.fecha)} />
+              <DetailRow label="Cliente" value={selectedPago.clienteNombre} />
               <DetailRow
                 label="Estadía"
                 value={`${fmtFull(selectedPago.reservaFechaInicio)} → ${fmtFull(selectedPago.reservaFechaFin)}`}
               />
-              <DetailRow
-                label="Método"
-                value={METODO_LABELS[selectedPago.metodoPago] ?? selectedPago.metodoPago}
-              />
-              <DetailRow label="Monto" value={fmt(selectedPago.monto)} highlight />
+              <div className="flex items-start justify-between gap-3 py-2 border-b border-gray-100">
+                <span className="text-xs text-gray-500 shrink-0 pt-0.5">Pago</span>
+                <div className="text-right">
+                  {selectedPago.moneda === "ARS" && selectedPago.montoARS && selectedPago.tipoCambio ? (
+                    <>
+                      <p className="text-base font-bold text-green-600">
+                        ARS {selectedPago.montoARS.toLocaleString("es-AR", { minimumFractionDigits: 0, maximumFractionDigits: 0 })}{" "}
+                        en {METODO_LABELS[selectedPago.metodoPago] ?? selectedPago.metodoPago}
+                      </p>
+                      <p className="text-xs text-gray-500">
+                        Equivalente a USD {selectedPago.monto.toLocaleString("es-AR", { minimumFractionDigits: 0, maximumFractionDigits: 2 })}{" "}
+                        al TC ${selectedPago.tipoCambio.toLocaleString("es-AR")}
+                      </p>
+                    </>
+                  ) : (
+                    <p className="text-base font-bold text-green-600">
+                      USD {selectedPago.monto.toLocaleString("es-AR", { minimumFractionDigits: 0, maximumFractionDigits: 2 })}{" "}
+                      en {METODO_LABELS[selectedPago.metodoPago] ?? selectedPago.metodoPago}
+                    </p>
+                  )}
+                </div>
+              </div>
             </>
           )}
         </div>

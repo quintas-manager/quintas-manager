@@ -13,6 +13,9 @@ export interface PagoDetalle {
   reservaFechaInicio: string;
   reservaFechaFin: string;
   monto: number;
+  montoARS: number | null;
+  tipoCambio: number | null;
+  moneda: string;
   metodoPago: string;
 }
 
@@ -199,6 +202,9 @@ export async function calcularMes(
       reservaFechaInicio: fmtDate(p.reserva.fechaInicio),
       reservaFechaFin:    fmtDate(p.reserva.fechaFin),
       monto:              Number(p.montoUSD ?? p.monto),
+      montoARS:           p.montoARS ? Number(p.montoARS) : null,
+      tipoCambio:         p.tipoCambio ? Number(p.tipoCambio) : null,
+      moneda:             p.moneda ?? "USD",
       metodoPago:         p.metodoPago,
     })),
     totalIngresos,
@@ -342,11 +348,11 @@ export async function getMesesConActividad(quintaId: string): Promise<MesResumen
   const [pagos, gastos, cierres] = await Promise.all([
     prisma.pago.findMany({
       where: { reserva: { quintaId } },
-      select: { fecha: true, monto: true },
+      select: { fecha: true, monto: true, montoUSD: true },
     }),
     prisma.gasto.findMany({
       where: { quintaId },
-      select: { fecha: true, monto: true },
+      select: { fecha: true, monto: true, montoUSD: true },
     }),
     prisma.cierreMes.findMany({
       where: { quintaId },

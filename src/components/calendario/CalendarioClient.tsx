@@ -16,6 +16,7 @@ import {
   ChevronRight,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { MontoDisplay } from "@/components/ui/MontoDisplay";
 import type { QuintaBasic, ReservaEvento } from "@/types/calendario";
 
 // ── Date Utilities ────────────────────────────────────────────────────────────
@@ -203,14 +204,30 @@ function ReservationSheet({
         )}
 
         {reserva.montoTotal > 0 && (
-          <div className="flex items-center gap-3">
-            <Banknote className="h-4 w-4 shrink-0 text-gray-400" />
-            <p className="text-sm text-gray-700">
-              <span className="font-medium">{fmtPeso(reserva.montoTotal)}</span>
+          <div className="flex items-start gap-3">
+            <Banknote className="h-4 w-4 shrink-0 text-gray-400 mt-0.5" />
+            <div className="flex flex-col gap-1">
+              <MontoDisplay
+                montoUSD={reserva.montoTotal}
+                moneda={reserva.monedaIngreso}
+                montoARS={reserva.montoTotalARS}
+                tipoCambio={reserva.tipoCambioReserva}
+                size="sm"
+              />
               {reserva.sena != null && reserva.sena > 0 && (
-                <span className="ml-2 text-gray-400">· seña {fmtPeso(reserva.sena)}</span>
+                <div className="flex items-center gap-1 text-gray-400 text-xs">
+                  <span>Seña:</span>
+                  <MontoDisplay
+                    montoUSD={reserva.sena}
+                    moneda={reserva.senaARS ? "ARS" : "USD"}
+                    montoARS={reserva.senaARS}
+                    tipoCambio={reserva.tipoCambioSena}
+                    size="sm"
+                    className="text-gray-400"
+                  />
+                </div>
               )}
-            </p>
+            </div>
           </div>
         )}
 

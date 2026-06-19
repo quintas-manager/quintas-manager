@@ -10,6 +10,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { formatUSD } from "@/lib/format";
+import { MontoDisplay } from "@/components/ui/MontoDisplay";
 import { CancelarModal } from "./CancelarModal";
 import { ConfirmarConMontoModal } from "./ConfirmarConMontoModal";
 import { eliminarReserva } from "@/lib/actions/reservas";
@@ -28,7 +29,12 @@ interface ReservaRow {
   fechaFin: string;
   tipoAlquiler: string;
   montoTotal: number;
+  montoTotalARS: number | null;
+  tipoCambioReserva: number | null;
+  monedaIngreso: string;
   sena: number | null;
+  senaARS: number | null;
+  tipoCambioSena: number | null;
   estado: string;
   notas: string | null;
   motivoEvento: string | null;
@@ -158,8 +164,32 @@ function ReservaDrawer({
           </div>
 
           <div className="rounded-xl border border-gray-100 bg-gray-50 divide-y divide-gray-100">
-            <Row label="Monto total" value={formatUSD(reserva.montoTotal)} />
-            <Row label="Seña acordada" value={reserva.sena != null ? formatUSD(reserva.sena) : "—"} />
+            <Row
+              label="Monto total"
+              value={
+                <MontoDisplay
+                  montoUSD={reserva.montoTotal}
+                  moneda={reserva.monedaIngreso}
+                  montoARS={reserva.montoTotalARS}
+                  tipoCambio={reserva.tipoCambioReserva}
+                  size="sm"
+                />
+              }
+            />
+            <Row
+              label="Seña acordada"
+              value={
+                reserva.sena != null ? (
+                  <MontoDisplay
+                    montoUSD={reserva.sena}
+                    moneda={reserva.senaARS ? "ARS" : "USD"}
+                    montoARS={reserva.senaARS}
+                    tipoCambio={reserva.tipoCambioSena}
+                    size="sm"
+                  />
+                ) : "—"
+              }
+            />
           </div>
 
           <div className="rounded-xl border border-gray-100 bg-gray-50 divide-y divide-gray-100">
@@ -369,10 +399,24 @@ export function ReservasTable({ reservas, tipoCambio = 0 }: Props) {
                           {TIPO_LABELS[r.tipoAlquiler] ?? r.tipoAlquiler}
                         </td>
                         <td className="px-4 py-3 font-medium text-gray-900 whitespace-nowrap">
-                          {formatUSD(r.montoTotal)}
+                          <MontoDisplay
+                            montoUSD={r.montoTotal}
+                            moneda={r.monedaIngreso}
+                            montoARS={r.montoTotalARS}
+                            tipoCambio={r.tipoCambioReserva}
+                            size="sm"
+                          />
                         </td>
                         <td className="px-4 py-3 text-gray-500 whitespace-nowrap">
-                          {r.sena != null ? formatUSD(r.sena) : "—"}
+                          {r.sena != null ? (
+                            <MontoDisplay
+                              montoUSD={r.sena}
+                              moneda={r.senaARS ? "ARS" : "USD"}
+                              montoARS={r.senaARS}
+                              tipoCambio={r.tipoCambioSena}
+                              size="sm"
+                            />
+                          ) : "—"}
                         </td>
                         <td className="px-4 py-3">
                           <div className="flex flex-col gap-1">
@@ -472,9 +516,19 @@ export function ReservasTable({ reservas, tipoCambio = 0 }: Props) {
 
                     <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs text-gray-600 mb-3">
                       <span>{fmt(r.fechaInicio)} → {fmt(r.fechaFin)}</span>
-                      <span className="font-medium text-gray-900">{formatUSD(r.montoTotal)}</span>
+                      <MontoDisplay
+                        montoUSD={r.montoTotal}
+                        moneda={r.monedaIngreso}
+                        montoARS={r.montoTotalARS}
+                        tipoCambio={r.tipoCambioReserva}
+                        size="sm"
+                      />
                       <span>{TIPO_LABELS[r.tipoAlquiler] ?? r.tipoAlquiler}</span>
-                      <span className="text-gray-500">Seña: {r.sena != null ? formatUSD(r.sena) : "—"}</span>
+                      <div className="text-gray-500">
+                        {r.sena != null ? (
+                          <>Seña: <MontoDisplay montoUSD={r.sena} moneda={r.senaARS ? "ARS" : "USD"} montoARS={r.senaARS} tipoCambio={r.tipoCambioSena} size="sm" className="inline-flex" /></>
+                        ) : "Sin seña"}
+                      </div>
                     </div>
 
                     <div className="flex gap-2" onClick={(e) => e.stopPropagation()} onPointerUp={(e) => e.stopPropagation()}>

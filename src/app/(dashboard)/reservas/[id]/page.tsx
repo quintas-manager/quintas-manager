@@ -7,6 +7,7 @@ import { prisma } from "@/lib/prisma";
 import { auth } from "@/lib/auth";
 import { cn } from "@/lib/utils";
 import { formatUSD } from "@/lib/format";
+import { MontoDisplay } from "@/components/ui/MontoDisplay";
 import { ConfirmarButton } from "@/components/reservas/ConfirmarButton";
 import { CancelarInline } from "@/components/reservas/CancelarInline";
 import { ConfirmacionPDF } from "@/components/reservas/ConfirmacionPDF";
@@ -204,10 +205,29 @@ export default async function ReservaDetailPage({ params }: { params: { id: stri
         <div className="rounded-xl border border-gray-200 bg-white p-5">
           <h3 className="text-sm font-semibold text-gray-900 mb-3">Financiero</h3>
           <dl>
-            <InfoRow label="Monto total" value={formatMonto(Number(reserva.montoTotal))} />
+            <InfoRow
+              label="Monto total"
+              value={
+                <MontoDisplay
+                  montoUSD={Number(reserva.montoTotalUSD ?? reserva.montoTotal)}
+                  moneda={reserva.monedaIngreso ?? "USD"}
+                  montoARS={reserva.montoTotalARS ? Number(reserva.montoTotalARS) : null}
+                  tipoCambio={reserva.tipoCambioReserva ? Number(reserva.tipoCambioReserva) : null}
+                />
+              }
+            />
             <InfoRow
               label="Seña acordada"
-              value={reserva.sena ? formatMonto(Number(reserva.sena)) : "—"}
+              value={
+                reserva.sena ? (
+                  <MontoDisplay
+                    montoUSD={Number(reserva.senaUSD ?? reserva.sena)}
+                    moneda={reserva.senaARS ? "ARS" : "USD"}
+                    montoARS={reserva.senaARS ? Number(reserva.senaARS) : null}
+                    tipoCambio={reserva.tipoCambioSena ? Number(reserva.tipoCambioSena) : null}
+                  />
+                ) : "—"
+              }
             />
             <InfoRow
               label="Total pagado"
@@ -323,7 +343,12 @@ export default async function ReservaDetailPage({ params }: { params: { id: stri
                 className="flex items-center justify-between rounded-lg bg-gray-50 px-4 py-3"
               >
                 <div>
-                  <p className="text-sm font-medium text-gray-900">{formatMonto(Number(pago.monto))}</p>
+                  <MontoDisplay
+                    montoUSD={Number(pago.montoUSD ?? pago.monto)}
+                    moneda={pago.moneda ?? "USD"}
+                    montoARS={pago.montoARS ? Number(pago.montoARS) : null}
+                    tipoCambio={pago.tipoCambio ? Number(pago.tipoCambio) : null}
+                  />
                   <p className="text-xs text-gray-500 mt-0.5">
                     {format(pago.fecha, "d/MM/yyyy", { locale: es })} ·{" "}
                     {pago.metodoPago === "EFECTIVO"      && "Efectivo"}
