@@ -96,15 +96,15 @@ export function DateRangePicker({
     return blockedRanges.find((r) => iso >= r.start && iso < r.end) ?? null;
   }
 
-  // Displayed range uses hover preview during step 1
-  const dispStart = startDate || null;
-  const dispEnd   = step === 1 && hover ? hover : (endDate || null);
+  // Displayed range: hover provides end preview while picking end date
+  const dispEnd = step === 1 && hover ? hover : (endDate || null);
 
-  function effectiveBounds() {
-    if (!dispStart || !dispEnd) return { s: null, e: null };
-    return dispStart <= dispEnd
-      ? { s: dispStart, e: dispEnd }
-      : { s: dispEnd,   e: dispStart };
+  function effectiveBounds(): { s: string | null; e: string | null } {
+    if (!startDate) return { s: null, e: null };
+    if (!dispEnd)   return { s: startDate, e: null };
+    return startDate <= dispEnd
+      ? { s: startDate, e: dispEnd }
+      : { s: dispEnd,   e: startDate };
   }
 
   function inRange(iso: string) {
@@ -113,15 +113,15 @@ export function DateRangePicker({
   }
   function isStart(iso: string) {
     const { s } = effectiveBounds();
-    return iso === s;
+    return !!s && iso === s;
   }
   function isEnd(iso: string) {
     const { e } = effectiveBounds();
-    return e ? iso === e : false;
+    return !!e && iso === e;
   }
   function isSingleDay() {
     const { s, e } = effectiveBounds();
-    return s && e && s === e;
+    return !!s && !!e && s === e;
   }
 
   // ── Click handler ─────────────────────────────────────────────────────────
@@ -206,7 +206,8 @@ export function DateRangePicker({
                 const isToday      = cell.iso === todayIso;
 
                 // Strip spans full height of cell; clipped on start/end sides
-                const showStrip = cell.current && !single && (start || end || mid);
+                // Only draw strip when there's an end bound (hover or endDate)
+                const showStrip = cell.current && !single && !!dispEnd && (start || end || mid);
                 const stripLeft  = end && !start ? "left-0"   : "left-1/2";
                 const stripRight = start && !end  ? "right-0"  : "right-1/2";
 
@@ -278,7 +279,7 @@ export function DateRangePicker({
           <span className="text-gray-400">Seleccioná la fecha de ingreso</span>
         )}
         {startDate && step === 1 && (
-          <span className="text-blue-600">Ahora seleccioná la fecha de salida</span>
+          <span className="text-blue-600">Seleccioná la fecha de salida</span>
         )}
         {startDate && endDate && step === 0 && (
           <span className="text-gray-600">
