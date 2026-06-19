@@ -35,7 +35,7 @@ const MONTH_NAMES = [
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
-export interface BlockedRange { start: string; end: string; }
+export interface BlockedRange { start: string; end: string; estado?: string; }
 
 interface DateRangePickerProps {
   startDate: string;   // "" if not yet selected
@@ -65,8 +65,9 @@ export function DateRangePicker({
   const [viewM, setViewM] = useState(() =>
     startDate ? parseInt(startDate.slice(5, 7)) - 1 : now.getMonth(),
   );
-  // step 0 = waiting for start, step 1 = waiting for end
-  const [step,  setStep]  = useState<0 | 1>(0);
+  // step 0 = waiting for start (or showing summary if both set)
+  // step 1 = waiting for end
+  const [step,  setStep]  = useState<0 | 1>(() => startDate && !endDate ? 1 : 0);
   const [hover, setHover] = useState<string | null>(null);
 
   // ── Calendar grid ─────────────────────────────────────────────────────────
@@ -91,8 +92,8 @@ export function DateRangePicker({
 
   // ── Helpers ───────────────────────────────────────────────────────────────
 
-  function isBlocked(iso: string) {
-    return blockedRanges.some((r) => iso >= r.start && iso < r.end);
+  function getBlockedRange(iso: string): BlockedRange | null {
+    return blockedRanges.find((r) => iso >= r.start && iso < r.end) ?? null;
   }
 
   // Displayed range uses hover preview during step 1
@@ -126,7 +127,7 @@ export function DateRangePicker({
   // ── Click handler ─────────────────────────────────────────────────────────
 
   function handleClick(iso: string, current: boolean) {
-    if (!current || isBlocked(iso)) return;
+    if (!current || getBlockedRange(iso)) return;
 
     if (step === 0) {
       onChange(iso, "");
@@ -196,11 +197,13 @@ export function DateRangePicker({
           {weeks.map((week, wi) => (
             <div key={wi} className="grid grid-cols-7">
               {week.map((cell, col) => {
-                const blk      = cell.current && isBlocked(cell.iso);
-                const start    = cell.current && isStart(cell.iso);
-                const end      = cell.current && isEnd(cell.iso);
-                const mid      = cell.current && inRange(cell.iso);
-                const isToday  = cell.iso === todayIso;
+                const blockedRange = cell.current ? getBlockedRange(cell.iso) : null;
+                const blk          = !!blockedRange;
+                const isPendiente  = blockedRange?.estado === "PENDIENTE";
+                const start        = cell.current && isStart(cell.iso);
+                const end          = cell.current && isEnd(cell.iso);
+                const mid          = cell.current && inRange(cell.iso);
+                const isToday      = cell.iso === todayIso;
 
                 // Strip spans full height of cell; clipped on start/end sides
                 const showStrip = cell.current && !single && (start || end || mid);
@@ -235,8 +238,9 @@ export function DateRangePicker({
                         cell.current && !start && !end && !mid && !blk &&
                           "cursor-pointer text-gray-900 hover:bg-gray-100",
                         mid && !start && !end && "text-gray-800",
-                        blk && "cursor-not-allowed text-gray-300 line-through",
-                        isToday && !start && !end && "ring-1 ring-inset ring-gray-400 font-semibold",
+                        blk && !isPendiente && "cursor-not-allowed bg-gray-200 text-gray-400 line-through",
+                        blk && isPendiente  && "cursor-not-allowed bg-yellow-100 text-yellow-700",
+                        isToday && !start && !end && !blk && "ring-1 ring-inset ring-gray-400 font-semibold",
                         step === 1 && cell.current && !blk && !start && !end &&
                           "cursor-pointer",
                       )}
@@ -254,6 +258,18 @@ export function DateRangePicker({
             </div>
           ))}
         </div>
+      </div>
+
+      {/* Legend */}
+      <div className="mt-2 flex items-center gap-4 text-xs text-gray-500 px-1">
+        <span className="flex items-center gap-1.5">
+          <span className="h-3 w-3 rounded-full bg-gray-300" />
+          Confirmada
+        </span>
+        <span className="flex items-center gap-1.5">
+          <span className="h-3 w-3 rounded-full bg-yellow-200" />
+          Pendiente
+        </span>
       </div>
 
       {/* Summary / prompt */}

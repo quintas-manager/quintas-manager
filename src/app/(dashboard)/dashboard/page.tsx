@@ -8,8 +8,6 @@ import {
   DollarSign,
   Clock,
   TrendingUp,
-  AlertTriangle,
-  Bell,
   ChevronRight,
   Receipt,
   ArrowDownLeft,
@@ -33,7 +31,10 @@ function addDays(date: Date, n: number) {
 }
 
 function fmtDate(date: Date) {
-  return date.toLocaleDateString("es-AR", { day: "2-digit", month: "short" });
+  const dia = date.getUTCDate();
+  const mes = date.getUTCMonth();
+  const meses = ["ene","feb","mar","abr","may","jun","jul","ago","sep","oct","nov","dic"];
+  return `${String(dia).padStart(2, "0")} ${meses[mes]}`;
 }
 
 function pct(n: number, d: number) {
@@ -53,7 +54,6 @@ const estadoBadge: Record<string, string> = {
 export default async function DashboardPage() {
   const now      = new Date();
   const today    = startOf(now);
-  const tomorrow = addDays(today, 1);
   const in7days  = addDays(today, 7);
   const in30days = addDays(today, 30);
 
@@ -66,7 +66,7 @@ export default async function DashboardPage() {
   const PERSONAS_PAGADOR = ["GRACIELA", "MATIAS", "ROCIO"] as const;
   const PERSONA_NOMBRE: Record<string, string> = { GRACIELA: "Graciela", MATIAS: "Matías", ROCIO: "Rocío" };
 
-  const [quintas, reservasMes, proximasReservas, pendientes, reservasMiniCal, gastosMes, reintegrosPendientes, clientesConCumple, tipoCambio, mascotasPendientes] =
+  const [quintas, reservasMes, proximasReservas, pendientes, reservasMiniCal, gastosMes, reintegrosPendientes, clientesConCumple, tipoCambio] =
     await Promise.all([
       prisma.quinta.findMany({
         where: { activa: true },
@@ -174,22 +174,6 @@ export default async function DashboardPage() {
 
       // Tipo de cambio blue
       getTipoCambioBlueSell(),
-
-      // Mascotas con cargo pendiente
-      prisma.reserva.findMany({
-        where: {
-          tieneMascota:       true,
-          cargoMascotaPagado: false,
-          estado:             { in: ["PENDIENTE", "CONFIRMADA"] },
-        },
-        select: {
-          id:          true,
-          fechaInicio: true,
-          cliente:     { select: { nombre: true, apellido: true } },
-          quinta:      { select: { nombre: true } },
-        },
-        orderBy: { fechaInicio: "asc" },
-      }),
     ]);
 
   // ── estadísticas ──────────────────────────────────────────────────────────
@@ -221,22 +205,6 @@ export default async function DashboardPage() {
     return { ...q, ocupacion: pct(diasOcupados, diasEnMes) };
   });
 
-  // ── alertas ───────────────────────────────────────────────────────────────
-
-  const tomorrowEnd   = addDays(tomorrow, 1);
-  const comenzanManana = pendientes.filter(
-    (r) => r.fechaInicio >= tomorrow && r.fechaInicio < tomorrowEnd
-  );
-  // También incluir confirmadas que comienzan mañana
-  const confirmManana = proximasReservas.filter(
-    (r) => r.estado === "CONFIRMADA" && r.fechaInicio >= tomorrow && r.fechaInicio < tomorrowEnd
-  );
-  const alertasManana = [
-    ...comenzanManana,
-    ...confirmManana.filter((c) => !comenzanManana.find((p) => p.id === c.id)),
-  ];
-
-  const sinSena = pendientes.filter((r) => !r.sena || Number(r.sena) === 0);
 
   // ── gastos / reintegros ───────────────────────────────────────────────────
 
@@ -307,57 +275,6 @@ export default async function DashboardPage() {
         })}
       </p>
 
-      {/* ── Alertas ── */}
-      {(alertasManana.length > 0 || sinSena.length > 0 || mascotasPendientes.length > 0) && (
-        <div className="space-y-2">
-          {alertasManana.map((r) => (
-            <Link
-              key={`alerta-manana-${r.id}`}
-              href={`/reservas/${r.id}`}
-              className="flex items-center gap-3 rounded-xl border border-yellow-200 bg-yellow-50 px-4 py-3 text-sm text-yellow-800 hover:bg-yellow-100 transition"
-            >
-              <Bell className="h-4 w-4 shrink-0 text-yellow-500" />
-              <span>
-                <strong>Mañana comienza</strong> la reserva de{" "}
-                <strong>
-                  {"cliente" in r ? `${r.cliente.nombre} ${r.cliente.apellido}` : ""}
-                </strong>{" "}
-                en {"quinta" in r ? r.quinta.nombre : ""}.
-              </span>
-              <ChevronRight className="ml-auto h-4 w-4 shrink-0 text-yellow-400" />
-            </Link>
-          ))}
-
-          {sinSena.map((r) => (
-            <Link
-              key={`alerta-sena-${r.id}`}
-              href={`/reservas/${r.id}`}
-              className="flex items-center gap-3 rounded-xl border border-orange-200 bg-orange-50 px-4 py-3 text-sm text-orange-800 hover:bg-orange-100 transition"
-            >
-              <AlertTriangle className="h-4 w-4 shrink-0 text-orange-400" />
-              <span>
-                Reserva de <strong>{r.cliente.nombre} {r.cliente.apellido}</strong> (
-                {fmtDate(r.fechaInicio)}) sin seña registrada.
-              </span>
-              <ChevronRight className="ml-auto h-4 w-4 shrink-0 text-orange-300" />
-            </Link>
-          ))}
-
-          {mascotasPendientes.map((r) => (
-            <Link
-              key={`alerta-mascota-${r.id}`}
-              href={`/reservas/${r.id}`}
-              className="flex items-center gap-3 rounded-xl border border-orange-200 bg-orange-50 px-4 py-3 text-sm text-orange-800 hover:bg-orange-100 transition"
-            >
-              <span className="shrink-0 text-base">🐾</span>
-              <span>
-                <strong>{r.cliente.nombre} {r.cliente.apellido}</strong> ({r.quinta.nombre} · {fmtDate(r.fechaInicio)}) — cargo de mascota pendiente de pago.
-              </span>
-              <ChevronRight className="ml-auto h-4 w-4 shrink-0 text-orange-300" />
-            </Link>
-          ))}
-        </div>
-      )}
 
       {/* ── Cards resumen ── */}
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">

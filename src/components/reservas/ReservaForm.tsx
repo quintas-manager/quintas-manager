@@ -155,11 +155,12 @@ export function ReservaForm({
 
     fetch(`/api/reservas?${params}`)
       .then((r) => r.json())
-      .then((data: { fechaInicio: string; fechaFin: string }[]) => {
+      .then((data: { fechaInicio: string; fechaFin: string; estado: string }[]) => {
         setBlockedRanges(
           data.map((r) => ({
-            start: r.fechaInicio.substring(0, 10),
-            end:   r.fechaFin.substring(0, 10),
+            start:  r.fechaInicio.substring(0, 10),
+            end:    r.fechaFin.substring(0, 10),
+            estado: r.estado,
           })),
         );
       })
@@ -448,6 +449,10 @@ export function ReservaForm({
             label="Monto total"
             required
             tipoCambioInicial={tc}
+            initialValueUSD={defaultValues?.montoTotal as number | undefined}
+            initialMoneda={(defaultValues?.monedaIngreso as "USD" | "ARS") ?? "USD"}
+            initialARS={defaultValues?.montoTotalARS as number | undefined}
+            initialTC={defaultValues?.tipoCambioReserva as number | undefined}
             error={errors.montoTotal?.message}
             onValueChange={(usd, ars, tcUsado, monedaUsada) => {
               setValue("montoTotal", usd, { shouldValidate: true });
@@ -459,6 +464,10 @@ export function ReservaForm({
           <MonedaInput
             label="Seña"
             tipoCambioInicial={tc}
+            initialValueUSD={defaultValues?.sena as number | null | undefined ?? undefined}
+            initialMoneda={defaultValues?.senaARS ? "ARS" : "USD"}
+            initialARS={defaultValues?.senaARS as number | undefined}
+            initialTC={defaultValues?.tipoCambioSena as number | undefined}
             error={errors.sena?.message}
             onValueChange={(usd, ars, tcUsado) => {
               setValue("sena", usd > 0 ? usd : null);
@@ -530,7 +539,7 @@ export function ReservaForm({
         </button>
         <button
           type="button"
-          onClick={() => router.back()}
+          onClick={() => reservaId ? router.push(`/reservas/${reservaId}`) : router.back()}
           className="w-full rounded-lg border border-gray-200 px-5 py-2.5 text-sm font-medium text-gray-700 transition hover:bg-gray-50"
         >
           Cancelar
@@ -541,7 +550,7 @@ export function ReservaForm({
       <div className="hidden md:flex justify-end gap-3">
         <button
           type="button"
-          onClick={() => router.back()}
+          onClick={() => reservaId ? router.push(`/reservas/${reservaId}`) : router.back()}
           className="rounded-lg border border-gray-200 px-5 py-2.5 text-sm font-medium text-gray-700 transition hover:bg-gray-50"
         >
           Cancelar

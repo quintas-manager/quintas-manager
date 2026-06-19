@@ -2,8 +2,7 @@
 
 import Link from "next/link";
 import { useMemo, useState } from "react";
-import { format, parseISO, startOfToday, isBefore } from "date-fns";
-import { es } from "date-fns/locale";
+import { parseISO, startOfToday, isBefore } from "date-fns";
 import {
   Pencil, XCircle, Search, X, Trash2, Loader2,
   Phone, PawPrint, Users, ExternalLink,
@@ -73,9 +72,20 @@ const CHIP_LABELS: Record<Chip, string> = {
   todas:      "Todas",
 };
 
-const fmt = (iso: string) => format(parseISO(iso), "d/MM/yy", { locale: es });
-const fmtLong = (iso: string) =>
-  format(parseISO(iso), "EEEE d 'de' MMMM yyyy", { locale: es });
+function fmt(iso: string) {
+  const d = new Date(iso);
+  return `${d.getUTCDate()}/${String(d.getUTCMonth() + 1).padStart(2, "0")}/${String(d.getUTCFullYear()).slice(2)}`;
+}
+function fmtLong(iso: string) {
+  const d    = new Date(iso);
+  const dia  = d.getUTCDate();
+  const mes  = d.getUTCMonth();
+  const anio = d.getUTCFullYear();
+  const dow  = new Date(Date.UTC(anio, mes, dia)).getUTCDay();
+  const dias = ["domingo","lunes","martes","miércoles","jueves","viernes","sábado"];
+  const meses = ["enero","febrero","marzo","abril","mayo","junio","julio","agosto","septiembre","octubre","noviembre","diciembre"];
+  return `${dias[dow]} ${dia} de ${meses[mes]} ${anio}`;
+}
 
 // ── Detail drawer ─────────────────────────────────────────────────────────────
 

@@ -6,7 +6,7 @@ import { ChevronLeft, Pencil, PawPrint, Users, Wallet } from "lucide-react";
 import { prisma } from "@/lib/prisma";
 import { auth } from "@/lib/auth";
 import { cn } from "@/lib/utils";
-import { formatUSD } from "@/lib/format";
+import { formatUSD, formatFechaReservaLong } from "@/lib/format";
 import { MontoDisplay } from "@/components/ui/MontoDisplay";
 import { ConfirmarButton } from "@/components/reservas/ConfirmarButton";
 import { CancelarInline } from "@/components/reservas/CancelarInline";
@@ -27,8 +27,6 @@ const ESTADO_CONFIG: Record<string, { label: string; cls: string }> = {
   COMPLETADA: { label: "Completada", cls: "bg-blue-100 text-blue-700 ring-1 ring-blue-200" },
 };
 
-const formatFecha = (d: Date) =>
-  format(d, "EEEE d 'de' MMMM 'de' yyyy", { locale: es });
 const formatMonto = formatUSD;
 
 function InfoRow({ label, value }: { label: string; value: React.ReactNode }) {
@@ -84,7 +82,7 @@ export default async function ReservaDetailPage({ params }: { params: { id: stri
               </span>
             </div>
             <p className="text-sm text-gray-500 mt-0.5 capitalize">
-              {formatFecha(reserva.fechaInicio)}
+              {formatFechaReservaLong(reserva.fechaInicio)}
             </p>
           </div>
         </div>
@@ -149,12 +147,22 @@ export default async function ReservaDetailPage({ params }: { params: { id: stri
           <h3 className="text-sm font-semibold text-gray-900 mb-3">Detalles de la reserva</h3>
           <dl>
             <InfoRow
-              label="Fecha inicio"
-              value={<span className="capitalize">{formatFecha(reserva.fechaInicio)}</span>}
+              label="Ingreso"
+              value={
+                <span className="capitalize">
+                  {formatFechaReservaLong(reserva.fechaInicio)}
+                  <span className="ml-1 text-xs text-gray-400 font-normal">a las 10:00 hs</span>
+                </span>
+              }
             />
             <InfoRow
-              label="Fecha fin"
-              value={<span className="capitalize">{formatFecha(reserva.fechaFin)}</span>}
+              label="Egreso"
+              value={
+                <span className="capitalize">
+                  {formatFechaReservaLong(reserva.fechaFin)}
+                  <span className="ml-1 text-xs text-gray-400 font-normal">a las 14:00 hs</span>
+                </span>
+              }
             />
             <InfoRow label="Tipo" value={TIPO_LABELS[reserva.tipoAlquiler] ?? reserva.tipoAlquiler} />
             {reserva.motivoEvento && (

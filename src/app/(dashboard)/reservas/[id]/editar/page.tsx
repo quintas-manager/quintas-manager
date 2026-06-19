@@ -3,8 +3,8 @@ import { notFound } from "next/navigation";
 import { ChevronLeft } from "lucide-react";
 import { prisma } from "@/lib/prisma";
 import { ReservaForm } from "@/components/reservas/ReservaForm";
-import { format } from "date-fns";
 import { getTipoCambioBlueSell } from "@/lib/dolar";
+import { toIsoDateUTC } from "@/lib/format";
 
 export default async function EditarReservaPage({ params }: { params: { id: string } }) {
   const [reserva, quintas, clientes, tipoCambio] = await Promise.all([
@@ -46,17 +46,26 @@ export default async function EditarReservaPage({ params }: { params: { id: stri
         ];
 
   const defaultValues = {
-    id:            reserva.id,
-    quintaId:      reserva.quintaId,
-    clienteId:     reserva.clienteId,
-    fechaInicio:   format(reserva.fechaInicio, "yyyy-MM-dd"),
-    fechaFin:      format(reserva.fechaFin,    "yyyy-MM-dd"),
-    tipoAlquiler:  reserva.tipoAlquiler as never,
-    estado:        reserva.estado as never,
-    montoTotal:    Number(reserva.montoTotal),
-    sena:          reserva.sena ? Number(reserva.sena) : null,
-    motivoEvento:  reserva.motivoEvento ?? undefined,
-    notas:         reserva.notas ?? undefined,
+    id:                 reserva.id,
+    quintaId:           reserva.quintaId,
+    clienteId:          reserva.clienteId,
+    fechaInicio:        toIsoDateUTC(reserva.fechaInicio),
+    fechaFin:           toIsoDateUTC(reserva.fechaFin),
+    tipoAlquiler:       reserva.tipoAlquiler as never,
+    estado:             reserva.estado as never,
+    montoTotal:         Number(reserva.montoTotalUSD ?? reserva.montoTotal),
+    montoTotalARS:      reserva.montoTotalARS     ? Number(reserva.montoTotalARS)     : undefined,
+    tipoCambioReserva:  reserva.tipoCambioReserva ? Number(reserva.tipoCambioReserva) : undefined,
+    monedaIngreso:      (reserva.monedaIngreso ?? "USD") as "USD" | "ARS",
+    sena:               reserva.senaUSD ? Number(reserva.senaUSD) : (reserva.sena ? Number(reserva.sena) : null),
+    senaARS:            reserva.senaARS      ? Number(reserva.senaARS)      : undefined,
+    tipoCambioSena:     reserva.tipoCambioSena ? Number(reserva.tipoCambioSena) : undefined,
+    motivoEvento:       reserva.motivoEvento ?? undefined,
+    notas:              reserva.notas        ?? undefined,
+    cantidadPersonas:   reserva.cantidadPersonas ?? undefined,
+    tieneMascota:       reserva.tieneMascota,
+    cargoMascotaARS:    reserva.cargoMascotaARS ? Number(reserva.cargoMascotaARS) : 20000,
+    cargoMascotaPagado: reserva.cargoMascotaPagado,
   };
 
   return (

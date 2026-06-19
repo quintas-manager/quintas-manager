@@ -13,6 +13,10 @@ interface Props {
   onValueChange: (usd: number, ars: number, tc: number, moneda: "USD" | "ARS") => void;
   error?: string;
   placeholder?: string;
+  initialValueUSD?: number;
+  initialMoneda?: "USD" | "ARS";
+  initialARS?: number;
+  initialTC?: number;
 }
 
 const inputBase =
@@ -25,10 +29,25 @@ export function MonedaInput({
   onValueChange,
   error,
   placeholder = "0",
+  initialValueUSD,
+  initialMoneda,
+  initialARS,
+  initialTC,
 }: Props) {
-  const [moneda, setMoneda] = useState<"USD" | "ARS">("USD");
-  const [rawMonto, setRawMonto] = useState("");
-  const [tc, setTc] = useState(tipoCambioInicial > 0 ? tipoCambioInicial : 1);
+  const [moneda, setMoneda] = useState<"USD" | "ARS">(initialMoneda ?? "USD");
+  const [rawMonto, setRawMonto] = useState(() => {
+    if (initialMoneda === "ARS" && initialARS && initialARS > 0) {
+      return String(Math.round(initialARS));
+    }
+    if (initialValueUSD && initialValueUSD > 0) {
+      return String(initialValueUSD);
+    }
+    return "";
+  });
+  const [tc, setTc] = useState(() => {
+    if (initialTC && initialTC > 0) return initialTC;
+    return tipoCambioInicial > 0 ? tipoCambioInicial : 1;
+  });
   const [refreshing, setRefreshing] = useState(false);
 
   const montoNum = parseFloat(rawMonto.replace(",", ".")) || 0;

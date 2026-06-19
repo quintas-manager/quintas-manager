@@ -18,6 +18,11 @@ type Ok<T> = { success: true; data: T };
 type Err  = { success: false; error: string; fieldErrors?: Record<string, string[]> };
 type Result<T = undefined> = Ok<T> | Err;
 
+function parseISODateUTC(iso: string): Date {
+  const [y, m, d] = iso.split("-").map(Number);
+  return new Date(Date.UTC(y, m - 1, d, 12, 0, 0));
+}
+
 async function getSession() {
   const session = await auth();
   if (!session?.user) throw new Error("No autorizado");
@@ -56,8 +61,8 @@ export async function crearReserva(raw: ReservaFormValues): Promise<Result<{ id:
   }
 
   const data = parsed.data;
-  const inicio = new Date(data.fechaInicio);
-  const fin    = new Date(data.fechaFin);
+  const inicio = parseISODateUTC(data.fechaInicio);
+  const fin    = parseISODateUTC(data.fechaFin);
 
   const conflicto = await checkConflicto(data.quintaId, inicio, fin);
   if (conflicto) {
@@ -144,8 +149,8 @@ export async function actualizarReserva(
   }
 
   const data = parsed.data;
-  const inicio = new Date(data.fechaInicio);
-  const fin    = new Date(data.fechaFin);
+  const inicio = parseISODateUTC(data.fechaInicio);
+  const fin    = parseISODateUTC(data.fechaFin);
 
   const conflicto = await checkConflicto(data.quintaId, inicio, fin, id);
   if (conflicto) {
@@ -208,8 +213,8 @@ export async function crearReservaPendiente(
   }
 
   const data = parsed.data;
-  const inicio = new Date(data.fechaInicio);
-  const fin    = new Date(data.fechaFin);
+  const inicio = parseISODateUTC(data.fechaInicio);
+  const fin    = parseISODateUTC(data.fechaFin);
 
   const conflicto = await checkConflicto(data.quintaId, inicio, fin);
   if (conflicto) {
