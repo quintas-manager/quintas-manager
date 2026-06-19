@@ -66,7 +66,7 @@ export default async function DashboardPage() {
   const PERSONAS_PAGADOR = ["GRACIELA", "MATIAS", "ROCIO"] as const;
   const PERSONA_NOMBRE: Record<string, string> = { GRACIELA: "Graciela", MATIAS: "Matías", ROCIO: "Rocío" };
 
-  const [quintas, reservasMes, proximasReservas, pendientes, reservasMiniCal, gastosMes, reintegrosPendientes, clientesConCumple, tipoCambio] =
+  const [quintas, reservasMes, proximasReservas, pendientes, reservasMiniCal, gastosMes, reintegrosPendientes, clientesConCumple, tipoCambio, mascotasPendientes] =
     await Promise.all([
       prisma.quinta.findMany({
         where: { activa: true },
@@ -174,6 +174,22 @@ export default async function DashboardPage() {
 
       // Tipo de cambio blue
       getTipoCambioBlueSell(),
+
+      // Mascotas con cargo pendiente
+      prisma.reserva.findMany({
+        where: {
+          tieneMascota:       true,
+          cargoMascotaPagado: false,
+          estado:             { in: ["PENDIENTE", "CONFIRMADA"] },
+        },
+        select: {
+          id:          true,
+          fechaInicio: true,
+          cliente:     { select: { nombre: true, apellido: true } },
+          quinta:      { select: { nombre: true } },
+        },
+        orderBy: { fechaInicio: "asc" },
+      }),
     ]);
 
   // ── estadísticas ──────────────────────────────────────────────────────────
@@ -292,7 +308,7 @@ export default async function DashboardPage() {
       </p>
 
       {/* ── Alertas ── */}
-      {(alertasManana.length > 0 || sinSena.length > 0) && (
+      {(alertasManana.length > 0 || sinSena.length > 0 || mascotasPendientes.length > 0) && (
         <div className="space-y-2">
           {alertasManana.map((r) => (
             <Link
@@ -322,6 +338,20 @@ export default async function DashboardPage() {
               <span>
                 Reserva de <strong>{r.cliente.nombre} {r.cliente.apellido}</strong> (
                 {fmtDate(r.fechaInicio)}) sin seña registrada.
+              </span>
+              <ChevronRight className="ml-auto h-4 w-4 shrink-0 text-orange-300" />
+            </Link>
+          ))}
+
+          {mascotasPendientes.map((r) => (
+            <Link
+              key={`alerta-mascota-${r.id}`}
+              href={`/reservas/${r.id}`}
+              className="flex items-center gap-3 rounded-xl border border-orange-200 bg-orange-50 px-4 py-3 text-sm text-orange-800 hover:bg-orange-100 transition"
+            >
+              <span className="shrink-0 text-base">🐾</span>
+              <span>
+                <strong>{r.cliente.nombre} {r.cliente.apellido}</strong> ({r.quinta.nombre} · {fmtDate(r.fechaInicio)}) — cargo de mascota pendiente de pago.
               </span>
               <ChevronRight className="ml-auto h-4 w-4 shrink-0 text-orange-300" />
             </Link>

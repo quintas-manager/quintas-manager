@@ -34,6 +34,7 @@ interface ReservaRow {
   motivoEvento: string | null;
   cantidadPersonas: number | null;
   tieneMascota: boolean;
+  cargoMascotaPagado: boolean;
 }
 
 type Chip = "proximas" | "canceladas" | "todas";
@@ -374,13 +375,20 @@ export function ReservasTable({ reservas, tipoCambio = 0 }: Props) {
                           {r.sena != null ? formatUSD(r.sena) : "—"}
                         </td>
                         <td className="px-4 py-3">
-                          <span className={cn(
-                            "inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium",
-                            estadoCfg.cls,
-                            r.estado === "PENDIENTE" && "font-semibold ring-2",
-                          )}>
-                            {estadoCfg.label}
-                          </span>
+                          <div className="flex flex-col gap-1">
+                            <span className={cn(
+                              "inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium w-fit",
+                              estadoCfg.cls,
+                              r.estado === "PENDIENTE" && "font-semibold ring-2",
+                            )}>
+                              {estadoCfg.label}
+                            </span>
+                            {r.tieneMascota && !r.cargoMascotaPagado && (
+                              <span className="inline-flex items-center gap-1 rounded-full bg-orange-100 px-2 py-0.5 text-xs font-medium text-orange-700 ring-1 ring-orange-200 w-fit">
+                                🐾 Pago pendiente
+                              </span>
+                            )}
+                          </div>
                         </td>
                         <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
                           <div className="flex items-center gap-1">
@@ -450,9 +458,16 @@ export function ReservasTable({ reservas, tipoCambio = 0 }: Props) {
                           <span className="text-xs text-gray-500">{r.quintaNombre}</span>
                         </div>
                       </div>
-                      <span className={cn("shrink-0 inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium", estadoCfg.cls)}>
-                        {estadoCfg.label}
-                      </span>
+                      <div className="flex flex-col items-end gap-1 shrink-0">
+                        <span className={cn("inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium", estadoCfg.cls)}>
+                          {estadoCfg.label}
+                        </span>
+                        {r.tieneMascota && !r.cargoMascotaPagado && (
+                          <span className="inline-flex items-center gap-1 rounded-full bg-orange-100 px-2 py-0.5 text-xs font-medium text-orange-700">
+                            🐾 Pago pendiente
+                          </span>
+                        )}
+                      </div>
                     </div>
 
                     <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs text-gray-600 mb-3">

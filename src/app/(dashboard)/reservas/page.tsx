@@ -31,7 +31,8 @@ export default async function ReservasPage() {
     notas:            r.notas ?? null,
     motivoEvento:     r.motivoEvento ?? null,
     cantidadPersonas: r.cantidadPersonas ?? null,
-    tieneMascota:     r.tieneMascota,
+    tieneMascota:       r.tieneMascota,
+    cargoMascotaPagado: r.cargoMascotaPagado,
   }));
 
   return <ReservasTable reservas={reservas} tipoCambio={tipoCambio} />;

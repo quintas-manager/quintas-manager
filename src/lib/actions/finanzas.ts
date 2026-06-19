@@ -106,7 +106,7 @@ export async function calcularMes(
 ): Promise<MesCalculado> {
   const { inicio, fin } = mesRange(mes, anio);
 
-  const [quinta, pagos, gastos, reintegrosPendientes, retiros, cierre] = await Promise.all([
+  const [quinta, pagos, gastos, reintegrosPendientes, retiros, cierre, mascotasPagadas] = await Promise.all([
     prisma.quinta.findUniqueOrThrow({
       where: { id: quintaId },
       select: { id: true, nombre: true, colorHex: true },
@@ -152,9 +152,19 @@ export async function calcularMes(
       where: { quintaId_mes_anio: { quintaId, mes, anio } },
       include: { cerradoPor: { select: { name: true } } },
     }),
+
+    prisma.reserva.findMany({
+      where: {
+        quintaId,
+        cargoMascotaPagado: true,
+        fechaPagoMascota: { gte: inicio, lte: fin },
+      },
+      select: { cargoMascotaUSD: true, cargoMascotaARS: true },
+    }),
   ]);
 
-  const totalIngresos = pagos.reduce((s, p) => s + Number(p.montoUSD ?? p.monto), 0);
+  const totalMascotaUSD = mascotasPagadas.reduce((s, r) => s + Number(r.cargoMascotaUSD ?? 0), 0);
+  const totalIngresos = pagos.reduce((s, p) => s + Number(p.montoUSD ?? p.monto), 0) + totalMascotaUSD;
   const totalGastos   = gastos.reduce((s, g) => s + Number(g.montoUSD ?? g.monto), 0);
 
   const retirosG      = retiros.filter((r) => r.realizadoPor === "GRACIELA");

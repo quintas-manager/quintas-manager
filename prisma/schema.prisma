@@ -137,7 +137,11 @@ model Reserva {
   tipoCambioSena    Decimal?      @db.Decimal(10, 2)
   notas           String?
   motivoEvento    String?
-  tieneMascota    Boolean       @default(false)
+  tieneMascota       Boolean       @default(false)
+  cargoMascotaARS    Decimal?      @db.Decimal(10, 2)
+  cargoMascotaUSD    Decimal?      @db.Decimal(10, 2)
+  cargoMascotaPagado Boolean       @default(false)
+  fechaPagoMascota   DateTime?
   cantidadPersonas Int?
   createdAt       DateTime      @default(now())
   updatedAt       DateTime      @updatedAt

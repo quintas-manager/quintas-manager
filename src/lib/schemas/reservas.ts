@@ -17,7 +17,10 @@ export const reservaSchema = z
     tipoCambioSena:    z.number().min(0).optional(),
     motivoEvento:     z.string().optional(),
     notas:            z.string().optional(),
-    tieneMascota:     z.boolean().optional(),
+    tieneMascota:       z.boolean().optional(),
+    cargoMascotaARS:    z.number().min(0).optional(),
+    cargoMascotaUSD:    z.number().min(0).optional(),
+    cargoMascotaPagado: z.boolean().optional(),
     cantidadPersonas: z.number().int().min(1).nullable().optional(),
     metodoPagoSeña:   z.enum(["EFECTIVO", "TRANSFERENCIA", "TARJETA", "MERCADOPAGO"]).optional(),
   })

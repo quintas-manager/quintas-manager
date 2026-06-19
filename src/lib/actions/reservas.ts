@@ -93,7 +93,11 @@ export async function crearReserva(raw: ReservaFormValues): Promise<Result<{ id:
         tipoCambioSena:    data.tipoCambioSena    ?? null,
         motivoEvento:     data.motivoEvento || null,
         notas:            data.notas || null,
-        tieneMascota:     data.tieneMascota ?? false,
+        tieneMascota:       data.tieneMascota ?? false,
+        cargoMascotaARS:    data.tieneMascota ? (data.cargoMascotaARS ?? 20000) : null,
+        cargoMascotaUSD:    data.tieneMascota ? (data.cargoMascotaUSD ?? null) : null,
+        cargoMascotaPagado: data.cargoMascotaPagado ?? false,
+        fechaPagoMascota:   data.cargoMascotaPagado ? new Date() : null,
         cantidadPersonas: data.cantidadPersonas ?? null,
       },
     });
@@ -173,7 +177,11 @@ export async function actualizarReserva(
       tipoCambioSena:    data.tipoCambioSena    ?? null,
       motivoEvento:     data.motivoEvento || null,
       notas:            data.notas || null,
-      tieneMascota:     data.tieneMascota ?? false,
+      tieneMascota:       data.tieneMascota ?? false,
+      cargoMascotaARS:    data.tieneMascota ? (data.cargoMascotaARS ?? 20000) : null,
+      cargoMascotaUSD:    data.tieneMascota ? (data.cargoMascotaUSD ?? null) : null,
+      cargoMascotaPagado: data.cargoMascotaPagado ?? false,
+      fechaPagoMascota:   data.cargoMascotaPagado ? new Date() : null,
       cantidadPersonas: data.cantidadPersonas ?? null,
     },
   });
@@ -304,6 +312,20 @@ export async function confirmarConMonto(
   revalidatePath("/reservas");
   revalidatePath(`/reservas/${id}`);
   revalidatePath("/calendario");
+  return { success: true, data: undefined };
+}
+
+// ── Marcar cargo mascota pagado ───────────────────────────────────────────────
+
+export async function marcarCargoMascotaPagado(id: string): Promise<Result> {
+  await getSession();
+  await prisma.reserva.update({
+    where: { id },
+    data: { cargoMascotaPagado: true, fechaPagoMascota: new Date() },
+  });
+  revalidatePath(`/reservas/${id}`);
+  revalidatePath("/reservas");
+  revalidatePath("/dashboard");
   return { success: true, data: undefined };
 }
 

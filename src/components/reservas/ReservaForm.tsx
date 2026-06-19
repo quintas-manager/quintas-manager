@@ -115,9 +115,26 @@ export function ReservaForm({
     }
   }
 
-  const [quintaId, fechaInicio, fechaFin, sena] = watch([
-    "quintaId", "fechaInicio", "fechaFin", "sena",
+  const [quintaId, fechaInicio, fechaFin, sena, tieneMascota] = watch([
+    "quintaId", "fechaInicio", "fechaFin", "sena", "tieneMascota",
   ]);
+
+  const [cargoMascotaARS, setCargoMascotaARS] = useState(
+    defaultValues?.cargoMascotaARS ?? 20000,
+  );
+
+  useEffect(() => {
+    if (tieneMascota) {
+      const usd = tc > 0 ? cargoMascotaARS / tc : 0;
+      setValue("cargoMascotaARS", cargoMascotaARS);
+      setValue("cargoMascotaUSD", usd > 0 ? usd : undefined);
+    } else {
+      setValue("cargoMascotaARS", undefined);
+      setValue("cargoMascotaUSD", undefined);
+      setValue("cargoMascotaPagado", false);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tieneMascota, cargoMascotaARS, tc]);
 
   const selectedQuinta = quintas.find((q) => q.id === quintaId);
   const quintaColor    = selectedQuinta?.colorHex ?? "#9ca3af";
@@ -356,6 +373,49 @@ export function ReservaForm({
               </label>
             </div>
           </div>
+
+          {tieneMascota && (
+            <div className="rounded-xl border border-orange-200 bg-orange-50 p-4 space-y-3">
+              <div className="flex items-center gap-2">
+                <span className="text-base">🐾</span>
+                <span className="text-sm font-medium text-orange-800">Cargo por mascota</span>
+              </div>
+              <div className="flex items-center gap-3">
+                <div className="relative w-36">
+                  <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-xs text-gray-400">ARS $</span>
+                  <input
+                    type="number"
+                    min={0}
+                    step={1}
+                    value={cargoMascotaARS}
+                    onChange={(e) => setCargoMascotaARS(parseFloat(e.target.value) || 0)}
+                    className="w-full rounded-lg border border-orange-200 bg-white pl-12 pr-2 py-1.5 text-sm text-gray-900 outline-none focus:ring-2 focus:ring-orange-200"
+                  />
+                </div>
+                {tc > 0 && cargoMascotaARS > 0 && (
+                  <span className="text-xs text-orange-700">
+                    = USD {(cargoMascotaARS / tc).toLocaleString("es-AR", { maximumFractionDigits: 2 })} al TC actual
+                  </span>
+                )}
+              </div>
+              <Controller
+                name="cargoMascotaPagado"
+                control={control}
+                defaultValue={false}
+                render={({ field }) => (
+                  <label className="flex cursor-pointer items-center gap-2 text-sm text-orange-800">
+                    <input
+                      type="checkbox"
+                      checked={field.value ?? false}
+                      onChange={(e) => field.onChange(e.target.checked)}
+                      className="h-4 w-4 rounded border-orange-300 text-orange-600 focus:ring-orange-400"
+                    />
+                    Ya abonó el cargo de mascota
+                  </label>
+                )}
+              />
+            </div>
+          )}
 
           <div>
             <Label>Motivo del evento</Label>

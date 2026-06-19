@@ -11,6 +11,8 @@ import { ConfirmarButton } from "@/components/reservas/ConfirmarButton";
 import { CancelarInline } from "@/components/reservas/CancelarInline";
 import { ConfirmacionPDF } from "@/components/reservas/ConfirmacionPDF";
 import { EliminarReservaButton } from "@/components/reservas/EliminarReservaButton";
+import { MarcarMascotaPagadoButton } from "@/components/reservas/MarcarMascotaPagadoButton";
+import { formatARS } from "@/lib/format";
 
 const TIPO_LABELS: Record<string, string> = {
   DIA: "Por día", FIN_DE_SEMANA: "Fin de semana",
@@ -221,6 +223,45 @@ export default async function ReservaDetailPage({ params }: { params: { id: stri
             />
           </dl>
         </div>
+
+        {/* Cargo mascota */}
+        {reserva.tieneMascota && (
+          <div className="rounded-xl border border-orange-200 bg-orange-50 p-5">
+            <div className="flex items-center gap-2 mb-3">
+              <span className="text-base">🐾</span>
+              <h3 className="text-sm font-semibold text-orange-800">Cargo por mascota</h3>
+            </div>
+            <div className="space-y-2 text-sm">
+              {reserva.cargoMascotaARS && (
+                <p className="text-orange-900">
+                  {formatARS(Number(reserva.cargoMascotaARS))}
+                  {reserva.cargoMascotaUSD && (
+                    <span className="ml-2 text-orange-700 text-xs">
+                      ({formatUSD(Number(reserva.cargoMascotaUSD))})
+                    </span>
+                  )}
+                </p>
+              )}
+              {reserva.cargoMascotaPagado ? (
+                <p className="flex items-center gap-1.5 text-green-700 font-medium">
+                  <span>✅</span> Pagado
+                  {reserva.fechaPagoMascota && (
+                    <span className="text-xs font-normal text-green-600 ml-1">
+                      · {format(reserva.fechaPagoMascota, "d/MM/yyyy", { locale: es })}
+                    </span>
+                  )}
+                </p>
+              ) : (
+                <div className="flex items-center gap-3">
+                  <p className="flex items-center gap-1.5 text-orange-700 font-medium">
+                    <span>⏳</span> Pendiente de pago
+                  </p>
+                  <MarcarMascotaPagadoButton reservaId={reserva.id} />
+                </div>
+              )}
+            </div>
+          </div>
+        )}
 
         {/* Historial */}
         <div className="rounded-xl border border-gray-200 bg-white p-5">
