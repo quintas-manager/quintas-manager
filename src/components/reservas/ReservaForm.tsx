@@ -358,7 +358,7 @@ export function ReservaForm({
               <input
                 type="number"
                 min="0"
-                step="1000"
+                step="1"
                 {...register("montoTotal", { valueAsNumber: true })}
                 className={cn(inputCls(errors.montoTotal?.message), "pl-7")}
                 placeholder="0"
@@ -373,7 +373,7 @@ export function ReservaForm({
               <input
                 type="number"
                 min="0"
-                step="1000"
+                step="1"
                 {...register("sena", { valueAsNumber: true })}
                 className={cn(inputCls(errors.sena?.message), "pl-7")}
                 placeholder="0"
