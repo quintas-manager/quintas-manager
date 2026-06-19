@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ChevronLeft, TrendingUp, TrendingDown, Minus } from "lucide-react";
+import { ChevronLeft, TrendingUp, TrendingDown, Minus, BarChart3 } from "lucide-react";
 import { prisma } from "@/lib/prisma";
 import { getMesesConActividad } from "@/lib/actions/finanzas";
 import { cn } from "@/lib/utils";
@@ -53,9 +53,25 @@ export default async function FinanzasQuintaPage({
           </span>
           <div>
             <h1 className="text-lg font-semibold text-gray-900">{quinta.nombre}</h1>
-            <p className="text-sm text-gray-500">Historial financiero por mes</p>
           </div>
         </div>
+      </div>
+
+      {/* Tabs */}
+      <div className="flex gap-1 rounded-xl bg-gray-100 p-1">
+        <Link
+          href={`/finanzas/${params.quintaId}`}
+          className="flex-1 rounded-lg py-2 text-center text-sm font-medium bg-white text-gray-900 shadow-sm transition"
+        >
+          Meses
+        </Link>
+        <Link
+          href={`/finanzas/${params.quintaId}/estadisticas`}
+          className="flex flex-1 items-center justify-center gap-1.5 rounded-lg py-2 text-center text-sm font-medium text-gray-500 hover:text-gray-700 transition"
+        >
+          <BarChart3 className="h-4 w-4" />
+          Estadísticas
+        </Link>
       </div>
 
       {meses.length === 0 && (
