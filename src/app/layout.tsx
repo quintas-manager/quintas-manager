@@ -29,10 +29,7 @@ export const metadata: Metadata = {
     title: "Quintas Manager",
   },
   icons: {
-    apple: [
-      { url: "/icons/icon-152x152.png" },
-      { url: "/icons/icon-192x192.png", sizes: "192x192" },
-    ],
+    apple: [{ url: "/apple-touch-icon.png", sizes: "180x180" }],
   },
 };
 
