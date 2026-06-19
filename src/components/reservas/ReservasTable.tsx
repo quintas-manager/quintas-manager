@@ -5,13 +5,14 @@ import { useMemo, useState } from "react";
 import { format, parseISO, startOfToday, isBefore } from "date-fns";
 import { es } from "date-fns/locale";
 import {
-  Pencil, XCircle, Search, X,
+  Pencil, XCircle, Search, X, Trash2, Loader2,
   Phone, PawPrint, Users, ExternalLink,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { formatUSD } from "@/lib/format";
 import { CancelarModal } from "./CancelarModal";
 import { ConfirmarConMontoModal } from "./ConfirmarConMontoModal";
+import { eliminarReserva } from "@/lib/actions/reservas";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -237,7 +238,19 @@ export function ReservasTable({ reservas, tipoCambio = 0 }: Props) {
   const [chip,           setChip]           = useState<Chip>("proximas");
   const [cancelModal,    setCancelModal]    = useState<{ id: string; nombre: string } | null>(null);
   const [confirmarModal, setConfirmarModal] = useState<{ id: string; nombre: string } | null>(null);
+  const [deleteModal,    setDeleteModal]    = useState<{ id: string; nombre: string } | null>(null);
+  const [deleting,       setDeleting]       = useState(false);
   const [drawerReserva,  setDrawerReserva]  = useState<ReservaRow | null>(null);
+
+  async function handleEliminar(id: string) {
+    setDeleting(true);
+    try {
+      await eliminarReserva(id);
+      setDeleteModal(null);
+    } finally {
+      setDeleting(false);
+    }
+  }
 
   const filtered = useMemo(() => {
     const today = startOfToday();
@@ -398,6 +411,13 @@ export function ReservasTable({ reservas, tipoCambio = 0 }: Props) {
                                 <XCircle className="h-4 w-4" />
                               </button>
                             )}
+                            <button
+                              title="Eliminar"
+                              onClick={() => setDeleteModal({ id: r.id, nombre: `${r.clienteNombre} ${r.clienteApellido}` })}
+                              className="flex min-h-[44px] min-w-[44px] items-center justify-center rounded-lg text-gray-400 hover:bg-red-50 hover:text-red-600 transition"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </button>
                           </div>
                         </td>
                       </tr>
@@ -469,6 +489,13 @@ export function ReservasTable({ reservas, tipoCambio = 0 }: Props) {
                           Cancelar
                         </button>
                       )}
+                      <button
+                        onClick={() => setDeleteModal({ id: r.id, nombre: `${r.clienteNombre} ${r.clienteApellido}` })}
+                        className="flex min-h-[40px] items-center justify-center rounded-lg border border-red-200 px-3 text-red-600 hover:bg-red-50 transition"
+                        title="Eliminar"
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </button>
                     </div>
                   </button>
                 );
@@ -502,6 +529,47 @@ export function ReservasTable({ reservas, tipoCambio = 0 }: Props) {
           onSuccess={() => setConfirmarModal(null)}
           tipoCambio={tipoCambio}
         />
+      )}
+      {deleteModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div
+            className="fixed inset-0 bg-black/50 backdrop-blur-sm"
+            onClick={() => !deleting && setDeleteModal(null)}
+          />
+          <div className="relative w-full max-w-sm rounded-2xl bg-white p-6 shadow-xl space-y-4">
+            <div className="flex items-center gap-3">
+              <span className="flex h-10 w-10 items-center justify-center rounded-full bg-red-100">
+                <Trash2 className="h-5 w-5 text-red-600" />
+              </span>
+              <div>
+                <h3 className="text-base font-semibold text-gray-900">Eliminar reserva</h3>
+                <p className="text-xs text-gray-500 mt-0.5">{deleteModal.nombre}</p>
+              </div>
+            </div>
+            <p className="text-sm text-gray-600">
+              ¿Eliminar esta reserva permanentemente? Esta acción no se puede deshacer.
+            </p>
+            <div className="flex gap-2 pt-1">
+              <button
+                type="button"
+                disabled={deleting}
+                onClick={() => setDeleteModal(null)}
+                className="flex-1 rounded-lg border border-gray-200 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 transition disabled:opacity-50"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                disabled={deleting}
+                onClick={() => handleEliminar(deleteModal.id)}
+                className="flex flex-1 items-center justify-center gap-2 rounded-lg bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700 transition disabled:opacity-60"
+              >
+                {deleting && <Loader2 className="h-4 w-4 animate-spin" />}
+                Eliminar
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

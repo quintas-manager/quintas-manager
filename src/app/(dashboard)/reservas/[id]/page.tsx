@@ -10,6 +10,7 @@ import { formatUSD } from "@/lib/format";
 import { ConfirmarButton } from "@/components/reservas/ConfirmarButton";
 import { CancelarInline } from "@/components/reservas/CancelarInline";
 import { ConfirmacionPDF } from "@/components/reservas/ConfirmacionPDF";
+import { EliminarReservaButton } from "@/components/reservas/EliminarReservaButton";
 
 const TIPO_LABELS: Record<string, string> = {
   DIA: "Por día", FIN_DE_SEMANA: "Fin de semana",
@@ -318,6 +319,15 @@ export default async function ReservaDetailPage({ params }: { params: { id: stri
           />
         </div>
       )}
+
+      {/* Eliminar permanentemente */}
+      <div className="rounded-xl border border-gray-200 bg-white p-5">
+        <h3 className="text-sm font-semibold text-gray-900 mb-1">Eliminar reserva</h3>
+        <p className="text-xs text-gray-500 mb-3">
+          Elimina la reserva y todos sus pagos asociados de forma permanente. Esta acción no se puede deshacer.
+        </p>
+        <EliminarReservaButton reservaId={reserva.id} />
+      </div>
     </div>
   );
 }

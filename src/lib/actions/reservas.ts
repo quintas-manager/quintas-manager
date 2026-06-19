@@ -307,6 +307,18 @@ export async function confirmarConMonto(
   return { success: true, data: undefined };
 }
 
+// ── Eliminar ─────────────────────────────────────────────────────────────────
+
+export async function eliminarReserva(id: string): Promise<Result> {
+  await getSession();
+  await prisma.pago.deleteMany({ where: { reservaId: id } });
+  await prisma.reserva.delete({ where: { id } });
+  revalidatePath("/reservas");
+  revalidatePath("/calendario");
+  revalidatePath("/dashboard");
+  return { success: true, data: undefined };
+}
+
 // ── Cancelar ─────────────────────────────────────────────────────────────────
 
 export async function cancelarReserva(
