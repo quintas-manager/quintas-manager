@@ -1,6 +1,8 @@
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { ConfirmarButton } from "@/components/reservas/ConfirmarButton";
+import { getTipoCambioBlueSell } from "@/lib/dolar";
+import { formatUSD, formatARS } from "@/lib/format";
 import {
   Calendar,
   DollarSign,
@@ -34,14 +36,6 @@ function fmtDate(date: Date) {
   return date.toLocaleDateString("es-AR", { day: "2-digit", month: "short" });
 }
 
-function fmtMoney(n: number) {
-  return new Intl.NumberFormat("es-AR", {
-    style: "currency",
-    currency: "ARS",
-    maximumFractionDigits: 0,
-  }).format(n);
-}
-
 function pct(n: number, d: number) {
   if (d === 0) return 0;
   return Math.round((n / d) * 100);
@@ -72,7 +66,7 @@ export default async function DashboardPage() {
   const PERSONAS_PAGADOR = ["GRACIELA", "MATIAS", "ROCIO"] as const;
   const PERSONA_NOMBRE: Record<string, string> = { GRACIELA: "Graciela", MATIAS: "Matías", ROCIO: "Rocío" };
 
-  const [quintas, reservasMes, proximasReservas, pendientes, reservasMiniCal, gastosMes, reintegrosPendientes, clientesConCumple] =
+  const [quintas, reservasMes, proximasReservas, pendientes, reservasMiniCal, gastosMes, reintegrosPendientes, clientesConCumple, tipoCambio] =
     await Promise.all([
       prisma.quinta.findMany({
         where: { activa: true },
@@ -177,6 +171,9 @@ export default async function DashboardPage() {
           },
         },
       }),
+
+      // Tipo de cambio blue
+      getTipoCambioBlueSell(),
     ]);
 
   // ── estadísticas ──────────────────────────────────────────────────────────
@@ -364,9 +361,14 @@ export default async function DashboardPage() {
             Ingresos este mes
           </div>
           <p className="text-2xl font-bold text-gray-900 leading-tight break-all">
-            {fmtMoney(ingresosMes)}
+            {formatUSD(ingresosMes)}
           </p>
           <p className="mt-2 text-xs text-gray-400">confirmadas y completadas</p>
+          {tipoCambio > 0 && (
+            <p className="mt-1 text-xs text-gray-400">
+              TC Blue: {formatARS(tipoCambio)}
+            </p>
+          )}
         </div>
 
         {/* Ocupación */}
@@ -437,7 +439,7 @@ export default async function DashboardPage() {
             </Link>
           </div>
           <p className="text-2xl font-bold text-gray-900 leading-tight break-all">
-            {fmtMoney(totalGastosMes)}
+            {formatUSD(totalGastosMes)}
           </p>
           <div className="mt-3 space-y-1.5">
             {gastosPorQuinta.filter((q) => q.gastos > 0).map((q) => (
@@ -449,7 +451,7 @@ export default async function DashboardPage() {
                   />
                   <span className="text-gray-500 truncate">{q.nombre}</span>
                 </div>
-                <span className="font-semibold text-gray-700 ml-2">{fmtMoney(q.gastos)}</span>
+                <span className="font-semibold text-gray-700 ml-2">{formatUSD(q.gastos)}</span>
               </div>
             ))}
             {gastosPorQuinta.every((q) => q.gastos === 0) && (
@@ -467,7 +469,7 @@ export default async function DashboardPage() {
                       : "font-semibold text-red-600"
                   }
                 >
-                  {fmtMoney(ingresosMes - totalGastosMes)}
+                  {formatUSD(ingresosMes - totalGastosMes)}
                 </span>
               </div>
             </div>
@@ -493,7 +495,7 @@ export default async function DashboardPage() {
           ) : (
             <>
               <p className="text-2xl font-bold text-gray-900 leading-tight break-all">
-                {fmtMoney(totalReintegrosPendientes)}
+                {formatUSD(totalReintegrosPendientes)}
               </p>
               <div className="mt-3 space-y-2">
                 {reintegrosPorPersona.map((p) => (
@@ -504,7 +506,7 @@ export default async function DashboardPage() {
                       </span>
                     </div>
                     <span className="text-sm font-semibold text-gray-900">
-                      {fmtMoney(p.total)}
+                      {formatUSD(p.total)}
                     </span>
                   </div>
                 ))}
@@ -721,7 +723,7 @@ export default async function DashboardPage() {
                   </p>
                   <p className="text-xs text-gray-500">
                     {r.quinta.nombre} · {fmtDate(r.fechaInicio)} — {fmtDate(r.fechaFin)} ·{" "}
-                    {fmtMoney(Number(r.montoTotal))}
+                    {formatUSD(Number(r.montoTotal))}
                     {(!r.sena || Number(r.sena) === 0) && (
                       <span className="ml-1.5 text-orange-500 font-medium">sin seña</span>
                     )}

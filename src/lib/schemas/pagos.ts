@@ -8,6 +8,9 @@ export const pagoSchema = z.object({
     error: "Seleccioná un método de pago",
   }),
   notas:      z.string().optional(),
+  moneda:     z.enum(["USD", "ARS"]).default("USD").optional(),
+  tipoCambio: z.number().min(0).optional(),
+  montoARS:   z.number().min(0).optional(),
 });
 
 export type PagoFormValues = z.infer<typeof pagoSchema>;

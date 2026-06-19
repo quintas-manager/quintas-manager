@@ -5,12 +5,15 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { Loader2, Search, X } from "lucide-react";
+import { Loader2, Search, X, RefreshCw } from "lucide-react";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
 import { cn } from "@/lib/utils";
+import { formatUSD } from "@/lib/format";
 import { pagoSchema, type PagoFormValues } from "@/lib/schemas/pagos";
 import { registrarPago } from "@/lib/actions/pagos";
+import { MonedaInput } from "@/components/ui/MonedaInput";
+import { fetchTipoCambioAction } from "@/lib/actions/dolar";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -43,16 +46,12 @@ interface Props {
   clientes: ClienteConDeuda[];
   defaultReservaId?: string;
   defaultClienteId?: string;
+  tipoCambio: number;
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
-const formatMonto = (n: number) =>
-  new Intl.NumberFormat("es-AR", {
-    style: "currency",
-    currency: "ARS",
-    maximumFractionDigits: 0,
-  }).format(n);
+const formatMonto = formatUSD;
 
 const formatFecha = (d: Date) =>
   format(new Date(d), "d MMM yy", { locale: es });
@@ -92,28 +91,33 @@ function PagoFields({
   selectedReserva,
   register,
   errors,
+  setValue,
+  tc,
+  onRefreshTC,
 }: {
   selectedReserva: ReservaFlat;
   register: ReturnType<typeof useForm<PagoFormValues>>["register"];
   errors: ReturnType<typeof useForm<PagoFormValues>>["formState"]["errors"];
+  setValue: ReturnType<typeof useForm<PagoFormValues>>["setValue"];
+  tc: number;
+  onRefreshTC: () => Promise<void>;
 }) {
   return (
     <div className="space-y-4">
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div>
-          <Label required>Monto</Label>
-          <div className="relative">
-            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-gray-400">$</span>
-            <input
-              type="number"
-              min="0.01"
-              step="0.01"
-              max={selectedReserva.saldoPendiente}
-              {...register("monto", { valueAsNumber: true })}
-              className={cn(inputCls(errors.monto?.message), "pl-7")}
-            />
-          </div>
-          <FieldError msg={errors.monto?.message} />
+          <MonedaInput
+            label="Monto"
+            required
+            tipoCambioInicial={tc}
+            error={errors.monto?.message}
+            onValueChange={(usd, ars, tcUsado, monedaUsada) => {
+              setValue("monto", usd, { shouldValidate: true });
+              setValue("montoARS", ars > 0 ? ars : undefined);
+              setValue("tipoCambio", tcUsado > 0 ? tcUsado : undefined);
+              setValue("moneda", monedaUsada);
+            }}
+          />
           <p className="mt-1 text-xs text-gray-400">
             Saldo pendiente: {formatMonto(selectedReserva.saldoPendiente)}
           </p>
@@ -165,7 +169,7 @@ function PagoFields({
 
 // ── Main ──────────────────────────────────────────────────────────────────────
 
-export function RegistrarPagoForm({ clientes, defaultReservaId, defaultClienteId }: Props) {
+export function RegistrarPagoForm({ clientes, defaultReservaId, defaultClienteId, tipoCambio }: Props) {
   const router = useRouter();
   const [query, setQuery] = useState("");
   const [selectedReserva, setSelectedReserva] = useState<ReservaFlat | null>(null);
@@ -173,6 +177,12 @@ export function RegistrarPagoForm({ clientes, defaultReservaId, defaultClienteId
   const [sheetVisible, setSheetVisible] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
   const formRef = useRef<HTMLElement>(null);
+  const [tc, setTc] = useState(tipoCambio);
+
+  async function refreshTC() {
+    const nuevoTC = await fetchTipoCambioAction();
+    if (nuevoTC > 0) setTc(nuevoTC);
+  }
 
   useEffect(() => {
     const check = () => setIsMobile(window.innerWidth < 768);
@@ -406,7 +416,7 @@ export function RegistrarPagoForm({ clientes, defaultReservaId, defaultClienteId
               Pago — {selectedReserva.clienteNombre} {selectedReserva.clienteApellido} · {selectedReserva.quintaNombre}
             </h2>
           </div>
-          <PagoFields selectedReserva={selectedReserva} register={register} errors={errors} />
+          <PagoFields selectedReserva={selectedReserva} register={register} errors={errors} setValue={setValue} tc={tc} onRefreshTC={refreshTC} />
         </section>
       )}
 
@@ -498,7 +508,7 @@ export function RegistrarPagoForm({ clientes, defaultReservaId, defaultClienteId
               </div>
 
               {/* Form fields */}
-              <PagoFields selectedReserva={selectedReserva} register={register} errors={errors} />
+              <PagoFields selectedReserva={selectedReserva} register={register} errors={errors} setValue={setValue} tc={tc} onRefreshTC={refreshTC} />
             </div>
 
             {/* Sticky confirm button */}

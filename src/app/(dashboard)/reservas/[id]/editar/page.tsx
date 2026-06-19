@@ -4,9 +4,10 @@ import { ChevronLeft } from "lucide-react";
 import { prisma } from "@/lib/prisma";
 import { ReservaForm } from "@/components/reservas/ReservaForm";
 import { format } from "date-fns";
+import { getTipoCambioBlueSell } from "@/lib/dolar";
 
 export default async function EditarReservaPage({ params }: { params: { id: string } }) {
-  const [reserva, quintas, clientes] = await Promise.all([
+  const [reserva, quintas, clientes, tipoCambio] = await Promise.all([
     prisma.reserva.findUnique({
       where: { id: params.id },
       include: { quinta: true, cliente: true },
@@ -24,6 +25,7 @@ export default async function EditarReservaPage({ params }: { params: { id: stri
       orderBy: [{ apellido: "asc" }, { nombre: "asc" }],
       take: 200,
     }),
+    getTipoCambioBlueSell(),
   ]);
 
   if (!reserva) notFound();
@@ -79,6 +81,7 @@ export default async function EditarReservaPage({ params }: { params: { id: stri
         clientes={clientes}
         defaultValues={defaultValues}
         mode="editar"
+        tipoCambio={tipoCambio}
       />
     </div>
   );

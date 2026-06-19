@@ -18,6 +18,7 @@ import { eliminarGasto } from "@/lib/actions/gastos";
 import { GastoModal, type QuintaOpt, type CategoriaOpt } from "./GastoModal";
 import { ReintegroModal } from "./ReintegroModal";
 import { cn } from "@/lib/utils";
+import { formatUSD } from "@/lib/format";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -84,12 +85,7 @@ const PAGADOR_CAJA_BADGE    = "bg-gray-100 text-gray-600";
 const fmtDate = (iso: string) =>
   new Date(iso).toLocaleDateString("es-AR", { day: "2-digit", month: "short", year: "numeric" });
 
-const fmtMoney = (n: number) =>
-  new Intl.NumberFormat("es-AR", {
-    style: "currency",
-    currency: "ARS",
-    maximumFractionDigits: 0,
-  }).format(n);
+const fmtMoney = formatUSD;
 
 // ── Filter helpers ────────────────────────────────────────────────────────────
 

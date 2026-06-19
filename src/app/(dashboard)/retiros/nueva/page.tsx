@@ -2,13 +2,17 @@ import Link from "next/link";
 import { ChevronLeft } from "lucide-react";
 import { prisma } from "@/lib/prisma";
 import { NuevoRetiroForm } from "@/components/retiros/NuevoRetiroForm";
+import { getTipoCambioBlueSell } from "@/lib/dolar";
 
 export default async function NuevoRetiroPage() {
-  const quintas = await prisma.quinta.findMany({
-    where:   { activa: true },
-    select:  { id: true, nombre: true },
-    orderBy: { nombre: "asc" },
-  });
+  const [quintas, tipoCambio] = await Promise.all([
+    prisma.quinta.findMany({
+      where:   { activa: true },
+      select:  { id: true, nombre: true },
+      orderBy: { nombre: "asc" },
+    }),
+    getTipoCambioBlueSell(),
+  ]);
 
   return (
     <div className="max-w-lg mx-auto pt-4 pb-10 space-y-4">
@@ -25,7 +29,7 @@ export default async function NuevoRetiroPage() {
         </div>
       </div>
 
-      <NuevoRetiroForm quintas={quintas} />
+      <NuevoRetiroForm quintas={quintas} tipoCambio={tipoCambio} />
     </div>
   );
 }

@@ -2,6 +2,7 @@ import Link from "next/link";
 import { ChevronLeft } from "lucide-react";
 import { prisma } from "@/lib/prisma";
 import { ReservaForm } from "@/components/reservas/ReservaForm";
+import { getTipoCambioBlueSell } from "@/lib/dolar";
 
 interface SearchParams { fecha?: string; quintaId?: string }
 
@@ -10,7 +11,7 @@ export default async function NuevaReservaPage({
 }: {
   searchParams: SearchParams;
 }) {
-  const [quintas, clientes] = await Promise.all([
+  const [quintas, clientes, tipoCambio] = await Promise.all([
     prisma.quinta.findMany({
       where: { activa: true },
       select: {
@@ -24,6 +25,7 @@ export default async function NuevaReservaPage({
       orderBy: [{ apellido: "asc" }, { nombre: "asc" }],
       take: 200,
     }),
+    getTipoCambioBlueSell(),
   ]);
 
   const defaultValues = {
@@ -52,6 +54,7 @@ export default async function NuevaReservaPage({
         defaultValues={defaultValues}
         mode="crear"
         forceEstado="CONFIRMADA"
+        tipoCambio={tipoCambio}
       />
     </div>
   );

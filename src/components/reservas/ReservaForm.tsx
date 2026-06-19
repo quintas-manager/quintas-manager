@@ -5,7 +5,7 @@ import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { Loader2, CheckCircle2, XCircle } from "lucide-react";
+import { Loader2, CheckCircle2, XCircle, RefreshCw } from "lucide-react";
 import { format, parseISO } from "date-fns";
 import { es } from "date-fns/locale";
 import { cn } from "@/lib/utils";
@@ -13,6 +13,9 @@ import { reservaSchema, type ReservaFormValues } from "@/lib/schemas/reservas";
 import { crearReserva, actualizarReserva } from "@/lib/actions/reservas";
 import { ClienteSearch, type ClienteOption } from "@/components/clientes/ClienteSearch";
 import { DateRangePicker, type BlockedRange } from "@/components/reservas/DateRangePicker";
+import { MonedaInput } from "@/components/ui/MonedaInput";
+import { fetchTipoCambioAction } from "@/lib/actions/dolar";
+import { formatARS } from "@/lib/format";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -30,6 +33,7 @@ interface ReservaFormProps {
   defaultValues?: Partial<ReservaFormValues> & { id?: string };
   mode:          "crear" | "editar";
   forceEstado?:  "CONFIRMADA" | "PENDIENTE";
+  tipoCambio:    number;
 }
 
 const ESTADO_OPTIONS = [
@@ -71,6 +75,7 @@ export function ReservaForm({
   defaultValues,
   mode,
   forceEstado,
+  tipoCambio,
 }: ReservaFormProps) {
   const router    = useRouter();
   const reservaId = defaultValues?.id;
@@ -97,6 +102,18 @@ export function ReservaForm({
   >(null);
   const [conflictoInfo, setConflictoInfo] = useState<string | null>(null);
   const [blockedRanges, setBlockedRanges] = useState<BlockedRange[]>([]);
+  const [tc, setTc] = useState(tipoCambio);
+  const [refreshingTC, setRefreshingTC] = useState(false);
+
+  async function refreshTC() {
+    setRefreshingTC(true);
+    try {
+      const nuevoTC = await fetchTipoCambioAction();
+      if (nuevoTC > 0) setTc(nuevoTC);
+    } finally {
+      setRefreshingTC(false);
+    }
+  }
 
   const [quintaId, fechaInicio, fechaFin, sena] = watch([
     "quintaId", "fechaInicio", "fechaFin", "sena",
@@ -197,6 +214,22 @@ export function ReservaForm({
 
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-6 pb-24 md:pb-6">
+
+      {/* TC Banner */}
+      {tc > 0 && (
+        <div className="flex items-center gap-2 rounded-xl border border-blue-100 bg-blue-50 px-4 py-2.5 text-sm">
+          <span className="font-medium text-blue-700">TC Blue: {formatARS(tc)}</span>
+          <button
+            type="button"
+            onClick={refreshTC}
+            disabled={refreshingTC}
+            className="ml-auto flex items-center gap-1 rounded-md px-2 py-1 text-xs text-blue-600 hover:bg-blue-100 transition disabled:opacity-50"
+          >
+            <RefreshCw className={cn("h-3 w-3", refreshingTC && "animate-spin")} />
+            Actualizar
+          </button>
+        </div>
+      )}
 
       {/* ── 1. Quinta ──────────────────────────────────────────────── */}
       <section className="rounded-xl border border-gray-200 bg-white p-5">
@@ -351,36 +384,28 @@ export function ReservaForm({
       <section className="rounded-xl border border-gray-200 bg-white p-5">
         <h2 className="mb-4 text-sm font-semibold text-gray-900">Monto</h2>
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-          <div>
-            <Label required>Monto total</Label>
-            <div className="relative">
-              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-gray-400">$</span>
-              <input
-                type="number"
-                min="0"
-                step="1"
-                {...register("montoTotal", { valueAsNumber: true })}
-                className={cn(inputCls(errors.montoTotal?.message), "pl-7")}
-                placeholder="0"
-              />
-            </div>
-            <FieldError msg={errors.montoTotal?.message} />
-          </div>
-          <div>
-            <Label>Seña</Label>
-            <div className="relative">
-              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-gray-400">$</span>
-              <input
-                type="number"
-                min="0"
-                step="1"
-                {...register("sena", { valueAsNumber: true })}
-                className={cn(inputCls(errors.sena?.message), "pl-7")}
-                placeholder="0"
-              />
-            </div>
-            <FieldError msg={errors.sena?.message} />
-          </div>
+          <MonedaInput
+            label="Monto total"
+            required
+            tipoCambioInicial={tc}
+            error={errors.montoTotal?.message}
+            onValueChange={(usd, ars, tcUsado, monedaUsada) => {
+              setValue("montoTotal", usd, { shouldValidate: true });
+              setValue("montoTotalARS", ars > 0 ? ars : undefined);
+              setValue("tipoCambioReserva", tcUsado > 0 ? tcUsado : undefined);
+              setValue("monedaIngreso", monedaUsada);
+            }}
+          />
+          <MonedaInput
+            label="Seña"
+            tipoCambioInicial={tc}
+            error={errors.sena?.message}
+            onValueChange={(usd, ars, tcUsado) => {
+              setValue("sena", usd > 0 ? usd : null);
+              setValue("senaARS", ars > 0 ? ars : undefined);
+              setValue("tipoCambioSena", tcUsado > 0 ? tcUsado : undefined);
+            }}
+          />
         </div>
 
         {tieneSeña && mode === "crear" && (

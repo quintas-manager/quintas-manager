@@ -9,6 +9,7 @@ import {
   Phone, PawPrint, Users, ExternalLink,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { formatUSD } from "@/lib/format";
 import { CancelarModal } from "./CancelarModal";
 import { ConfirmarConMontoModal } from "./ConfirmarConMontoModal";
 
@@ -38,6 +39,7 @@ type Chip = "proximas" | "canceladas" | "todas";
 
 interface Props {
   reservas: ReservaRow[];
+  tipoCambio?: number;
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -66,11 +68,6 @@ const CHIP_LABELS: Record<Chip, string> = {
 const fmt = (iso: string) => format(parseISO(iso), "d/MM/yy", { locale: es });
 const fmtLong = (iso: string) =>
   format(parseISO(iso), "EEEE d 'de' MMMM yyyy", { locale: es });
-
-const formatMonto = (n: number) =>
-  new Intl.NumberFormat("es-AR", {
-    style: "currency", currency: "ARS", maximumFractionDigits: 0,
-  }).format(n);
 
 // ── Detail drawer ─────────────────────────────────────────────────────────────
 
@@ -159,8 +156,8 @@ function ReservaDrawer({
           </div>
 
           <div className="rounded-xl border border-gray-100 bg-gray-50 divide-y divide-gray-100">
-            <Row label="Monto total" value={formatMonto(reserva.montoTotal)} />
-            <Row label="Seña acordada" value={reserva.sena != null ? formatMonto(reserva.sena) : "—"} />
+            <Row label="Monto total" value={formatUSD(reserva.montoTotal)} />
+            <Row label="Seña acordada" value={reserva.sena != null ? formatUSD(reserva.sena) : "—"} />
           </div>
 
           <div className="rounded-xl border border-gray-100 bg-gray-50 divide-y divide-gray-100">
@@ -235,7 +232,7 @@ function Row({ label, value }: { label: string; value: React.ReactNode }) {
 
 // ── Component ─────────────────────────────────────────────────────────────────
 
-export function ReservasTable({ reservas }: Props) {
+export function ReservasTable({ reservas, tipoCambio = 0 }: Props) {
   const [busqueda,       setBusqueda]       = useState("");
   const [chip,           setChip]           = useState<Chip>("proximas");
   const [cancelModal,    setCancelModal]    = useState<{ id: string; nombre: string } | null>(null);
@@ -358,10 +355,10 @@ export function ReservasTable({ reservas }: Props) {
                           {TIPO_LABELS[r.tipoAlquiler] ?? r.tipoAlquiler}
                         </td>
                         <td className="px-4 py-3 font-medium text-gray-900 whitespace-nowrap">
-                          {formatMonto(r.montoTotal)}
+                          {formatUSD(r.montoTotal)}
                         </td>
                         <td className="px-4 py-3 text-gray-500 whitespace-nowrap">
-                          {r.sena != null ? formatMonto(r.sena) : "—"}
+                          {r.sena != null ? formatUSD(r.sena) : "—"}
                         </td>
                         <td className="px-4 py-3">
                           <span className={cn(
@@ -440,9 +437,9 @@ export function ReservasTable({ reservas }: Props) {
 
                     <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs text-gray-600 mb-3">
                       <span>{fmt(r.fechaInicio)} → {fmt(r.fechaFin)}</span>
-                      <span className="font-medium text-gray-900">{formatMonto(r.montoTotal)}</span>
+                      <span className="font-medium text-gray-900">{formatUSD(r.montoTotal)}</span>
                       <span>{TIPO_LABELS[r.tipoAlquiler] ?? r.tipoAlquiler}</span>
-                      <span className="text-gray-500">Seña: {r.sena != null ? formatMonto(r.sena) : "—"}</span>
+                      <span className="text-gray-500">Seña: {r.sena != null ? formatUSD(r.sena) : "—"}</span>
                     </div>
 
                     <div className="flex gap-2" onClick={(e) => e.stopPropagation()} onPointerUp={(e) => e.stopPropagation()}>
@@ -503,6 +500,7 @@ export function ReservasTable({ reservas }: Props) {
           clienteNombre={confirmarModal.nombre}
           onClose={() => setConfirmarModal(null)}
           onSuccess={() => setConfirmarModal(null)}
+          tipoCambio={tipoCambio}
         />
       )}
     </div>

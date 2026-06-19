@@ -128,6 +128,13 @@ model Reserva {
   estado         EstadoReserva @default(PENDIENTE)
   montoTotal     Decimal       @db.Decimal(10, 2)
   sena           Decimal?      @db.Decimal(10, 2)  @map("seña")
+  montoTotalUSD     Decimal?      @db.Decimal(10, 2)
+  montoTotalARS     Decimal?      @db.Decimal(10, 2)
+  tipoCambioReserva Decimal?      @db.Decimal(10, 2)
+  monedaIngreso     String        @default("USD")
+  senaUSD           Decimal?      @db.Decimal(10, 2)
+  senaARS           Decimal?      @db.Decimal(10, 2)
+  tipoCambioSena    Decimal?      @db.Decimal(10, 2)
   notas           String?
   motivoEvento    String?
   tieneMascota    Boolean       @default(false)
@@ -166,6 +173,9 @@ model Gasto {
   creadoPorId     String
   descripcion     String
   monto           Decimal       @db.Decimal(10, 2)
+  montoUSD   Decimal?   @db.Decimal(10, 2)
+  montoARS   Decimal?   @db.Decimal(10, 2)
+  tipoCambio Decimal?   @db.Decimal(10, 2)
   fecha           DateTime
   pagadoPor       GastoPagador
   reintegrado     Boolean       @default(false)
@@ -185,6 +195,10 @@ model Pago {
   monto       Decimal    @db.Decimal(10, 2)
   fecha       DateTime
   metodoPago  MetodoPago
+  montoUSD   Decimal?   @db.Decimal(10, 2)
+  montoARS   Decimal?   @db.Decimal(10, 2)
+  tipoCambio Decimal?   @db.Decimal(10, 2)
+  moneda     String     @default("USD")
   notas       String?
   createdAt   DateTime   @default(now())
   reserva     Reserva    @relation(fields: [reservaId], references: [id])
@@ -196,6 +210,9 @@ model Retiro {
   quintaId     String
   creadoPorId  String
   monto        Decimal   @db.Decimal(10, 2)
+  montoUSD   Decimal?   @db.Decimal(10, 2)
+  montoARS   Decimal?   @db.Decimal(10, 2)
+  tipoCambio Decimal?   @db.Decimal(10, 2)
   fecha        DateTime
   realizadoPor RetiroPor
   notas        String?

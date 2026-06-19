@@ -2,6 +2,7 @@ import { ChevronLeft } from "lucide-react";
 import Link from "next/link";
 import { getClientesConDeuda } from "@/lib/actions/pagos";
 import { RegistrarPagoForm } from "@/components/pagos/RegistrarPagoForm";
+import { getTipoCambioBlueSell } from "@/lib/dolar";
 
 interface SearchParams {
   reservaId?: string;
@@ -13,7 +14,10 @@ export default async function NuevoPagoPage({
 }: {
   searchParams: SearchParams;
 }) {
-  const clientes = await getClientesConDeuda();
+  const [clientes, tipoCambio] = await Promise.all([
+    getClientesConDeuda(),
+    getTipoCambioBlueSell(),
+  ]);
 
   return (
     <div className="max-w-3xl mx-auto space-y-5">
@@ -36,6 +40,7 @@ export default async function NuevoPagoPage({
         clientes={clientes}
         defaultReservaId={searchParams.reservaId}
         defaultClienteId={searchParams.clienteId}
+        tipoCambio={tipoCambio}
       />
     </div>
   );

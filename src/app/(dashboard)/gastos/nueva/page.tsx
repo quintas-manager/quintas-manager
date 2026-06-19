@@ -2,9 +2,10 @@ import { ChevronLeft } from "lucide-react";
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { NuevoGastoForm } from "@/components/gastos/NuevoGastoForm";
+import { getTipoCambioBlueSell } from "@/lib/dolar";
 
 export default async function NuevoGastoPage() {
-  const [quintas, categorias] = await Promise.all([
+  const [quintas, categorias, tipoCambio] = await Promise.all([
     prisma.quinta.findMany({
       where:   { activa: true },
       select:  { id: true, nombre: true, colorHex: true },
@@ -15,6 +16,7 @@ export default async function NuevoGastoPage() {
       select:  { id: true, nombre: true },
       orderBy: { nombre: "asc" },
     }),
+    getTipoCambioBlueSell(),
   ]);
 
   return (
@@ -32,7 +34,7 @@ export default async function NuevoGastoPage() {
         </div>
       </div>
 
-      <NuevoGastoForm quintas={quintas} categorias={categorias} />
+      <NuevoGastoForm quintas={quintas} categorias={categorias} tipoCambio={tipoCambio} />
     </div>
   );
 }

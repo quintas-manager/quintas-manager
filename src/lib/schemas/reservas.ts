@@ -10,6 +10,11 @@ export const reservaSchema = z
     estado:           z.enum(["PENDIENTE", "CONFIRMADA", "CANCELADA", "COMPLETADA"]),
     montoTotal:       z.number().min(1, "El monto debe ser mayor a 0"),
     sena:             z.number().min(0).nullable().optional(),
+    monedaIngreso:     z.enum(["USD", "ARS"]).default("USD").optional(),
+    tipoCambioReserva: z.number().min(0).optional(),
+    montoTotalARS:     z.number().min(0).optional(),
+    senaARS:           z.number().min(0).nullable().optional(),
+    tipoCambioSena:    z.number().min(0).optional(),
     motivoEvento:     z.string().optional(),
     notas:            z.string().optional(),
     tieneMascota:     z.boolean().optional(),
@@ -41,9 +46,14 @@ export const reservaPendienteSchema = z
 export type ReservaPendienteFormValues = z.infer<typeof reservaPendienteSchema>;
 
 export const confirmarConMontoSchema = z.object({
-  montoTotal:     z.number().min(1, "El monto debe ser mayor a 0"),
-  sena:           z.number().min(0).nullable().optional(),
-  metodoPagoSeña: z.enum(["EFECTIVO", "TRANSFERENCIA", "TARJETA", "MERCADOPAGO"]).optional(),
+  montoTotal:        z.number().min(1, "El monto debe ser mayor a 0"),
+  sena:              z.number().min(0).nullable().optional(),
+  metodoPagoSeña:    z.enum(["EFECTIVO", "TRANSFERENCIA", "TARJETA", "MERCADOPAGO"]).optional(),
+  monedaIngreso:     z.enum(["USD", "ARS"]).default("USD").optional(),
+  tipoCambioReserva: z.number().min(0).optional(),
+  montoTotalARS:     z.number().min(0).optional(),
+  senaARS:           z.number().min(0).nullable().optional(),
+  tipoCambioSena:    z.number().min(0).optional(),
 });
 export type ConfirmarConMontoValues = z.infer<typeof confirmarConMontoSchema>;
 

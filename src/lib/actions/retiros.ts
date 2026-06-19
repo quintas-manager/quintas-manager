@@ -18,7 +18,7 @@ export async function crearRetiro(
     return { success: false, error: msg };
   }
 
-  const { quintaId, realizadoPor, monto, fecha, notas } = parsed.data;
+  const { quintaId, realizadoPor, monto, fecha, notas, montoARS, tipoCambio } = parsed.data;
   const fechaDate = new Date(fecha);
   const mes  = fechaDate.getMonth() + 1;
   const anio = fechaDate.getFullYear();
@@ -28,6 +28,9 @@ export async function crearRetiro(
       quintaId,
       creadoPorId:  session.user.id,
       monto,
+      montoUSD:    montoARS && tipoCambio ? montoARS / tipoCambio : monto,
+      montoARS:    montoARS   ?? null,
+      tipoCambio:  tipoCambio ?? null,
       fecha:        fechaDate,
       realizadoPor,
       notas:        notas ?? null,

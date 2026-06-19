@@ -1,14 +1,18 @@
 import { prisma } from "@/lib/prisma";
 import { ReservasTable } from "@/components/reservas/ReservasTable";
+import { getTipoCambioBlueSell } from "@/lib/dolar";
 
 export default async function ReservasPage() {
-  const rawReservas = await prisma.reserva.findMany({
-    include: {
-      quinta:  { select: { nombre: true, colorHex: true } },
-      cliente: { select: { nombre: true, apellido: true, telefono: true } },
-    },
-    orderBy: { fechaInicio: "asc" },
-  });
+  const [rawReservas, tipoCambio] = await Promise.all([
+    prisma.reserva.findMany({
+      include: {
+        quinta:  { select: { nombre: true, colorHex: true } },
+        cliente: { select: { nombre: true, apellido: true, telefono: true } },
+      },
+      orderBy: { fechaInicio: "asc" },
+    }),
+    getTipoCambioBlueSell(),
+  ]);
 
   const reservas = rawReservas.map((r) => ({
     id:               r.id,
@@ -30,5 +34,5 @@ export default async function ReservasPage() {
     tieneMascota:     r.tieneMascota,
   }));
 
-  return <ReservasTable reservas={reservas} />;
+  return <ReservasTable reservas={reservas} tipoCambio={tipoCambio} />;
 }

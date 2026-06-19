@@ -8,6 +8,8 @@ export const gastoSchema = z.object({
   fecha:       z.string().min(1, "La fecha es requerida"),
   pagadoPor:   z.enum(["CAJA", "GRACIELA", "MATIAS", "ROCIO"]),
   notas:       z.string().optional(),
+  tipoCambio:  z.number().min(0).optional(),
+  montoARS:    z.number().min(0).optional(),
 });
 export type GastoFormValues = z.infer<typeof gastoSchema>;
 

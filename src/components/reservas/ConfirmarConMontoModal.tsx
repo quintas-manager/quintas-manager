@@ -1,18 +1,23 @@
 "use client";
 
+import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Loader2, X } from "lucide-react";
+import { Loader2, X, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { confirmarConMontoSchema, type ConfirmarConMontoValues } from "@/lib/schemas/reservas";
 import { confirmarConMonto } from "@/lib/actions/reservas";
+import { MonedaInput } from "@/components/ui/MonedaInput";
+import { fetchTipoCambioAction } from "@/lib/actions/dolar";
+import { formatARS } from "@/lib/format";
 
 interface Props {
   reservaId: string;
   clienteNombre: string;
   onClose: () => void;
   onSuccess: () => void;
+  tipoCambio: number;
 }
 
 const inputBase =
@@ -25,11 +30,12 @@ const inputCls = (err?: string) =>
       : "border-gray-300 focus:border-gray-400 focus:ring-gray-200"
   );
 
-export function ConfirmarConMontoModal({ reservaId, clienteNombre, onClose, onSuccess }: Props) {
+export function ConfirmarConMontoModal({ reservaId, clienteNombre, onClose, onSuccess, tipoCambio }: Props) {
   const {
     register,
     handleSubmit,
     watch,
+    setValue,
     formState: { errors, isSubmitting },
   } = useForm<ConfirmarConMontoValues>({
     resolver: zodResolver(confirmarConMontoSchema),
@@ -38,6 +44,19 @@ export function ConfirmarConMontoModal({ reservaId, clienteNombre, onClose, onSu
 
   const sena = watch("sena");
   const tieneSeña = typeof sena === "number" && sena > 0;
+
+  const [tc, setTc] = useState(tipoCambio);
+  const [refreshingTC, setRefreshingTC] = useState(false);
+
+  async function refreshTC() {
+    setRefreshingTC(true);
+    try {
+      const nuevoTC = await fetchTipoCambioAction();
+      if (nuevoTC > 0) setTc(nuevoTC);
+    } finally {
+      setRefreshingTC(false);
+    }
+  }
 
   const onSubmit = async (data: ConfirmarConMontoValues) => {
     const result = await confirmarConMonto(reservaId, data);
@@ -69,39 +88,37 @@ export function ConfirmarConMontoModal({ reservaId, clienteNombre, onClose, onSu
 
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4 px-5 py-4">
           <div>
-            <label className="block text-xs font-medium text-gray-700 mb-1.5">
-              Monto total <span className="text-red-500">*</span>
-            </label>
-            <div className="relative">
-              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-gray-400">$</span>
-              <input
-                type="number"
-                min="0"
-                step="1"
-                {...register("montoTotal", { valueAsNumber: true })}
-                className={cn(inputCls(errors.montoTotal?.message), "pl-7")}
-                placeholder="0"
-              />
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-xs text-blue-700 font-medium">TC Blue: {formatARS(tc)}</span>
+              <button type="button" onClick={refreshTC} disabled={refreshingTC}
+                className="text-xs text-blue-500 hover:text-blue-700 transition disabled:opacity-50 flex items-center gap-1">
+                <RefreshCw className={cn("h-3 w-3", refreshingTC && "animate-spin")} />
+              </button>
             </div>
-            {errors.montoTotal && (
-              <p className="mt-1 text-xs text-red-500">{errors.montoTotal.message}</p>
-            )}
+            <MonedaInput
+              label="Monto total"
+              required
+              tipoCambioInicial={tc}
+              error={errors.montoTotal?.message}
+              onValueChange={(usd, ars, tcUsado, monedaUsada) => {
+                setValue("montoTotal", usd);
+                setValue("montoTotalARS", ars > 0 ? ars : undefined);
+                setValue("tipoCambioReserva", tcUsado > 0 ? tcUsado : undefined);
+                setValue("monedaIngreso", monedaUsada);
+              }}
+            />
           </div>
 
-          <div>
-            <label className="block text-xs font-medium text-gray-700 mb-1.5">Seña</label>
-            <div className="relative">
-              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-gray-400">$</span>
-              <input
-                type="number"
-                min="0"
-                step="1"
-                {...register("sena", { valueAsNumber: true })}
-                className={cn(inputCls(errors.sena?.message), "pl-7")}
-                placeholder="0"
-              />
-            </div>
-          </div>
+          <MonedaInput
+            label="Seña"
+            tipoCambioInicial={tc}
+            error={errors.sena?.message}
+            onValueChange={(usd, ars, tcUsado) => {
+              setValue("sena", usd > 0 ? usd : null);
+              setValue("senaARS", ars > 0 ? ars : undefined);
+              setValue("tipoCambioSena", tcUsado > 0 ? tcUsado : undefined);
+            }}
+          />
 
           {tieneSeña && (
             <div>

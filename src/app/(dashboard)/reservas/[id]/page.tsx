@@ -6,6 +6,7 @@ import { ChevronLeft, Pencil, PawPrint, Users, Wallet } from "lucide-react";
 import { prisma } from "@/lib/prisma";
 import { auth } from "@/lib/auth";
 import { cn } from "@/lib/utils";
+import { formatUSD } from "@/lib/format";
 import { ConfirmarButton } from "@/components/reservas/ConfirmarButton";
 import { CancelarInline } from "@/components/reservas/CancelarInline";
 import { ConfirmacionPDF } from "@/components/reservas/ConfirmacionPDF";
@@ -24,8 +25,7 @@ const ESTADO_CONFIG: Record<string, { label: string; cls: string }> = {
 
 const formatFecha = (d: Date) =>
   format(d, "EEEE d 'de' MMMM 'de' yyyy", { locale: es });
-const formatMonto = (n: number) =>
-  new Intl.NumberFormat("es-AR", { style: "currency", currency: "ARS", maximumFractionDigits: 0 }).format(n);
+const formatMonto = formatUSD;
 
 function InfoRow({ label, value }: { label: string; value: React.ReactNode }) {
   return (
@@ -56,7 +56,7 @@ export default async function ReservaDetailPage({ params }: { params: { id: stri
   const puedeConfirmar = reserva.estado === "PENDIENTE";
   const isAdmin = session?.user.role === "ADMIN";
 
-  const totalPagado = reserva.pagos.reduce((acc, p) => acc + Number(p.monto), 0);
+  const totalPagado = reserva.pagos.reduce((acc, p) => acc + Number(p.montoUSD ?? p.monto), 0);
   const saldoPendiente = Number(reserva.montoTotal) - totalPagado;
 
   return (

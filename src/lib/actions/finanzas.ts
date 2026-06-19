@@ -154,15 +154,15 @@ export async function calcularMes(
     }),
   ]);
 
-  const totalIngresos = pagos.reduce((s, p) => s + Number(p.monto), 0);
-  const totalGastos   = gastos.reduce((s, g) => s + Number(g.monto), 0);
+  const totalIngresos = pagos.reduce((s, p) => s + Number(p.montoUSD ?? p.monto), 0);
+  const totalGastos   = gastos.reduce((s, g) => s + Number(g.montoUSD ?? g.monto), 0);
 
   const retirosG      = retiros.filter((r) => r.realizadoPor === "GRACIELA");
   const retirosM      = retiros.filter((r) => r.realizadoPor === "MATIAS");
   const retirosR      = retiros.filter((r) => r.realizadoPor === "ROCIO");
-  const totalRetirosG = retirosG.reduce((s, r) => s + Number(r.monto), 0);
-  const totalRetirosM = retirosM.reduce((s, r) => s + Number(r.monto), 0);
-  const totalRetirosR = retirosR.reduce((s, r) => s + Number(r.monto), 0);
+  const totalRetirosG = retirosG.reduce((s, r) => s + Number(r.montoUSD ?? r.monto), 0);
+  const totalRetirosM = retirosM.reduce((s, r) => s + Number(r.montoUSD ?? r.monto), 0);
+  const totalRetirosR = retirosR.reduce((s, r) => s + Number(r.montoUSD ?? r.monto), 0);
 
   // Rocío no participa en la división; sus retiros se descuentan del resultado antes de dividir
   const resultado          = totalIngresos - totalGastos;
@@ -172,8 +172,8 @@ export async function calcularMes(
 
   const reintegrosG = reintegrosPendientes.filter((g) => g.pagadoPor === "GRACIELA");
   const reintegrosM = reintegrosPendientes.filter((g) => g.pagadoPor === "MATIAS");
-  const totalReintG = reintegrosG.reduce((s, g) => s + Number(g.monto), 0);
-  const totalReintM = reintegrosM.reduce((s, g) => s + Number(g.monto), 0);
+  const totalReintG = reintegrosG.reduce((s, g) => s + Number(g.montoUSD ?? g.monto), 0);
+  const totalReintM = reintegrosM.reduce((s, g) => s + Number(g.montoUSD ?? g.monto), 0);
 
   return {
     quintaId:    quinta.id,
@@ -188,7 +188,7 @@ export async function calcularMes(
       clienteNombre:      `${p.reserva.cliente.nombre} ${p.reserva.cliente.apellido}`,
       reservaFechaInicio: fmtDate(p.reserva.fechaInicio),
       reservaFechaFin:    fmtDate(p.reserva.fechaFin),
-      monto:              Number(p.monto),
+      monto:              Number(p.montoUSD ?? p.monto),
       metodoPago:         p.metodoPago,
     })),
     totalIngresos,
@@ -199,7 +199,7 @@ export async function calcularMes(
       categoriaNombre: g.categoria.nombre,
       categoriaId:     g.categoria.id,
       descripcion:     g.descripcion,
-      monto:           Number(g.monto),
+      monto:           Number(g.montoUSD ?? g.monto),
       pagadoPor:       g.pagadoPor,
       notas:           g.notas,
       quintaId:        g.quintaId,
@@ -214,13 +214,13 @@ export async function calcularMes(
       id:          g.id,
       fecha:       fmtDate(g.fecha),
       descripcion: g.descripcion,
-      monto:       Number(g.monto),
+      monto:       Number(g.montoUSD ?? g.monto),
     })),
     reintegrosMatias: reintegrosM.map((g) => ({
       id:          g.id,
       fecha:       fmtDate(g.fecha),
       descripcion: g.descripcion,
-      monto:       Number(g.monto),
+      monto:       Number(g.montoUSD ?? g.monto),
     })),
     totalReintegrosGraciela: totalReintG,
     totalReintegrosMatias:   totalReintM,
@@ -229,7 +229,7 @@ export async function calcularMes(
       id:           r.id,
       fecha:        fmtDate(r.fecha),
       realizadoPor: r.realizadoPor,
-      monto:        Number(r.monto),
+      monto:        Number(r.montoUSD ?? r.monto),
       notas:        r.notas,
     })),
     totalRetirosGraciela: totalRetirosG,
@@ -350,14 +350,14 @@ export async function getMesesConActividad(quintaId: string): Promise<MesResumen
     const d = new Date(p.fecha);
     const key = `${d.getFullYear()}-${d.getMonth() + 1}`;
     if (!map.has(key)) map.set(key, { mes: d.getMonth() + 1, anio: d.getFullYear(), ingresos: 0, gastos: 0 });
-    map.get(key)!.ingresos += Number(p.monto);
+    map.get(key)!.ingresos += Number(p.montoUSD ?? p.monto);
   }
 
   for (const g of gastos) {
     const d = new Date(g.fecha);
     const key = `${d.getFullYear()}-${d.getMonth() + 1}`;
     if (!map.has(key)) map.set(key, { mes: d.getMonth() + 1, anio: d.getFullYear(), ingresos: 0, gastos: 0 });
-    map.get(key)!.gastos += Number(g.monto);
+    map.get(key)!.gastos += Number(g.montoUSD ?? g.monto);
   }
 
   const cerradosSet = new Set(cierres.map((c) => `${c.anio}-${c.mes}`));

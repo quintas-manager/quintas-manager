@@ -9,6 +9,7 @@ import { format } from "date-fns";
 import { crearGasto } from "@/lib/actions/gastos";
 import { gastoSchema, type GastoFormValues } from "@/lib/schemas/gastos";
 import { cn } from "@/lib/utils";
+import { MonedaInput } from "@/components/ui/MonedaInput";
 
 interface QuintaOpt    { id: string; nombre: string; colorHex: string }
 interface CategoriaOpt { id: string; nombre: string }
@@ -45,9 +46,11 @@ function Field({ label, error, required, children }: {
 export function NuevoGastoForm({
   quintas,
   categorias,
+  tipoCambio,
 }: {
   quintas: QuintaOpt[];
   categorias: CategoriaOpt[];
+  tipoCambio: number;
 }) {
   const router = useRouter();
 
@@ -55,6 +58,7 @@ export function NuevoGastoForm({
     register,
     handleSubmit,
     watch,
+    setValue,
     formState: { errors, isSubmitting },
   } = useForm<GastoFormValues>({
     resolver: zodResolver(gastoSchema),
@@ -103,17 +107,19 @@ export function NuevoGastoForm({
       </Field>
 
       <div className="grid grid-cols-2 gap-3">
-        <Field label="Monto" required error={errors.monto?.message}>
-          <div className="relative">
-            <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm text-gray-400">$</span>
-            <input
-              type="number" min={0} step="0.01"
-              {...register("monto", { valueAsNumber: true })}
-              placeholder="0"
-              className={cn(inputCls(errors.monto?.message), "pl-6")}
-            />
-          </div>
-        </Field>
+        <div>
+          <MonedaInput
+            label="Monto"
+            required
+            tipoCambioInicial={tipoCambio}
+            error={errors.monto?.message}
+            onValueChange={(usd, ars, tcUsado, monedaUsada) => {
+              setValue("monto", monedaUsada === "ARS" ? ars : usd, { shouldValidate: true });
+              setValue("montoARS", ars > 0 ? ars : undefined);
+              setValue("tipoCambio", tcUsado > 0 ? tcUsado : undefined);
+            }}
+          />
+        </div>
         <Field label="Fecha" required error={errors.fecha?.message}>
           <input type="date" {...register("fecha")} className={inputCls(errors.fecha?.message)} />
         </Field>

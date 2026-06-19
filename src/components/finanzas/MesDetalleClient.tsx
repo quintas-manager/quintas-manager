@@ -10,6 +10,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import { formatUSD } from "@/lib/format";
 import { CerrarMesButton } from "@/components/finanzas/CerrarMesButton";
 import { actualizarGasto } from "@/lib/actions/gastos";
 import { gastoSchema, type GastoFormValues } from "@/lib/schemas/gastos";
@@ -42,8 +43,7 @@ const PAGADOR_COLORS: Record<string, string> = {
   CAJA:     "bg-gray-100 text-gray-600",
 };
 
-const fmt = (n: number) =>
-  new Intl.NumberFormat("es-AR", { style: "currency", currency: "ARS", maximumFractionDigits: 0 }).format(n);
+const fmt = formatUSD;
 
 const fmtShort = (s: string) => format(parseISO(s), "d MMM", { locale: es });
 const fmtFull  = (s: string) => format(parseISO(s), "d 'de' MMMM yyyy", { locale: es });
