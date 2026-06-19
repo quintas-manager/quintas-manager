@@ -82,16 +82,6 @@ export default async function FinanzasQuintaPage({
                       <span className="text-sm font-semibold text-gray-900">
                         {MESES[m.mes]} {m.anio}
                       </span>
-                      <span
-                        className={cn(
-                          "inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium",
-                          m.cerrado
-                            ? "bg-gray-100 text-gray-600"
-                            : "bg-amber-50 text-amber-700 ring-1 ring-amber-200"
-                        )}
-                      >
-                        {m.cerrado ? "Cerrado" : "Abierto"}
-                      </span>
                     </div>
                     <div className="flex items-center gap-4 mt-1 text-xs text-gray-500">
                       <span>Ingresos: <span className="text-green-600 font-medium">{fmt(m.totalIngresos)}</span></span>

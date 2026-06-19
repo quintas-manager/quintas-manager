@@ -47,25 +47,19 @@ enum MetodoPago {
   MERCADOPAGO
 }
 
-enum RetiroPor {
-  GRACIELA
-  MATIAS
-  ROCIO
-}
-
 model User {
-  id          String               @id @default(cuid())
-  name        String
-  email       String               @unique
-  password    String
-  role        Role                 @default(OPERATOR)
-  createdAt   DateTime             @default(now())
-  reservas    Reserva[]
-  gastos      Gasto[]
-  pagos       Pago[]
-  cierresMes  CierreMes[]
-  cronogramas CronogramaLimpieza[]
-  retiros     Retiro[]
+  id             String               @id @default(cuid())
+  name           String
+  email          String               @unique
+  password       String
+  role           Role                 @default(OPERATOR)
+  createdAt      DateTime             @default(now())
+  reservas       Reserva[]
+  gastos         Gasto[]
+  pagos          Pago[]
+  cierresMes     CierreMes[]
+  cronogramas    CronogramaLimpieza[]
+  distribuciones Distribucion[]
 }
 
 model Quinta {
@@ -82,7 +76,6 @@ model Quinta {
   precios           PrecioTemporada[]
   gastos            Gasto[]
   cierresMes        CierreMes[]
-  retiros           Retiro[]
 }
 
 model Cliente {
@@ -204,27 +197,25 @@ model Pago {
   tipoCambio Decimal?   @db.Decimal(10, 2)
   moneda     String     @default("USD")
   notas       String?
-  createdAt   DateTime   @default(now())
-  reserva     Reserva    @relation(fields: [reservaId], references: [id])
-  creadoPor   User       @relation(fields: [creadoPorId], references: [id])
+  createdAt   DateTime     @default(now())
+  reserva     Reserva      @relation(fields: [reservaId], references: [id])
+  creadoPor   User         @relation(fields: [creadoPorId], references: [id])
+  distribucion Distribucion?
 }
 
-model Retiro {
-  id           String    @id @default(cuid())
-  quintaId     String
-  creadoPorId  String
-  monto        Decimal   @db.Decimal(10, 2)
-  montoUSD   Decimal?   @db.Decimal(10, 2)
-  montoARS   Decimal?   @db.Decimal(10, 2)
-  tipoCambio Decimal?   @db.Decimal(10, 2)
-  fecha        DateTime
-  realizadoPor RetiroPor
-  notas        String?
-  mes          Int
-  anio         Int
-  createdAt    DateTime  @default(now())
-  quinta       Quinta    @relation(fields: [quintaId], references: [id])
-  creadoPor    User      @relation(fields: [creadoPorId], references: [id])
+model Distribucion {
+  id                String   @id @default(cuid())
+  pagoId            String   @unique
+  montoTotalUSD     Decimal  @db.Decimal(10, 2)
+  reintegroMatias   Decimal  @default(0) @db.Decimal(10, 2)
+  reintegroGraciela Decimal  @default(0) @db.Decimal(10, 2)
+  parteMatias       Decimal  @db.Decimal(10, 2)
+  parteGraciela     Decimal  @db.Decimal(10, 2)
+  notas             String?
+  creadoPorId       String
+  createdAt         DateTime @default(now())
+  pago              Pago     @relation(fields: [pagoId], references: [id])
+  creadoPor         User     @relation(fields: [creadoPorId], references: [id])
 }
 
 model CierreMes {

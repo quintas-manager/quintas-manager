@@ -1,7 +1,5 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
-import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -38,11 +36,16 @@ export interface ReintegroDetalle {
   monto: number;
 }
 
-export interface RetiroDetalle {
+export interface DistribucionDetalle {
   id: string;
+  pagoId: string;
   fecha: string;
-  realizadoPor: string;
-  monto: number;
+  clienteNombre: string;
+  montoTotalUSD: number;
+  reintegroMatias: number;
+  reintegroGraciela: number;
+  parteMatias: number;
+  parteGraciela: number;
   notas: string | null;
 }
 
@@ -57,35 +60,15 @@ export interface MesCalculado {
   gastos: GastoDetalle[];
   totalGastos: number;
   resultado: number;
-  parteGraciela: number;
-  parteMatias: number;
+  distribuciones: DistribucionDetalle[];
+  totalParteMatias: number;
+  totalParteGraciela: number;
+  totalReintegroMatias: number;
+  totalReintegroGraciela: number;
   reintegrosGraciela: ReintegroDetalle[];
   reintegrosMatias: ReintegroDetalle[];
   totalReintegrosGraciela: number;
   totalReintegrosMatias: number;
-  retiros: RetiroDetalle[];
-  totalRetirosGraciela: number;
-  totalRetirosMatias: number;
-  totalRetirosRocio: number;
-  cobrarGraciela: number;
-  cobrarMatias: number;
-  cierre: {
-    id: string;
-    fechaCierre: string;
-    cerradoPorNombre: string;
-    totalIngresos: number;
-    totalGastos: number;
-    resultado: number;
-    parteGraciela: number;
-    parteMatias: number;
-    reintegrosGraciela: number;
-    reintegrosMatias: number;
-    retirosGraciela: number;
-    retirosMatias: number;
-    retirosRocio: number;
-    cobrarGraciela: number;
-    cobrarMatias: number;
-  } | null;
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -109,7 +92,7 @@ export async function calcularMes(
 ): Promise<MesCalculado> {
   const { inicio, fin } = mesRange(mes, anio);
 
-  const [quinta, pagos, gastos, reintegrosPendientes, retiros, cierre, mascotasPagadas] = await Promise.all([
+  const [quinta, pagos, gastos, reintegrosPendientes, mascotasPagadas] = await Promise.all([
     prisma.quinta.findUniqueOrThrow({
       where: { id: quintaId },
       select: { id: true, nombre: true, colorHex: true },
@@ -122,6 +105,7 @@ export async function calcularMes(
       },
       orderBy: { fecha: "asc" },
       include: {
+        distribucion: true,
         reserva: {
           include: { cliente: { select: { nombre: true, apellido: true } } },
         },
@@ -146,42 +130,40 @@ export async function calcularMes(
       orderBy: { fecha: "asc" },
     }),
 
-    prisma.retiro.findMany({
-      where: { quintaId, mes, anio },
-      orderBy: { fecha: "asc" },
-    }),
-
-    prisma.cierreMes.findUnique({
-      where: { quintaId_mes_anio: { quintaId, mes, anio } },
-      include: { cerradoPor: { select: { name: true } } },
-    }),
-
     prisma.reserva.findMany({
       where: {
         quintaId,
         cargoMascotaPagado: true,
         fechaPagoMascota: { gte: inicio, lte: fin },
       },
-      select: { cargoMascotaUSD: true, cargoMascotaARS: true },
+      select: { cargoMascotaUSD: true },
     }),
   ]);
 
   const totalMascotaUSD = mascotasPagadas.reduce((s, r) => s + Number(r.cargoMascotaUSD ?? 0), 0);
-  const totalIngresos = pagos.reduce((s, p) => s + Number(p.montoUSD ?? p.monto), 0) + totalMascotaUSD;
-  const totalGastos   = gastos.reduce((s, g) => s + Number(g.montoUSD ?? g.monto), 0);
+  const totalIngresos   = pagos.reduce((s, p) => s + Number(p.montoUSD ?? p.monto), 0) + totalMascotaUSD;
+  const totalGastos     = gastos.reduce((s, g) => s + Number(g.montoUSD ?? g.monto), 0);
+  const resultado       = totalIngresos - totalGastos;
 
-  const retirosG      = retiros.filter((r) => r.realizadoPor === "GRACIELA");
-  const retirosM      = retiros.filter((r) => r.realizadoPor === "MATIAS");
-  const retirosR      = retiros.filter((r) => r.realizadoPor === "ROCIO");
-  const totalRetirosG = retirosG.reduce((s, r) => s + Number(r.montoUSD ?? r.monto), 0);
-  const totalRetirosM = retirosM.reduce((s, r) => s + Number(r.montoUSD ?? r.monto), 0);
-  const totalRetirosR = retirosR.reduce((s, r) => s + Number(r.montoUSD ?? r.monto), 0);
+  const distribuciones: DistribucionDetalle[] = pagos
+    .filter((p) => p.distribucion)
+    .map((p) => ({
+      id:                p.distribucion!.id,
+      pagoId:            p.id,
+      fecha:             fmtDate(p.fecha),
+      clienteNombre:     `${p.reserva.cliente.nombre} ${p.reserva.cliente.apellido}`,
+      montoTotalUSD:     Number(p.distribucion!.montoTotalUSD),
+      reintegroMatias:   Number(p.distribucion!.reintegroMatias),
+      reintegroGraciela: Number(p.distribucion!.reintegroGraciela),
+      parteMatias:       Number(p.distribucion!.parteMatias),
+      parteGraciela:     Number(p.distribucion!.parteGraciela),
+      notas:             p.distribucion!.notas,
+    }));
 
-  // Rocío no participa en la división; sus retiros se descuentan del resultado antes de dividir
-  const resultado          = totalIngresos - totalGastos;
-  const resultadoAjustado  = resultado - totalRetirosR;
-  const parteGraciela      = resultadoAjustado / 2;
-  const parteMatias        = resultadoAjustado / 2;
+  const totalParteMatias       = distribuciones.reduce((s, d) => s + d.parteMatias, 0);
+  const totalParteGraciela     = distribuciones.reduce((s, d) => s + d.parteGraciela, 0);
+  const totalReintegroMatias   = distribuciones.reduce((s, d) => s + d.reintegroMatias, 0);
+  const totalReintegroGraciela = distribuciones.reduce((s, d) => s + d.reintegroGraciela, 0);
 
   const reintegrosG = reintegrosPendientes.filter((g) => g.pagadoPor === "GRACIELA");
   const reintegrosM = reintegrosPendientes.filter((g) => g.pagadoPor === "MATIAS");
@@ -223,8 +205,11 @@ export async function calcularMes(
     totalGastos,
 
     resultado,
-    parteGraciela,
-    parteMatias,
+    distribuciones,
+    totalParteMatias,
+    totalParteGraciela,
+    totalReintegroMatias,
+    totalReintegroGraciela,
 
     reintegrosGraciela: reintegrosG.map((g) => ({
       id:          g.id,
@@ -240,97 +225,7 @@ export async function calcularMes(
     })),
     totalReintegrosGraciela: totalReintG,
     totalReintegrosMatias:   totalReintM,
-
-    retiros: retiros.map((r) => ({
-      id:           r.id,
-      fecha:        fmtDate(r.fecha),
-      realizadoPor: r.realizadoPor,
-      monto:        Number(r.montoUSD ?? r.monto),
-      notas:        r.notas,
-    })),
-    totalRetirosGraciela: totalRetirosG,
-    totalRetirosMatias:   totalRetirosM,
-    totalRetirosRocio:    totalRetirosR,
-
-    cobrarGraciela: parteGraciela + totalReintG - totalRetirosG,
-    cobrarMatias:   parteMatias   + totalReintM - totalRetirosM,
-
-    cierre: cierre
-      ? {
-          id:                  cierre.id,
-          fechaCierre:         fmtDate(cierre.fechaCierre),
-          cerradoPorNombre:    cierre.cerradoPor.name,
-          totalIngresos:       Number(cierre.totalIngresos),
-          totalGastos:         Number(cierre.totalGastos),
-          resultado:           Number(cierre.resultado),
-          parteGraciela:       Number(cierre.parteGraciela),
-          parteMatias:         Number(cierre.parteMatias),
-          reintegrosGraciela:  Number(cierre.reintegrosGraciela),
-          reintegrosMatias:    Number(cierre.reintegrosMatias),
-          retirosGraciela:     Number(cierre.retirosGraciela),
-          retirosMatias:       Number(cierre.retirosMatias),
-          retirosRocio:        Number(cierre.retirosRocio),
-          cobrarGraciela:      Number(cierre.cobrarGraciela),
-          cobrarMatias:        Number(cierre.cobrarMatias),
-        }
-      : null,
   };
-}
-
-// ── cerrarMes ─────────────────────────────────────────────────────────────────
-
-export async function cerrarMes(
-  quintaId: string,
-  mes: number,
-  anio: number,
-): Promise<{ success: true } | { success: false; error: string }> {
-  const session = await auth();
-  if (!session?.user) return { success: false, error: "No autorizado" };
-
-  const data = await calcularMes(quintaId, mes, anio);
-
-  if (data.cierre) return { success: false, error: "El mes ya está cerrado" };
-
-  const fechaCierre = new Date();
-
-  await prisma.$transaction([
-    prisma.cierreMes.create({
-      data: {
-        quintaId,
-        mes,
-        anio,
-        totalIngresos:       data.totalIngresos,
-        totalGastos:         data.totalGastos,
-        resultado:           data.resultado,
-        parteGraciela:       data.parteGraciela,
-        parteMatias:         data.parteMatias,
-        reintegrosGraciela:  data.totalReintegrosGraciela,
-        reintegrosMatias:    data.totalReintegrosMatias,
-        retirosGraciela:     data.totalRetirosGraciela,
-        retirosMatias:       data.totalRetirosMatias,
-        retirosRocio:        data.totalRetirosRocio,
-        cobrarGraciela:      data.cobrarGraciela,
-        cobrarMatias:        data.cobrarMatias,
-        cerradoPorId:        session.user.id,
-        fechaCierre,
-      },
-    }),
-    prisma.gasto.updateMany({
-      where: {
-        quintaId,
-        reintegrado: false,
-        pagadoPor:   { not: "CAJA" },
-      },
-      data: {
-        reintegrado:    true,
-        fechaReintegro: fechaCierre,
-      },
-    }),
-  ]);
-
-  revalidatePath(`/finanzas/${quintaId}`);
-  revalidatePath(`/finanzas/${quintaId}/${anio}/${mes}`);
-  return { success: true };
 }
 
 // ── getMesesConActividad ──────────────────────────────────────────────────────
@@ -341,11 +236,10 @@ export interface MesResumen {
   totalIngresos: number;
   totalGastos: number;
   resultado: number;
-  cerrado: boolean;
 }
 
 export async function getMesesConActividad(quintaId: string): Promise<MesResumen[]> {
-  const [pagos, gastos, cierres] = await Promise.all([
+  const [pagos, gastos] = await Promise.all([
     prisma.pago.findMany({
       where: { reserva: { quintaId } },
       select: { fecha: true, monto: true, montoUSD: true },
@@ -353,10 +247,6 @@ export async function getMesesConActividad(quintaId: string): Promise<MesResumen
     prisma.gasto.findMany({
       where: { quintaId },
       select: { fecha: true, monto: true, montoUSD: true },
-    }),
-    prisma.cierreMes.findMany({
-      where: { quintaId },
-      select: { mes: true, anio: true },
     }),
   ]);
 
@@ -376,8 +266,6 @@ export async function getMesesConActividad(quintaId: string): Promise<MesResumen
     map.get(key)!.gastos += Number(g.montoUSD ?? g.monto);
   }
 
-  const cerradosSet = new Set(cierres.map((c) => `${c.anio}-${c.mes}`));
-
   return Array.from(map.values())
     .map((v) => ({
       mes:           v.mes,
@@ -385,7 +273,6 @@ export async function getMesesConActividad(quintaId: string): Promise<MesResumen
       totalIngresos: v.ingresos,
       totalGastos:   v.gastos,
       resultado:     v.ingresos - v.gastos,
-      cerrado:       cerradosSet.has(`${v.anio}-${v.mes}`),
     }))
     .sort((a, b) => b.anio - a.anio || b.mes - a.mes);
 }

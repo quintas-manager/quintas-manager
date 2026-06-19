@@ -5,20 +5,27 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { Loader2, Search, X, RefreshCw } from "lucide-react";
+import { Loader2, Search, X } from "lucide-react";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
 import { cn } from "@/lib/utils";
 import { formatUSD } from "@/lib/format";
 import { pagoSchema, type PagoFormValues } from "@/lib/schemas/pagos";
-import { registrarPago } from "@/lib/actions/pagos";
+import {
+  crearPagoConDistribucion,
+  getGastosPendientesPorQuinta,
+  type GastoPendienteItem,
+  type DistribucionInput,
+} from "@/lib/actions/pagos";
 import { MonedaInput } from "@/components/ui/MonedaInput";
 import { fetchTipoCambioAction } from "@/lib/actions/dolar";
+import { DistribucionStep } from "@/components/pagos/DistribucionStep";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
 interface ReservaDeuda {
   id: string;
+  quintaId: string;
   quintaNombre: string;
   quintaColor: string;
   fechaInicio: Date;
@@ -52,9 +59,7 @@ interface Props {
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 const formatMonto = formatUSD;
-
-const formatFecha = (d: Date) =>
-  format(new Date(d), "d MMM yy", { locale: es });
+const formatFecha = (d: Date) => format(new Date(d), "d MMM yy", { locale: es });
 
 const METODO_OPTIONS = [
   { value: "EFECTIVO",      label: "Efectivo" },
@@ -75,32 +80,18 @@ function FieldError({ msg }: { msg?: string }) {
   return msg ? <p className="mt-1 text-xs text-red-500">{msg}</p> : null;
 }
 
-const inputBase =
-  "w-full rounded-lg border px-3 py-2 text-sm text-gray-900 placeholder-gray-400 outline-none transition focus:ring-2 focus:ring-offset-0";
+const inputBase = "w-full rounded-lg border px-3 py-2 text-sm text-gray-900 placeholder-gray-400 outline-none transition focus:ring-2 focus:ring-offset-0";
 const inputCls = (err?: string) =>
-  cn(
-    inputBase,
-    err
-      ? "border-red-400 focus:ring-red-200"
-      : "border-gray-300 focus:border-gray-400 focus:ring-gray-200"
-  );
+  cn(inputBase, err ? "border-red-400 focus:ring-red-200" : "border-gray-300 focus:border-gray-400 focus:ring-gray-200");
 
-// ── Form fields (shared between desktop section and mobile sheet) ─────────────
+// ── PagoFields ────────────────────────────────────────────────────────────────
 
-function PagoFields({
-  selectedReserva,
-  register,
-  errors,
-  setValue,
-  tc,
-  onRefreshTC,
-}: {
+function PagoFields({ selectedReserva, register, errors, setValue, tc }: {
   selectedReserva: ReservaFlat;
   register: ReturnType<typeof useForm<PagoFormValues>>["register"];
   errors: ReturnType<typeof useForm<PagoFormValues>>["formState"]["errors"];
   setValue: ReturnType<typeof useForm<PagoFormValues>>["setValue"];
   tc: number;
-  onRefreshTC: () => Promise<void>;
 }) {
   return (
     <div className="space-y-4">
@@ -112,10 +103,10 @@ function PagoFields({
             tipoCambioInicial={tc}
             error={errors.monto?.message}
             onValueChange={(usd, ars, tcUsado, monedaUsada) => {
-              setValue("monto", usd, { shouldValidate: true });
-              setValue("montoARS", ars > 0 ? ars : undefined);
+              setValue("monto",      usd,            { shouldValidate: true });
+              setValue("montoARS",   ars > 0 ? ars : undefined);
               setValue("tipoCambio", tcUsado > 0 ? tcUsado : undefined);
-              setValue("moneda", monedaUsada);
+              setValue("moneda",     monedaUsada);
             }}
           />
           <p className="mt-1 text-xs text-gray-400">
@@ -124,11 +115,7 @@ function PagoFields({
         </div>
         <div>
           <Label required>Fecha</Label>
-          <input
-            type="date"
-            {...register("fecha")}
-            className={inputCls(errors.fecha?.message)}
-          />
+          <input type="date" {...register("fecha")} className={inputCls(errors.fecha?.message)} />
           <FieldError msg={errors.fecha?.message} />
         </div>
       </div>
@@ -141,12 +128,7 @@ function PagoFields({
               key={opt.value}
               className="flex cursor-pointer items-center gap-2 rounded-lg border-2 border-gray-200 p-3 text-sm transition has-[:checked]:border-gray-900 has-[:checked]:bg-gray-50 hover:border-gray-300"
             >
-              <input
-                type="radio"
-                value={opt.value}
-                {...register("metodoPago")}
-                className="sr-only"
-              />
+              <input type="radio" value={opt.value} {...register("metodoPago")} className="sr-only" />
               <span className="font-medium text-gray-900">{opt.label}</span>
             </label>
           ))}
@@ -167,10 +149,25 @@ function PagoFields({
   );
 }
 
-// ── Main ──────────────────────────────────────────────────────────────────────
+// ── Pago step 1 data snapshot ─────────────────────────────────────────────────
+
+interface PasoUnoCapture {
+  formData: PagoFormValues;
+  reserva: ReservaFlat;
+}
+
+// ── Main Component ────────────────────────────────────────────────────────────
 
 export function RegistrarPagoForm({ clientes, defaultReservaId, defaultClienteId, tipoCambio }: Props) {
   const router = useRouter();
+
+  // Step management
+  const [paso, setPaso] = useState<1 | 2>(1);
+  const [pasoUno, setPasoUno] = useState<PasoUnoCapture | null>(null);
+  const [gastosPendientes, setGastosPendientes] = useState<GastoPendienteItem[]>([]);
+  const [loadingGastos, setLoadingGastos] = useState(false);
+
+  // Step 1 UI state
   const [query, setQuery] = useState("");
   const [selectedReserva, setSelectedReserva] = useState<ReservaFlat | null>(null);
   const [showSheet, setShowSheet] = useState(false);
@@ -179,11 +176,6 @@ export function RegistrarPagoForm({ clientes, defaultReservaId, defaultClienteId
   const formRef = useRef<HTMLElement>(null);
   const [tc, setTc] = useState(tipoCambio);
 
-  async function refreshTC() {
-    const nuevoTC = await fetchTipoCambioAction();
-    if (nuevoTC > 0) setTc(nuevoTC);
-  }
-
   useEffect(() => {
     const check = () => setIsMobile(window.innerWidth < 768);
     check();
@@ -191,19 +183,13 @@ export function RegistrarPagoForm({ clientes, defaultReservaId, defaultClienteId
     return () => window.removeEventListener("resize", check);
   }, []);
 
-  // Animate sheet in
   useEffect(() => {
-    if (showSheet) {
-      requestAnimationFrame(() => setSheetVisible(true));
-    } else {
-      setSheetVisible(false);
-    }
+    if (showSheet) requestAnimationFrame(() => setSheetVisible(true));
+    else setSheetVisible(false);
   }, [showSheet]);
 
   const {
-    register,
-    handleSubmit,
-    setValue,
+    register, handleSubmit, setValue,
     formState: { errors, isSubmitting },
   } = useForm<PagoFormValues>({
     resolver: zodResolver(pagoSchema),
@@ -224,8 +210,7 @@ export function RegistrarPagoForm({ clientes, defaultReservaId, defaultClienteId
 
   const didAutoSelect = useRef(false);
   useEffect(() => {
-    if (didAutoSelect.current) return;
-    if (!defaultReservaId) return;
+    if (didAutoSelect.current || !defaultReservaId) return;
     const target = todasLasReservas.find((r) => r.id === defaultReservaId);
     if (target) {
       didAutoSelect.current = true;
@@ -241,23 +226,15 @@ export function RegistrarPagoForm({ clientes, defaultReservaId, defaultClienteId
   const filtered = todasLasReservas.filter((r) => {
     if (!query.trim()) return true;
     const q = query.toLowerCase();
-    return (
-      r.clienteNombre.toLowerCase().includes(q) ||
-      r.clienteApellido.toLowerCase().includes(q)
-    );
+    return r.clienteNombre.toLowerCase().includes(q) || r.clienteApellido.toLowerCase().includes(q);
   });
 
   function selectReserva(r: ReservaFlat) {
     setSelectedReserva(r);
     setValue("reservaId", r.id);
     setValue("monto", Math.round(r.saldoPendiente * 100) / 100);
-    if (isMobile) {
-      setShowSheet(true);
-    } else {
-      setTimeout(() => {
-        formRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
-      }, 50);
-    }
+    if (isMobile) setShowSheet(true);
+    else setTimeout(() => formRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }), 50);
   }
 
   function closeSheet() {
@@ -265,24 +242,55 @@ export function RegistrarPagoForm({ clientes, defaultReservaId, defaultClienteId
     setTimeout(() => setShowSheet(false), 300);
   }
 
-  const onSubmit = async (data: PagoFormValues) => {
-    const result = await registrarPago(data);
+  // Transition to step 2
+  const onSubmitPasoUno = async (data: PagoFormValues) => {
+    if (!selectedReserva) return;
+    setLoadingGastos(true);
+    try {
+      const gastos = await getGastosPendientesPorQuinta(selectedReserva.quintaId);
+      setGastosPendientes(gastos);
+    } finally {
+      setLoadingGastos(false);
+    }
+    setPasoUno({ formData: data, reserva: selectedReserva });
+    closeSheet();
+    setPaso(2);
+  };
+
+  // Final submission
+  async function confirmarDistribucion(dist: DistribucionInput) {
+    if (!pasoUno) return;
+    const result = await crearPagoConDistribucion(pasoUno.formData, dist);
     if (result.success) {
-      toast.success("Pago registrado correctamente");
-      router.push(`/reservas/${data.reservaId}`);
+      toast.success("Pago y distribución registrados");
+      router.push(`/reservas/${result.data.reservaId}`);
     } else {
       toast.error(result.error);
     }
-  };
+  }
+
+  // ── Step 2 ──────────────────────────────────────────────────────────────────
+
+  if (paso === 2 && pasoUno) {
+    return (
+      <DistribucionStep
+        montoTotalUSD={pasoUno.formData.monto}
+        gastosPendientes={gastosPendientes}
+        onConfirmar={confirmarDistribucion}
+        onVolver={() => setPaso(1)}
+      />
+    );
+  }
+
+  // ── Step 1 ──────────────────────────────────────────────────────────────────
 
   return (
-    <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
-      {/* ── Tabla de reservas ──────────────────────────────────── */}
+    <form onSubmit={handleSubmit(onSubmitPasoUno)} className="space-y-5">
+
+      {/* Reservas table */}
       <section className="rounded-xl border border-gray-200 bg-white overflow-hidden">
         <div className="border-b border-gray-100 px-5 py-4">
-          <h2 className="text-sm font-semibold text-gray-900 mb-3">
-            Reservas con saldo pendiente
-          </h2>
+          <h2 className="text-sm font-semibold text-gray-900 mb-3">Reservas con saldo pendiente</h2>
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400 pointer-events-none" />
             <input
@@ -305,15 +313,13 @@ export function RegistrarPagoForm({ clientes, defaultReservaId, defaultClienteId
           </div>
         ) : (
           <>
-            {/* ── Desktop table ─────────────────────────── */}
+            {/* Desktop table */}
             <div className="hidden md:block overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
                   <tr className="bg-gray-50 border-b border-gray-100">
                     {["Cliente", "Quinta", "Fechas", "Total", "Pagado", "Saldo"].map((h) => (
-                      <th key={h} className="px-4 py-2.5 text-left text-xs font-medium text-gray-500 whitespace-nowrap">
-                        {h}
-                      </th>
+                      <th key={h} className="px-4 py-2.5 text-left text-xs font-medium text-gray-500 whitespace-nowrap">{h}</th>
                     ))}
                   </tr>
                 </thead>
@@ -326,9 +332,7 @@ export function RegistrarPagoForm({ clientes, defaultReservaId, defaultClienteId
                         onClick={() => selectReserva(r)}
                         className={cn("cursor-pointer transition-colors", selected ? "bg-gray-900 text-white" : "hover:bg-gray-50")}
                       >
-                        <td className="px-4 py-3 font-medium whitespace-nowrap">
-                          {r.clienteNombre} {r.clienteApellido}
-                        </td>
+                        <td className="px-4 py-3 font-medium whitespace-nowrap">{r.clienteNombre} {r.clienteApellido}</td>
                         <td className="px-4 py-3">
                           <div className="flex items-center gap-2">
                             <span className="h-2.5 w-2.5 rounded-full shrink-0" style={{ backgroundColor: r.quintaColor }} />
@@ -338,16 +342,10 @@ export function RegistrarPagoForm({ clientes, defaultReservaId, defaultClienteId
                         <td className={cn("px-4 py-3 whitespace-nowrap", selected ? "text-gray-300" : "text-gray-600")}>
                           {formatFecha(r.fechaInicio)} → {formatFecha(r.fechaFin)}
                         </td>
-                        <td className={cn("px-4 py-3 whitespace-nowrap", selected ? "text-gray-200" : "text-gray-700")}>
-                          {formatMonto(r.montoTotal)}
-                        </td>
-                        <td className={cn("px-4 py-3 whitespace-nowrap", selected ? "text-gray-300" : "text-gray-500")}>
-                          {formatMonto(r.senaYPagos)}
-                        </td>
+                        <td className={cn("px-4 py-3 whitespace-nowrap", selected ? "text-gray-200" : "text-gray-700")}>{formatMonto(r.montoTotal)}</td>
+                        <td className={cn("px-4 py-3 whitespace-nowrap", selected ? "text-gray-300" : "text-gray-500")}>{formatMonto(r.senaYPagos)}</td>
                         <td className="px-4 py-3 whitespace-nowrap">
-                          <span className={cn("font-semibold", selected ? "text-red-300" : "text-red-600")}>
-                            {formatMonto(r.saldoPendiente)}
-                          </span>
+                          <span className={cn("font-semibold", selected ? "text-red-300" : "text-red-600")}>{formatMonto(r.saldoPendiente)}</span>
                         </td>
                       </tr>
                     );
@@ -356,7 +354,7 @@ export function RegistrarPagoForm({ clientes, defaultReservaId, defaultClienteId
               </table>
             </div>
 
-            {/* ── Mobile cards ──────────────────────────── */}
+            {/* Mobile cards */}
             <div className="md:hidden divide-y divide-gray-100">
               {filtered.map((r) => {
                 const selected = selectedReserva?.id === r.id;
@@ -365,10 +363,7 @@ export function RegistrarPagoForm({ clientes, defaultReservaId, defaultClienteId
                     key={r.id}
                     type="button"
                     onClick={() => selectReserva(r)}
-                    className={cn(
-                      "w-full text-left px-4 py-4 transition-colors",
-                      selected ? "bg-gray-900" : "hover:bg-gray-50",
-                    )}
+                    className={cn("w-full text-left px-4 py-4 transition-colors", selected ? "bg-gray-900" : "hover:bg-gray-50")}
                   >
                     <div className="flex items-start justify-between gap-2">
                       <div className="min-w-0">
@@ -384,12 +379,8 @@ export function RegistrarPagoForm({ clientes, defaultReservaId, defaultClienteId
                         </p>
                       </div>
                       <div className="text-right shrink-0">
-                        <p className={cn("text-xs", selected ? "text-gray-400" : "text-gray-500")}>
-                          {formatMonto(r.montoTotal)} total
-                        </p>
-                        <p className={cn("font-semibold", selected ? "text-red-300" : "text-red-600")}>
-                          {formatMonto(r.saldoPendiente)}
-                        </p>
+                        <p className={cn("text-xs", selected ? "text-gray-400" : "text-gray-500")}>{formatMonto(r.montoTotal)} total</p>
+                        <p className={cn("font-semibold", selected ? "text-red-300" : "text-red-600")}>{formatMonto(r.saldoPendiente)}</p>
                         <p className={cn("text-[10px]", selected ? "text-gray-500" : "text-gray-400")}>pendiente</p>
                       </div>
                     </div>
@@ -404,23 +395,20 @@ export function RegistrarPagoForm({ clientes, defaultReservaId, defaultClienteId
         <input type="hidden" {...register("reservaId")} />
       </section>
 
-      {/* ── Datos del pago — Desktop only ──────────────────────── */}
+      {/* Desktop: datos del pago */}
       {selectedReserva && (
         <section ref={formRef} className="hidden md:block rounded-xl border border-gray-200 bg-white p-5">
           <div className="mb-4 flex items-center gap-2">
-            <span
-              className="h-3 w-3 rounded-full shrink-0"
-              style={{ backgroundColor: selectedReserva.quintaColor }}
-            />
+            <span className="h-3 w-3 rounded-full shrink-0" style={{ backgroundColor: selectedReserva.quintaColor }} />
             <h2 className="text-sm font-semibold text-gray-900">
               Pago — {selectedReserva.clienteNombre} {selectedReserva.clienteApellido} · {selectedReserva.quintaNombre}
             </h2>
           </div>
-          <PagoFields selectedReserva={selectedReserva} register={register} errors={errors} setValue={setValue} tc={tc} onRefreshTC={refreshTC} />
+          <PagoFields selectedReserva={selectedReserva} register={register} errors={errors} setValue={setValue} tc={tc} />
         </section>
       )}
 
-      {/* ── Actions — Desktop only ──────────────────────────────── */}
+      {/* Desktop: actions */}
       <div className="hidden md:flex gap-3 justify-end">
         <button
           type="button"
@@ -431,95 +419,62 @@ export function RegistrarPagoForm({ clientes, defaultReservaId, defaultClienteId
         </button>
         <button
           type="submit"
-          disabled={isSubmitting || !selectedReserva}
+          disabled={isSubmitting || loadingGastos || !selectedReserva}
           className="flex min-h-[44px] items-center gap-2 rounded-lg bg-gray-900 px-5 py-2.5 text-sm font-medium text-white hover:bg-gray-700 transition disabled:opacity-60 disabled:cursor-not-allowed"
         >
-          {isSubmitting && <Loader2 className="h-4 w-4 animate-spin" />}
-          Registrar pago
+          {(isSubmitting || loadingGastos) && <Loader2 className="h-4 w-4 animate-spin" />}
+          Continuar a distribución →
         </button>
       </div>
 
-      {/* ── Mobile cancel button (no sheet open) ───────────────── */}
+      {/* Mobile cancel */}
       <div className="md:hidden flex justify-end">
-        <button
-          type="button"
-          onClick={() => router.back()}
-          className="min-h-[44px] rounded-lg border border-gray-200 px-5 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50 transition"
-        >
+        <button type="button" onClick={() => router.back()} className="min-h-[44px] rounded-lg border border-gray-200 px-5 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50 transition">
           Cancelar
         </button>
       </div>
 
-      {/* ── Mobile bottom sheet ─────────────────────────────────── */}
+      {/* Mobile bottom sheet */}
       {showSheet && selectedReserva && (
         <div className="md:hidden fixed inset-0 z-50">
-          {/* Backdrop */}
           <div
             className="absolute inset-0 bg-black/50 transition-opacity duration-300"
             style={{ opacity: sheetVisible ? 1 : 0 }}
             onClick={closeSheet}
           />
-
-          {/* Sheet */}
           <div
             className="absolute bottom-0 left-0 right-0 bg-white rounded-t-2xl flex flex-col transition-transform duration-300 ease-out"
-            style={{
-              height: "85dvh",
-              transform: sheetVisible ? "translateY(0)" : "translateY(100%)",
-            }}
+            style={{ height: "85dvh", transform: sheetVisible ? "translateY(0)" : "translateY(100%)" }}
           >
-            {/* Handle */}
             <div className="flex justify-center pt-3 pb-1 shrink-0">
               <div className="w-10 h-1 rounded-full bg-gray-300" />
             </div>
-
-            {/* Header */}
             <div className="flex items-center justify-between px-5 py-3 border-b border-gray-100 shrink-0">
               <h2 className="text-base font-semibold text-gray-900">Registrar Pago</h2>
-              <button
-                type="button"
-                onClick={closeSheet}
-                className="flex h-9 w-9 items-center justify-center rounded-lg text-gray-500 hover:bg-gray-100 transition"
-              >
+              <button type="button" onClick={closeSheet} className="flex h-9 w-9 items-center justify-center rounded-lg text-gray-500 hover:bg-gray-100 transition">
                 <X className="h-5 w-5" />
               </button>
             </div>
-
-            {/* Scrollable content */}
             <div className="flex-1 overflow-y-auto px-5 py-4 space-y-4 pb-6">
-              {/* Reserva summary */}
               <div className="rounded-xl bg-gray-50 border border-gray-100 p-4 space-y-1">
-                <p className="font-medium text-gray-900">
-                  {selectedReserva.clienteNombre} {selectedReserva.clienteApellido}
-                </p>
+                <p className="font-medium text-gray-900">{selectedReserva.clienteNombre} {selectedReserva.clienteApellido}</p>
                 <div className="flex items-center gap-1.5">
-                  <span
-                    className="h-2 w-2 rounded-full shrink-0"
-                    style={{ backgroundColor: selectedReserva.quintaColor }}
-                  />
+                  <span className="h-2 w-2 rounded-full shrink-0" style={{ backgroundColor: selectedReserva.quintaColor }} />
                   <span className="text-sm text-gray-600">{selectedReserva.quintaNombre}</span>
                 </div>
-                <p className="text-sm text-gray-500">
-                  {formatFecha(selectedReserva.fechaInicio)} → {formatFecha(selectedReserva.fechaFin)}
-                </p>
-                <p className="text-sm font-semibold text-red-600 pt-1">
-                  Saldo pendiente: {formatMonto(selectedReserva.saldoPendiente)}
-                </p>
+                <p className="text-sm text-gray-500">{formatFecha(selectedReserva.fechaInicio)} → {formatFecha(selectedReserva.fechaFin)}</p>
+                <p className="text-sm font-semibold text-red-600 pt-1">Saldo pendiente: {formatMonto(selectedReserva.saldoPendiente)}</p>
               </div>
-
-              {/* Form fields */}
-              <PagoFields selectedReserva={selectedReserva} register={register} errors={errors} setValue={setValue} tc={tc} onRefreshTC={refreshTC} />
+              <PagoFields selectedReserva={selectedReserva} register={register} errors={errors} setValue={setValue} tc={tc} />
             </div>
-
-            {/* Sticky confirm button */}
             <div className="shrink-0 px-5 py-4 border-t border-gray-100 bg-white">
               <button
                 type="submit"
-                disabled={isSubmitting}
+                disabled={isSubmitting || loadingGastos}
                 className="flex w-full min-h-[56px] items-center justify-center gap-2 rounded-xl bg-gray-900 px-5 text-sm font-semibold text-white hover:bg-gray-700 transition disabled:opacity-60 disabled:cursor-not-allowed"
               >
-                {isSubmitting && <Loader2 className="h-4 w-4 animate-spin" />}
-                Confirmar pago
+                {(isSubmitting || loadingGastos) && <Loader2 className="h-4 w-4 animate-spin" />}
+                Continuar a distribución →
               </button>
             </div>
           </div>
@@ -527,4 +482,8 @@ export function RegistrarPagoForm({ clientes, defaultReservaId, defaultClienteId
       )}
     </form>
   );
+
+  function FieldError({ msg }: { msg?: string }) {
+    return msg ? <p className="mt-1 text-xs text-red-500">{msg}</p> : null;
+  }
 }

@@ -29,9 +29,92 @@ export async function calcularSaldoPendiente(reservaId: string): Promise<number>
   return Number(reserva.montoTotal) - pagado;
 }
 
-export async function registrarPago(raw: PagoFormValues): Promise<Result<{ id: string }>> {
+// ── Tipos para distribución ───────────────────────────────────────────────────
+
+export interface GastoPendienteItem {
+  id: string;
+  descripcion: string;
+  pagadoPor: "GRACIELA" | "MATIAS";
+  monto: number;
+  fecha: string;
+}
+
+export interface DistribucionInput {
+  gastosReintegradosIds: string[];
+  reintegroMatias: number;
+  reintegroGraciela: number;
+  parteMatias: number;
+  parteGraciela: number;
+  notas?: string;
+}
+
+// ── Gastos pendientes por quinta ──────────────────────────────────────────────
+
+export async function getGastosPendientesPorQuinta(quintaId: string): Promise<GastoPendienteItem[]> {
+  await getSession();
+  const gastos = await prisma.gasto.findMany({
+    where: {
+      quintaId,
+      reintegrado: false,
+      pagadoPor: { in: ["GRACIELA", "MATIAS"] },
+    },
+    orderBy: { fecha: "asc" },
+  });
+  return gastos.map((g) => ({
+    id:          g.id,
+    descripcion: g.descripcion,
+    pagadoPor:   g.pagadoPor as "GRACIELA" | "MATIAS",
+    monto:       Number(g.montoUSD ?? g.monto),
+    fecha:       g.fecha.toISOString().split("T")[0],
+  }));
+}
+
+// ── Detalle de pago para distribución de seña ─────────────────────────────────
+
+export async function getPagoParaDistribucion(pagoId: string): Promise<{
+  id: string;
+  montoUSD: number;
+  reservaId: string;
+  quintaId: string;
+  quintaNombre: string;
+  quintaColor: string;
+  clienteNombre: string;
+  yaDistribuido: boolean;
+} | null> {
+  await getSession();
+  const pago = await prisma.pago.findUnique({
+    where: { id: pagoId },
+    include: {
+      distribucion: true,
+      reserva: {
+        include: {
+          quinta: { select: { id: true, nombre: true, colorHex: true } },
+          cliente: { select: { nombre: true, apellido: true } },
+        },
+      },
+    },
+  });
+  if (!pago) return null;
+  return {
+    id:            pago.id,
+    montoUSD:      Number(pago.montoUSD ?? pago.monto),
+    reservaId:     pago.reservaId,
+    quintaId:      pago.reserva.quintaId,
+    quintaNombre:  pago.reserva.quinta.nombre,
+    quintaColor:   pago.reserva.quinta.colorHex,
+    clienteNombre: `${pago.reserva.cliente.nombre} ${pago.reserva.cliente.apellido}`,
+    yaDistribuido: !!pago.distribucion,
+  };
+}
+
+// ── Crear pago + distribución (paso único) ────────────────────────────────────
+
+export async function crearPagoConDistribucion(
+  pagoRaw: PagoFormValues,
+  dist: DistribucionInput,
+): Promise<Result<{ reservaId: string }>> {
   const session = await getSession();
-  const parsed = pagoSchema.safeParse(raw);
+  const parsed = pagoSchema.safeParse(pagoRaw);
   if (!parsed.success) {
     return {
       success: false,
@@ -51,26 +134,97 @@ export async function registrarPago(raw: PagoFormValues): Promise<Result<{ id: s
     };
   }
 
-  const pago = await prisma.pago.create({
-    data: {
-      reservaId:  data.reservaId,
-      creadoPorId: session.user.id,
-      monto:      data.monto,
-      montoUSD:   data.monto,
-      montoARS:   data.montoARS   ?? null,
-      tipoCambio: data.tipoCambio ?? null,
-      moneda:     data.moneda     ?? "USD",
-      fecha:      new Date(data.fecha),
-      metodoPago: data.metodoPago,
-      notas:      data.notas || null,
-    },
+  const now = new Date();
+
+  await prisma.$transaction(async (tx) => {
+    const pago = await tx.pago.create({
+      data: {
+        reservaId:   data.reservaId,
+        creadoPorId: session.user.id,
+        monto:       data.monto,
+        montoUSD:    data.monto,
+        montoARS:    data.montoARS   ?? null,
+        tipoCambio:  data.tipoCambio ?? null,
+        moneda:      data.moneda     ?? "USD",
+        fecha:       new Date(data.fecha),
+        metodoPago:  data.metodoPago,
+        notas:       data.notas || null,
+      },
+    });
+
+    await tx.distribucion.create({
+      data: {
+        pagoId:            pago.id,
+        montoTotalUSD:     data.monto,
+        reintegroMatias:   dist.reintegroMatias,
+        reintegroGraciela: dist.reintegroGraciela,
+        parteMatias:       dist.parteMatias,
+        parteGraciela:     dist.parteGraciela,
+        notas:             dist.notas || null,
+        creadoPorId:       session.user.id,
+      },
+    });
+
+    if (dist.gastosReintegradosIds.length > 0) {
+      await tx.gasto.updateMany({
+        where: { id: { in: dist.gastosReintegradosIds } },
+        data:  { reintegrado: true, fechaReintegro: now },
+      });
+    }
   });
 
   revalidatePath("/pagos");
   revalidatePath(`/reservas/${data.reservaId}`);
   revalidatePath("/reservas");
-  return { success: true, data: { id: pago.id } };
+  revalidatePath("/finanzas");
+  return { success: true, data: { reservaId: data.reservaId } };
 }
+
+// ── Distribuir seña ya existente ──────────────────────────────────────────────
+
+export async function crearDistribucionParaPago(
+  pagoId: string,
+  dist: DistribucionInput,
+): Promise<Result<{ reservaId: string }>> {
+  const session = await getSession();
+
+  const pago = await prisma.pago.findUnique({
+    where: { id: pagoId },
+    include: { distribucion: true },
+  });
+  if (!pago)             return { success: false, error: "Pago no encontrado" };
+  if (pago.distribucion) return { success: false, error: "Este pago ya tiene distribución" };
+
+  const now = new Date();
+
+  await prisma.$transaction(async (tx) => {
+    await tx.distribucion.create({
+      data: {
+        pagoId,
+        montoTotalUSD:     Number(pago.montoUSD ?? pago.monto),
+        reintegroMatias:   dist.reintegroMatias,
+        reintegroGraciela: dist.reintegroGraciela,
+        parteMatias:       dist.parteMatias,
+        parteGraciela:     dist.parteGraciela,
+        notas:             dist.notas || null,
+        creadoPorId:       session.user.id,
+      },
+    });
+
+    if (dist.gastosReintegradosIds.length > 0) {
+      await tx.gasto.updateMany({
+        where: { id: { in: dist.gastosReintegradosIds } },
+        data:  { reintegrado: true, fechaReintegro: now },
+      });
+    }
+  });
+
+  revalidatePath("/finanzas");
+  revalidatePath(`/reservas/${pago.reservaId}`);
+  return { success: true, data: { reservaId: pago.reservaId } };
+}
+
+// ── Listado de clientes con deuda ─────────────────────────────────────────────
 
 export async function getClientesConDeuda() {
   const reservas = await prisma.reserva.findMany({
@@ -91,6 +245,7 @@ export async function getClientesConDeuda() {
       telefono: string;
       reservasConDeuda: {
         id: string;
+        quintaId: string;
         quintaNombre: string;
         quintaColor: string;
         fechaInicio: Date;
@@ -119,13 +274,14 @@ export async function getClientesConDeuda() {
     }
 
     clienteMap.get(cid)!.reservasConDeuda.push({
-      id: r.id,
-      quintaNombre: r.quinta.nombre,
-      quintaColor: r.quinta.colorHex,
-      fechaInicio: r.fechaInicio,
-      fechaFin: r.fechaFin,
-      montoTotal: Number(r.montoTotal),
-      senaYPagos: pagado,
+      id:             r.id,
+      quintaId:       r.quinta.id,
+      quintaNombre:   r.quinta.nombre,
+      quintaColor:    r.quinta.colorHex,
+      fechaInicio:    r.fechaInicio,
+      fechaFin:       r.fechaFin,
+      montoTotal:     Number(r.montoTotal),
+      senaYPagos:     pagado,
       saldoPendiente: saldo,
     });
   }

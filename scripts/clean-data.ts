@@ -6,8 +6,8 @@ async function cleanData() {
   console.log('Limpiando datos de prueba...')
 
   await prisma.$transaction([
+    prisma.distribucion.deleteMany(),
     prisma.pago.deleteMany(),
-    prisma.retiro.deleteMany(),
     prisma.gasto.deleteMany(),
     prisma.diaCronograma.deleteMany(),
     prisma.cronogramaLimpieza.deleteMany(),

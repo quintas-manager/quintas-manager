@@ -222,7 +222,12 @@ export function ReservaForm({
 
     if (result.success) {
       toast.success(mode === "editar" ? "Reserva actualizada" : "Reserva creada");
-      router.push(`/reservas/${"data" in result ? result.data.id : reservaId}`);
+      const d = "data" in result ? result.data : null;
+      if (d && "senaPagoId" in d && d.senaPagoId) {
+        router.push(`/pagos/distribuir?pagoId=${d.senaPagoId}`);
+      } else {
+        router.push(`/reservas/${d?.id ?? reservaId}`);
+      }
     } else {
       toast.error(result.error);
     }

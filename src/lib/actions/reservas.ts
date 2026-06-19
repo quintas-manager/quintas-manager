@@ -49,7 +49,7 @@ async function checkConflicto(
 
 // ── Crear ────────────────────────────────────────────────────────────────────
 
-export async function crearReserva(raw: ReservaFormValues): Promise<Result<{ id: string }>> {
+export async function crearReserva(raw: ReservaFormValues): Promise<Result<{ id: string; senaPagoId?: string }>> {
   const session = await getSession();
   const parsed = reservaSchema.safeParse(raw);
   if (!parsed.success) {
@@ -77,7 +77,7 @@ export async function crearReserva(raw: ReservaFormValues): Promise<Result<{ id:
   const seña = data.sena ?? null;
   const now  = new Date();
 
-  const reserva = await prisma.$transaction(async (tx) => {
+  const { reserva, senaPagoId } = await prisma.$transaction(async (tx) => {
     const r = await tx.reserva.create({
       data: {
         quintaId:         data.quintaId,
@@ -107,8 +107,9 @@ export async function crearReserva(raw: ReservaFormValues): Promise<Result<{ id:
       },
     });
 
+    let senaPagoId: string | undefined;
     if (seña && seña > 0) {
-      await tx.pago.create({
+      const p = await tx.pago.create({
         data: {
           reservaId:   r.id,
           creadoPorId: session.user.id,
@@ -122,14 +123,15 @@ export async function crearReserva(raw: ReservaFormValues): Promise<Result<{ id:
           notas:       "Seña registrada al crear la reserva",
         },
       });
+      senaPagoId = p.id;
     }
 
-    return r;
+    return { reserva: r, senaPagoId };
   });
 
   revalidatePath("/reservas");
   revalidatePath("/calendario");
-  return { success: true, data: { id: reserva.id } };
+  return { success: true, data: { id: reserva.id, senaPagoId } };
 }
 
 // ── Actualizar ───────────────────────────────────────────────────────────────
