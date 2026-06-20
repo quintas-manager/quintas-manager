@@ -42,6 +42,20 @@ export async function crearCliente(raw: ClienteFormValues): Promise<
   return { success: true, data: cliente };
 }
 
+// ── Eliminar ──────────────────────────────────────────────────────────────────
+
+export async function eliminarCliente(id: string): Promise<void> {
+  await getSession();
+  const reservas = await prisma.reserva.count({ where: { clienteId: id } });
+  if (reservas > 0) {
+    throw new Error(
+      'No se puede eliminar un cliente con reservas asociadas. Elimina primero sus reservas.',
+    );
+  }
+  await prisma.cliente.delete({ where: { id } });
+  revalidatePath('/clientes');
+}
+
 // ── Actualizar ────────────────────────────────────────────────────────────────
 
 export async function actualizarCliente(

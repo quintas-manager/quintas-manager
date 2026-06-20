@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { EditarClienteForm } from "@/components/clientes/EditarClienteForm";
+import { EliminarClienteModal } from "@/components/clientes/EliminarClienteModal";
 import { ArrowLeft, Calendar, DollarSign, Home } from "lucide-react";
 
 interface PageProps {
@@ -61,14 +62,24 @@ export default async function ClienteDetallePage({ params }: PageProps) {
 
   return (
     <div className="space-y-6 max-w-4xl">
-      {/* Back */}
-      <Link
-        href="/clientes"
-        className="inline-flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-700 transition"
-      >
-        <ArrowLeft className="h-4 w-4" />
-        Volver a clientes
-      </Link>
+      {/* Back + delete */}
+      <div className="flex items-center justify-between">
+        <Link
+          href="/clientes"
+          className="inline-flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-700 transition"
+        >
+          <ArrowLeft className="h-4 w-4" />
+          Volver a clientes
+        </Link>
+        <EliminarClienteModal
+          clienteId={cliente.id}
+          nombre={cliente.nombre}
+          apellido={cliente.apellido}
+          reservasCount={cliente.reservas.length}
+          variant="button"
+          redirectOnDelete="/clientes"
+        />
+      </div>
 
       {/* Name header */}
       <div>
