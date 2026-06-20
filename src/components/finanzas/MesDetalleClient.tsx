@@ -170,7 +170,7 @@ function EditGastoForm({ gasto, categorias, onCancel, onSaved }: {
         <button type="button" onClick={onCancel} className="flex-1 rounded-lg border border-gray-200 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 transition">
           Cancelar
         </button>
-        <button type="submit" disabled={isSubmitting} className="flex-1 flex items-center justify-center gap-2 rounded-lg bg-green-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-green-700 transition disabled:opacity-60">
+        <button type="submit" disabled={isSubmitting} className="flex-1 flex items-center justify-center gap-2 rounded-lg bg-[#1e3a5f] px-4 py-2.5 text-sm font-medium text-white hover:bg-[#162d4a] transition disabled:opacity-60">
           {isSubmitting && <Loader2 className="h-4 w-4 animate-spin" />}
           Guardar cambios
         </button>

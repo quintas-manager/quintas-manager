@@ -78,14 +78,14 @@ export function DetalleCronogramaClient({
         <button
           onClick={handleEnviarTodos}
           disabled={loading || configurados.length === 0}
-          className="flex w-full sm:w-auto items-center justify-center gap-2 rounded-lg bg-green-700 px-4 py-3 text-sm font-medium text-white hover:bg-green-800 transition disabled:opacity-60 min-h-[44px]"
+          className="flex w-full sm:w-auto items-center justify-center gap-2 rounded-lg bg-[#1e3a5f] px-4 py-3 text-sm font-medium text-white hover:bg-[#162d4a] transition disabled:opacity-60 min-h-[44px]"
         >
           {loading
             ? <Loader2 className="h-4 w-4 animate-spin" />
             : <Users className="h-4 w-4" />}
           {enviado ? "Reenviar a todos" : "Enviar a todos"}
           {configurados.length > 0 && (
-            <span className="rounded-full bg-green-600 px-1.5 py-0.5 text-xs font-semibold">
+            <span className="rounded-full bg-white/20 px-1.5 py-0.5 text-xs font-semibold">
               {configurados.length}
             </span>
           )}

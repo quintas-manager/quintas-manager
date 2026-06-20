@@ -93,7 +93,7 @@ export function ClienteSearch({
         <button
           type="button"
           onClick={() => setShowModal(true)}
-          className="flex w-full items-center justify-center gap-2 rounded-lg bg-green-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-green-700 transition"
+          className="flex w-full items-center justify-center gap-2 rounded-lg bg-[#1e3a5f] px-4 py-2.5 text-sm font-medium text-white hover:bg-[#162d4a] transition"
         >
           <UserPlus className="h-4 w-4" />
           + Nuevo cliente

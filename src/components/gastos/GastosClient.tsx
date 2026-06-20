@@ -452,7 +452,7 @@ function ReintegrosPanel({ reintegros }: { reintegros: ReintegroPersona[] }) {
                 <p className="text-lg font-bold text-gray-900">{fmtMoney(p.total)}</p>
                 <button
                   onClick={() => setBatchTarget(p)}
-                  className="flex items-center gap-1.5 rounded-xl bg-green-700 px-3 py-2 text-sm font-medium text-white hover:bg-green-800 transition"
+                  className="flex items-center gap-1.5 rounded-xl bg-[#1e3a5f] px-3 py-2 text-sm font-medium text-white hover:bg-[#162d4a] transition"
                 >
                   <CheckCircle2 className="h-4 w-4" />
                   Reintegrar todos

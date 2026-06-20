@@ -348,7 +348,7 @@ export function ReservasTable({ reservas, tipoCambio = 0 }: Props) {
               className={cn(
                 "min-h-[36px] rounded-full px-4 py-1 text-sm font-medium transition-colors",
                 chip === c
-                  ? "bg-green-600 text-white"
+                  ? "bg-[#1e3a5f] text-white"
                   : "bg-gray-100 text-gray-600 hover:bg-gray-200",
               )}
             >
