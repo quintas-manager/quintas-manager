@@ -49,10 +49,18 @@ export function FloatingActionButton() {
           {ACTIONS.map((action, i) => {
             const Icon = action.icon;
             return (
-              <div
+              <button
                 key={action.href}
+                type="button"
+                onPointerUp={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  setOpen(false);
+                  router.push(action.href);
+                }}
+                aria-label={action.label}
                 className={cn(
-                  "flex items-center gap-2 transition-all duration-200",
+                  "flex items-center gap-2 min-h-[44px] px-1 cursor-pointer touch-manipulation transition-all duration-200",
                   open
                     ? "translate-y-0 opacity-100"
                     : "translate-y-4 opacity-0",
@@ -62,21 +70,15 @@ export function FloatingActionButton() {
                 <span className="rounded-lg bg-gray-900 px-3 py-1.5 text-xs font-medium text-white shadow-md whitespace-nowrap">
                   {action.label}
                 </span>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setOpen(false);
-                    router.push(action.href);
-                  }}
+                <span
                   className={cn(
                     "flex h-11 w-11 items-center justify-center rounded-full bg-white shadow-md border border-gray-200 hover:bg-gray-50 transition",
                     action.color,
                   )}
-                  aria-label={action.label}
                 >
                   <Icon className="h-5 w-5" />
-                </button>
-              </div>
+                </span>
+              </button>
             );
           })}
         </div>
