@@ -10,7 +10,7 @@ export const authConfig: NextAuthConfig = {
       const isAuthRoute = nextUrl.pathname === "/login";
 
       if (isAuthRoute) {
-        if (isLoggedIn) return Response.redirect(new URL("/dashboard", nextUrl));
+        if (isLoggedIn) return Response.redirect(new URL("/reservas", nextUrl));
         return true;
       }
 

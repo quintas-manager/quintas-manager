@@ -4,7 +4,6 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
 import {
-  LayoutDashboard,
   CalendarDays,
   BookOpen,
   BarChart3,
@@ -27,24 +26,15 @@ interface NavItem {
 }
 
 const NAV_ITEMS: NavItem[] = [
-  { label: "Dashboard",     href: "/dashboard",     icon: LayoutDashboard },
-  { label: "Calendario",    href: "/calendario",    icon: CalendarDays },
   { label: "Reservas",      href: "/reservas",      icon: BookOpen },
+  { label: "Calendario",    href: "/calendario",    icon: CalendarDays },
   { label: "Finanzas",      href: "/finanzas",      icon: BarChart3 },
   { label: "Clientes",      href: "/clientes",      icon: Users },
   { label: "Limpieza",      href: "/limpieza",      icon: Sparkles },
   { label: "Configuración", href: "/configuracion", icon: Settings, adminOnly: true },
 ];
 
-const BOTTOM_NAV_ITEMS: NavItem[] = [
-  { label: "Dashboard",  href: "/dashboard",  icon: LayoutDashboard },
-  { label: "Calendario", href: "/calendario", icon: CalendarDays },
-  { label: "Reservas",   href: "/reservas",   icon: BookOpen },
-  { label: "Clientes",   href: "/clientes",   icon: Users },
-];
-
 const PAGE_TITLES: Record<string, string> = {
-  "/dashboard":     "Dashboard",
   "/calendario":    "Calendario",
   "/reservas":      "Reservas",
   "/finanzas":      "Finanzas",
@@ -175,14 +165,7 @@ interface DashboardShellProps {
 export function DashboardShell({ userName, userRole, children }: DashboardShellProps) {
   const pathname = usePathname();
   const [mobileOpen, setMobileOpen] = useState(false);
-  const isAdmin = userRole === "ADMIN";
   const isCalendario = pathname === "/calendario";
-
-  const menuItems = NAV_ITEMS.filter(
-    (i) =>
-      !BOTTOM_NAV_ITEMS.some((b) => b.href === i.href) &&
-      (!i.adminOnly || isAdmin),
-  );
 
   const isActive = (href: string) =>
     pathname === href || pathname.startsWith(href + "/");
@@ -216,27 +199,27 @@ export function DashboardShell({ userName, userRole, children }: DashboardShellP
       {/* ── Main content ────────────────────────────────────────── */}
       <div className="flex flex-1 flex-col lg:pl-64">
         {/* Header — fixed on mobile, static on desktop */}
-        <header className="fixed left-0 right-0 top-0 z-40 flex h-14 items-center gap-3 border-b border-gray-200 bg-white px-4 lg:static lg:z-20 lg:px-6">
+        <header className="fixed left-0 right-0 top-0 z-40 flex h-14 items-center gap-3 bg-[#1e3a5f] px-4 lg:static lg:z-20 lg:px-6">
           <button
             onClick={() => setMobileOpen(true)}
-            className="inline-flex min-h-[44px] min-w-[44px] items-center justify-center rounded-lg text-gray-500 hover:bg-gray-100 hover:text-gray-700 lg:hidden"
+            className="inline-flex min-h-[44px] min-w-[44px] items-center justify-center rounded-lg text-white hover:bg-white/10 lg:hidden"
             aria-label="Abrir menú"
           >
             <Menu className="h-5 w-5" />
           </button>
-          <h1 className="flex-1 text-sm font-semibold text-gray-900 lg:text-base">
+          <h1 className="flex-1 text-sm font-semibold text-white lg:text-base">
             {resolveTitle(pathname)}
           </h1>
           {/* Calendar legend — visible only on /calendario on mobile */}
           {isCalendario && (
             <div className="flex items-center gap-3 lg:hidden">
               <span className="flex items-center gap-1">
-                <span className="h-2 w-2 shrink-0 rounded-full bg-green-600" />
-                <span className="text-[10px] text-gray-600">El Descanso</span>
+                <span className="h-2 w-2 shrink-0 rounded-full bg-green-400" />
+                <span className="text-[10px] text-white/80">El Descanso</span>
               </span>
               <span className="flex items-center gap-1">
-                <span className="h-2 w-2 shrink-0 rounded-full bg-blue-600" />
-                <span className="text-[10px] text-gray-600">La Tranquila</span>
+                <span className="h-2 w-2 shrink-0 rounded-full bg-sky-400" />
+                <span className="text-[10px] text-white/80">La Tranquila</span>
               </span>
             </div>
           )}
@@ -261,32 +244,30 @@ export function DashboardShell({ userName, userRole, children }: DashboardShellP
       </div>
 
       {/* ── Mobile bottom navigation ─────────────────────────────── */}
-      <nav
-        className="fixed bottom-0 left-0 right-0 z-20 bg-white border-t border-gray-200 pb-[env(safe-area-inset-bottom)] lg:hidden"
-      >
+      <nav className="fixed bottom-0 left-0 right-0 z-20 bg-[#1e3a5f] border-t border-[#162d4a] pb-[env(safe-area-inset-bottom)] lg:hidden">
         <div className="flex h-[60px] items-stretch justify-around px-2">
-          {/* Dashboard */}
-          <Link
-            href="/dashboard"
-            className={cn(
-              "flex flex-1 flex-col items-center justify-center gap-0.5 text-[10px] font-medium transition-colors",
-              isActive("/dashboard") ? "text-gray-900" : "text-gray-400 hover:text-gray-600",
-            )}
-          >
-            <LayoutDashboard className="h-5 w-5" />
-            <span>Dashboard</span>
-          </Link>
-
           {/* Reservas */}
           <Link
             href="/reservas"
             className={cn(
               "flex flex-1 flex-col items-center justify-center gap-0.5 text-[10px] font-medium transition-colors",
-              isActive("/reservas") ? "text-gray-900" : "text-gray-400 hover:text-gray-600",
+              isActive("/reservas") ? "text-white" : "text-white/60 hover:text-white",
             )}
           >
             <BookOpen className="h-5 w-5" />
             <span>Reservas</span>
+          </Link>
+
+          {/* Clientes */}
+          <Link
+            href="/clientes"
+            className={cn(
+              "flex flex-1 flex-col items-center justify-center gap-0.5 text-[10px] font-medium transition-colors",
+              isActive("/clientes") ? "text-white" : "text-white/60 hover:text-white",
+            )}
+          >
+            <Users className="h-5 w-5" />
+            <span>Clientes</span>
           </Link>
 
           {/* Calendario — central featured */}
@@ -298,7 +279,7 @@ export function DashboardShell({ userName, userRole, children }: DashboardShellP
             <div
               className={cn(
                 "flex h-[52px] w-[52px] items-center justify-center rounded-full shadow-lg transition-colors",
-                isActive("/calendario") ? "bg-green-700" : "bg-green-600",
+                isActive("/calendario") ? "bg-[#3d6a94]" : "bg-[#4a7ba6]",
               )}
               style={{ transform: "translateY(-12px)" }}
             >
@@ -306,16 +287,16 @@ export function DashboardShell({ userName, userRole, children }: DashboardShellP
             </div>
           </Link>
 
-          {/* Clientes */}
+          {/* Finanzas */}
           <Link
-            href="/clientes"
+            href="/finanzas"
             className={cn(
               "flex flex-1 flex-col items-center justify-center gap-0.5 text-[10px] font-medium transition-colors",
-              isActive("/clientes") ? "text-gray-900" : "text-gray-400 hover:text-gray-600",
+              isActive("/finanzas") ? "text-white" : "text-white/60 hover:text-white",
             )}
           >
-            <Users className="h-5 w-5" />
-            <span>Clientes</span>
+            <BarChart3 className="h-5 w-5" />
+            <span>Finanzas</span>
           </Link>
 
           {/* Limpieza */}
@@ -323,7 +304,7 @@ export function DashboardShell({ userName, userRole, children }: DashboardShellP
             href="/limpieza"
             className={cn(
               "flex flex-1 flex-col items-center justify-center gap-0.5 text-[10px] font-medium transition-colors",
-              isActive("/limpieza") ? "text-gray-900" : "text-gray-400 hover:text-gray-600",
+              isActive("/limpieza") ? "text-white" : "text-white/60 hover:text-white",
             )}
           >
             <Sparkles className="h-5 w-5" />
