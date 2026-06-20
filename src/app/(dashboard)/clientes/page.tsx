@@ -60,7 +60,7 @@ export default async function ClientesPage({ searchParams }: PageProps) {
   };
 
   return (
-    <div className="w-full max-w-full overflow-x-hidden space-y-5">
+    <div className="w-full max-w-full overflow-x-hidden space-y-5 pt-6">
       {/* Header */}
       <div className="flex items-center justify-between">
         <p className="text-sm text-gray-500">{total} en total</p>

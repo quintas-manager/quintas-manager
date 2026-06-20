@@ -35,7 +35,7 @@ export default async function FinanzasQuintaPage({
   const anios = Array.from(byAnio.keys()).sort((a, b) => b - a);
 
   return (
-    <div className="max-w-3xl mx-auto space-y-6 pt-4">
+    <div className="max-w-3xl mx-auto space-y-6 pt-6">
       {/* Header */}
       <div className="flex items-center gap-3">
         <Link

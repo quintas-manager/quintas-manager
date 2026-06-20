@@ -23,7 +23,7 @@ export default async function LimpiezaPage() {
   }));
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-5 pt-6">
       <div className="flex items-center justify-between">
         <p className="text-sm text-gray-500">Cronogramas semanales de limpieza</p>
         <Link

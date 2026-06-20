@@ -325,7 +325,7 @@ export function ReservasTable({ reservas, tipoCambio = 0 }: Props) {
   }, [reservas, chip, busqueda]);
 
   return (
-    <div className="w-full max-w-full overflow-x-hidden space-y-4">
+    <div className="w-full max-w-full overflow-x-hidden space-y-4 pt-6">
       {/* ── Search + chips ──────────────────────────────────────── */}
       <div className="space-y-3">
         <div className="relative">
