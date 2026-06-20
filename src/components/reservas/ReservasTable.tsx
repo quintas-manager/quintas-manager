@@ -325,7 +325,7 @@ export function ReservasTable({ reservas, tipoCambio = 0 }: Props) {
   }, [reservas, chip, busqueda]);
 
   return (
-    <div className="space-y-4">
+    <div className="w-full max-w-full overflow-x-hidden space-y-4">
       {/* ── Search + chips ──────────────────────────────────────── */}
       <div className="space-y-3">
         <div className="relative">
@@ -359,16 +359,16 @@ export function ReservasTable({ reservas, tipoCambio = 0 }: Props) {
       </div>
 
       {/* ── List ────────────────────────────────────────────────── */}
-      <div className="rounded-xl border border-gray-200 bg-white overflow-hidden">
-        {filtered.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-16 text-gray-400">
-            <Search className="h-8 w-8 mb-3 opacity-40" />
-            <p className="text-sm">No se encontraron reservas</p>
-          </div>
-        ) : (
-          <>
-            {/* ── Desktop table ──────────────────────────── */}
-            <div className="hidden md:block overflow-x-auto">
+      {filtered.length === 0 ? (
+        <div className="flex flex-col items-center justify-center py-16 text-gray-400 rounded-xl border border-gray-200 bg-white">
+          <Search className="h-8 w-8 mb-3 opacity-40" />
+          <p className="text-sm">No se encontraron reservas</p>
+        </div>
+      ) : (
+        <>
+          {/* ── Desktop table ──────────────────────────── */}
+          <div className="hidden md:block w-full rounded-xl border border-gray-200 bg-white overflow-hidden">
+            <div className="overflow-x-auto w-full">
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b border-gray-100 bg-gray-50">
@@ -488,101 +488,86 @@ export function ReservasTable({ reservas, tipoCambio = 0 }: Props) {
                 </tbody>
               </table>
             </div>
+          </div>
 
-            {/* ── Mobile cards ───────────────────────────── */}
-            <div className="md:hidden divide-y divide-gray-100">
-              {filtered.map((r) => {
-                const estadoCfg     = ESTADO_CONFIG[r.estado] ?? ESTADO_CONFIG.PENDIENTE;
-                const puedeEditar   = ["PENDIENTE", "CONFIRMADA"].includes(r.estado);
-                const puedeCancelar = puedeEditar;
-                return (
-                  <button
-                    key={r.id}
-                    type="button"
-                    className="w-full text-left p-4 hover:bg-gray-50 transition-colors"
-                    onClick={() => setDrawerReserva(r)}
-                  >
-                    <div className="flex items-start justify-between gap-2 mb-2">
-                      <div className="min-w-0">
-                        <p className="font-medium text-gray-900 truncate">
-                          {r.clienteNombre} {r.clienteApellido}
-                        </p>
-                        <div className="flex items-center gap-1.5 mt-0.5">
-                          <span className="h-2 w-2 rounded-full shrink-0" style={{ backgroundColor: r.quintaColor }} />
-                          <span className="text-xs text-gray-500">{r.quintaNombre}</span>
-                        </div>
-                      </div>
-                      <div className="flex flex-col items-end gap-1 shrink-0">
-                        <span className={cn("inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium", estadoCfg.cls)}>
-                          {estadoCfg.label}
-                        </span>
-                        {r.tieneMascota && !r.cargoMascotaPagado && (
-                          <span className="inline-flex items-center gap-1 rounded-full bg-orange-100 px-2 py-0.5 text-xs font-medium text-orange-700">
-                            🐾 Pago pendiente
-                          </span>
-                        )}
-                      </div>
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs text-gray-600 mb-3">
-                      <span>{fmt(r.fechaInicio)} → {fmt(r.fechaFin)}</span>
-                      <MontoDisplay
-                        montoUSD={r.montoTotal}
-                        moneda={r.monedaIngreso}
-                        montoARS={r.montoTotalARS}
-                        tipoCambio={r.tipoCambioReserva}
-                        size="sm"
-                      />
-                      <span>{TIPO_LABELS[r.tipoAlquiler] ?? r.tipoAlquiler}</span>
-                      <div className="text-gray-500">
-                        {r.sena != null ? (
-                          <>Seña: <MontoDisplay montoUSD={r.sena} moneda={r.senaARS ? "ARS" : "USD"} montoARS={r.senaARS} tipoCambio={r.tipoCambioSena} size="sm" className="inline-flex" /></>
-                        ) : "Sin seña"}
-                      </div>
-                    </div>
-
-                    <div className="flex gap-2" onClick={(e) => e.stopPropagation()} onPointerUp={(e) => e.stopPropagation()}>
+          {/* ── Mobile cards ───────────────────────────── */}
+          <div className="md:hidden space-y-2">
+            {filtered.map((r) => {
+              const estadoCfg     = ESTADO_CONFIG[r.estado] ?? ESTADO_CONFIG.PENDIENTE;
+              const puedeEditar   = ["PENDIENTE", "CONFIRMADA"].includes(r.estado);
+              const puedeCancelar = puedeEditar;
+              const nombre        = `${r.clienteNombre} ${r.clienteApellido}`;
+              return (
+                <div
+                  key={r.id}
+                  role="button"
+                  tabIndex={0}
+                  className="w-full rounded-xl border border-gray-100 bg-white p-3 cursor-pointer hover:bg-gray-50 transition-colors"
+                  onClick={() => setDrawerReserva(r)}
+                  onKeyDown={(e) => e.key === "Enter" && setDrawerReserva(r)}
+                >
+                  {/* Línea 1: nombre + acciones */}
+                  <div className="flex items-center justify-between gap-2">
+                    <p className="font-medium text-gray-900 truncate min-w-0">
+                      {r.clienteNombre} {r.clienteApellido}
+                    </p>
+                    <div
+                      className="flex items-center gap-1 shrink-0"
+                      onClick={(e) => e.stopPropagation()}
+                      onPointerUp={(e) => e.stopPropagation()}
+                    >
                       {puedeEditar && (
                         <Link
                           href={`/reservas/${r.id}/editar`}
-                          className="flex min-h-[40px] items-center gap-1.5 rounded-lg border border-gray-200 px-3 text-xs font-medium text-gray-600 hover:bg-gray-100 transition"
+                          title="Editar"
+                          className="flex h-8 w-8 items-center justify-center rounded-lg text-gray-400 hover:bg-gray-100 hover:text-blue-600 transition"
                         >
-                          <Pencil className="h-3.5 w-3.5" />
-                          Editar
+                          <Pencil className="h-4 w-4" />
                         </Link>
                       )}
-                      {r.estado === "PENDIENTE" && (
-                        <button
-                          onClick={() => setConfirmarModal({ id: r.id, nombre: `${r.clienteNombre} ${r.clienteApellido}` })}
-                          className="min-h-[40px] rounded-lg px-3 text-xs font-medium text-green-700 hover:bg-green-50 transition"
-                        >
-                          Confirmar
-                        </button>
-                      )}
+                      <button
+                        title="Eliminar"
+                        onClick={() => setDeleteModal({ id: r.id, nombre })}
+                        className="flex h-8 w-8 items-center justify-center rounded-lg text-gray-400 hover:bg-red-50 hover:text-red-600 transition"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </button>
                       {puedeCancelar && (
                         <button
-                          onClick={() => setCancelModal({ id: r.id, nombre: `${r.clienteNombre} ${r.clienteApellido}` })}
-                          className="flex min-h-[40px] items-center gap-1.5 rounded-lg border border-red-200 px-3 text-xs font-medium text-red-600 hover:bg-red-50 transition"
+                          title="Cancelar"
+                          onClick={() => setCancelModal({ id: r.id, nombre })}
+                          className="flex h-8 w-8 items-center justify-center rounded-lg text-gray-400 hover:bg-red-50 hover:text-red-600 transition"
                         >
-                          <XCircle className="h-3.5 w-3.5" />
-                          Cancelar
+                          <XCircle className="h-4 w-4" />
                         </button>
                       )}
-                      <button
-                        onClick={() => setDeleteModal({ id: r.id, nombre: `${r.clienteNombre} ${r.clienteApellido}` })}
-                        className="flex min-h-[40px] items-center justify-center rounded-lg border border-red-200 px-3 text-red-600 hover:bg-red-50 transition"
-                        title="Eliminar"
-                      >
-                        <Trash2 className="h-3.5 w-3.5" />
-                      </button>
                     </div>
-                  </button>
-                );
-              })}
-            </div>
-          </>
-        )}
-      </div>
+                  </div>
+
+                  {/* Línea 2: quinta */}
+                  <div className="flex items-center gap-1.5 mt-1">
+                    <span className="h-2 w-2 rounded-full shrink-0" style={{ backgroundColor: r.quintaColor }} />
+                    <span className="text-sm text-gray-600">{r.quintaNombre}</span>
+                  </div>
+
+                  {/* Línea 3: fechas + estado */}
+                  <div className="flex items-center justify-between gap-2 mt-1">
+                    <span className="text-sm text-gray-700">
+                      {fmt(r.fechaInicio)} → {fmt(r.fechaFin)}
+                    </span>
+                    <span className={cn(
+                      "inline-flex shrink-0 rounded-full px-2.5 py-0.5 text-xs font-medium",
+                      estadoCfg.cls,
+                    )}>
+                      {estadoCfg.label}
+                    </span>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </>
+      )}
 
       {/* Modals */}
       {drawerReserva && (
