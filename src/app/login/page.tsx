@@ -38,7 +38,7 @@ export default function LoginPage() {
     if (result?.error) {
       setServerError("Email o contraseña incorrectos.");
     } else {
-      router.push("/dashboard");
+      router.push("/calendario");
       router.refresh();
     }
   };
