@@ -1,10 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useTransition } from "react";
 import Link from "next/link";
 import { format, parseISO } from "date-fns";
 import { es } from "date-fns/locale";
-import { ChevronLeft, X, Pencil, Loader2 } from "lucide-react";
+import { ChevronLeft, X, Pencil, Trash2, Loader2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -12,7 +12,7 @@ import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { formatUSD } from "@/lib/format";
 import { MontoDisplay } from "@/components/ui/MontoDisplay";
-import { actualizarGasto } from "@/lib/actions/gastos";
+import { actualizarGasto, eliminarGasto } from "@/lib/actions/gastos";
 import { gastoSchema, type GastoFormValues } from "@/lib/schemas/gastos";
 import type { MesCalculado, PagoDetalle, GastoDetalle, DistribucionDetalle } from "@/lib/actions/finanzas";
 
@@ -198,6 +198,28 @@ export function MesDetalleClient({ quintaId, mes, anio, mesNombre, data, categor
   const [selectedGasto,        setSelectedGasto]        = useState<GastoDetalle | null>(null);
   const [selectedDistribucion, setSelectedDistribucion] = useState<DistribucionDetalle | null>(null);
   const [editingGasto,         setEditingGasto]         = useState(false);
+  const [deletingGasto,        setDeletingGasto]        = useState(false);
+  const [isPending,            startTransition]         = useTransition();
+
+  const closeGastoSheet = () => {
+    setSelectedGasto(null);
+    setEditingGasto(false);
+    setDeletingGasto(false);
+  };
+
+  const handleEliminarGasto = () => {
+    if (!selectedGasto) return;
+    startTransition(async () => {
+      const result = await eliminarGasto(selectedGasto.id);
+      if (result.success) {
+        toast.success("Gasto eliminado");
+        closeGastoSheet();
+        router.refresh();
+      } else {
+        toast.error(result.error ?? "Error al eliminar el gasto");
+      }
+    });
+  };
 
   return (
     <div className="max-w-3xl mx-auto space-y-5 pt-4 pb-6">
@@ -460,26 +482,66 @@ export function MesDetalleClient({ quintaId, mes, anio, mesNombre, data, categor
       </BottomSheet>
 
       {/* ── Gasto bottom sheet ───────────────────────────────────────── */}
-      <BottomSheet open={!!selectedGasto} onClose={() => { setSelectedGasto(null); setEditingGasto(false); }}>
+      <BottomSheet open={!!selectedGasto} onClose={closeGastoSheet}>
         {selectedGasto && editingGasto ? (
           <EditGastoForm
             gasto={selectedGasto}
             categorias={categorias}
             onCancel={() => setEditingGasto(false)}
-            onSaved={() => { setSelectedGasto(null); setEditingGasto(false); router.refresh(); }}
+            onSaved={() => { closeGastoSheet(); router.refresh(); }}
           />
+        ) : selectedGasto && deletingGasto ? (
+          <div className="px-5 pb-8 pt-5 space-y-4">
+            <p className="text-base font-semibold text-gray-900 pr-12">Eliminar gasto</p>
+            <div className="rounded-xl bg-red-50 border border-red-100 px-4 py-3 space-y-1">
+              <p className="text-sm font-medium text-red-800">{selectedGasto.descripcion}</p>
+              <p className="text-xs text-red-600">{fmt(selectedGasto.monto)} · {fmtFull(selectedGasto.fecha)}</p>
+            </div>
+            <p className="text-sm text-gray-600">
+              ¿Eliminar este gasto? Esta acción no se puede deshacer.
+            </p>
+            <div className="flex gap-2 pt-1">
+              <button
+                type="button"
+                onClick={() => setDeletingGasto(false)}
+                disabled={isPending}
+                className="flex-1 rounded-lg border border-gray-200 px-4 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50 transition disabled:opacity-60"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={handleEliminarGasto}
+                disabled={isPending}
+                className="flex-1 flex items-center justify-center gap-2 rounded-lg bg-red-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-red-700 transition disabled:opacity-60"
+              >
+                {isPending && <Loader2 className="h-4 w-4 animate-spin" />}
+                Eliminar definitivamente
+              </button>
+            </div>
+          </div>
         ) : selectedGasto ? (
           <div className="px-5 pb-8 pt-5 space-y-1">
             <div className="flex items-center justify-between pr-12 mb-3">
               <p className="text-base font-semibold text-gray-900">Detalle del gasto</p>
-              <button
-                type="button"
-                onClick={() => setEditingGasto(true)}
-                className="flex items-center gap-1.5 rounded-lg border border-gray-200 px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50 transition"
-              >
-                <Pencil className="h-3.5 w-3.5" />
-                Editar
-              </button>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setEditingGasto(true)}
+                  className="flex items-center gap-1.5 rounded-lg border border-gray-200 px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50 transition"
+                >
+                  <Pencil className="h-3.5 w-3.5" />
+                  Editar
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setDeletingGasto(true)}
+                  className="flex items-center gap-1.5 rounded-lg border border-red-200 px-3 py-1.5 text-xs font-medium text-red-600 hover:bg-red-50 transition"
+                >
+                  <Trash2 className="h-3.5 w-3.5" />
+                  Eliminar
+                </button>
+              </div>
             </div>
             <DetailRow label="Fecha"       value={fmtFull(selectedGasto.fecha)} />
             <DetailRow label="Categoría"   value={selectedGasto.categoriaNombre} />

@@ -98,7 +98,7 @@ export async function eliminarGasto(id: string): Promise<Result> {
   await getSession();
   await prisma.gasto.delete({ where: { id } });
   revalidatePath("/gastos");
-  revalidatePath("/dashboard");
+  revalidatePath("/finanzas");
   return { success: true, data: undefined };
 }
 
