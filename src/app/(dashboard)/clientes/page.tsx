@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
-import { Search, UserPlus, Phone, Mail, ChevronRight } from "lucide-react";
+import { Search, UserPlus, Phone, Mail, Pencil } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { EliminarClienteModal } from "@/components/clientes/EliminarClienteModal";
 
@@ -178,62 +178,61 @@ export default async function ClientesPage({ searchParams }: PageProps) {
           </div>
 
           {/* ── Mobile cards ──────────────────────────────────── */}
-          <div className="md:hidden space-y-2">
+          <div className="md:hidden w-full space-y-2">
             {clientes.map((c) => {
               const ultima = c.reservas[0];
+              const fmtUltima = ultima
+                ? new Date(ultima.fechaInicio).toLocaleDateString("es-AR", {
+                    day: "numeric",
+                    month: "short",
+                  })
+                : null;
               return (
                 <div
                   key={c.id}
-                  className="flex items-center rounded-xl border border-gray-200 bg-white overflow-hidden"
+                  className="w-full max-w-full rounded-xl border border-gray-100 bg-white p-3"
                 >
-                  <Link
-                    href={`/clientes/${c.id}`}
-                    className="flex flex-1 items-center gap-3 p-4 hover:bg-gray-50 transition min-w-0"
-                  >
-                    {/* Avatar */}
-                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-gray-100 text-sm font-semibold text-gray-700 select-none">
-                      {c.nombre.charAt(0)}{c.apellido.charAt(0)}
-                    </div>
-
-                    {/* Info */}
-                    <div className="min-w-0 flex-1">
+                  {/* Línea 1: nombre + acciones */}
+                  <div className="flex items-center gap-2">
+                    <Link
+                      href={`/clientes/${c.id}`}
+                      className="flex-1 min-w-0"
+                    >
                       <p className="font-medium text-gray-900 truncate">
-                        {c.apellido}, {c.nombre}
+                        {c.nombre} {c.apellido}
                       </p>
-                      <div className="mt-0.5 flex items-center gap-3 text-xs text-gray-500">
-                        <span className="flex items-center gap-1">
-                          <Phone className="h-3 w-3" />
-                          {c.telefono}
-                        </span>
-                        <span>{c._count.reservas} reserva{c._count.reservas !== 1 ? "s" : ""}</span>
-                      </div>
-                      {ultima && (
-                        <div className="mt-1 flex items-center gap-1.5">
-                          <span className="text-xs text-gray-400">
-                            {new Date(ultima.fechaInicio).toLocaleDateString("es-AR")}
-                          </span>
-                          <span
-                            className={cn(
-                              "rounded-full px-1.5 py-0.5 text-[10px] font-medium",
-                              estadoBadge[ultima.estado] ?? "bg-gray-100 text-gray-600",
-                            )}
-                          >
-                            {ultima.estado.charAt(0) + ultima.estado.slice(1).toLowerCase()}
-                          </span>
-                        </div>
-                      )}
+                    </Link>
+                    <div className="flex items-center gap-1 shrink-0">
+                      <Link
+                        href={`/clientes/${c.id}`}
+                        title="Ver perfil"
+                        className="flex h-8 w-8 items-center justify-center rounded-lg text-gray-400 hover:bg-gray-100 hover:text-blue-600 transition"
+                      >
+                        <Pencil className="h-4 w-4" />
+                      </Link>
+                      <EliminarClienteModal
+                        clienteId={c.id}
+                        nombre={c.nombre}
+                        apellido={c.apellido}
+                        reservasCount={c._count.reservas}
+                      />
                     </div>
-
-                    <ChevronRight className="h-4 w-4 shrink-0 text-gray-300" />
-                  </Link>
-                  <div className="pr-3">
-                    <EliminarClienteModal
-                      clienteId={c.id}
-                      nombre={c.nombre}
-                      apellido={c.apellido}
-                      reservasCount={c._count.reservas}
-                    />
                   </div>
+
+                  {/* Línea 2: teléfono */}
+                  <Link href={`/clientes/${c.id}`} className="block mt-1">
+                    <p className="text-sm text-gray-500 whitespace-nowrap">
+                      {c.telefono}
+                    </p>
+                  </Link>
+
+                  {/* Línea 3: reservas + última fecha */}
+                  <Link href={`/clientes/${c.id}`} className="block mt-0.5">
+                    <p className="text-xs text-gray-400">
+                      {c._count.reservas} reserva{c._count.reservas !== 1 ? "s" : ""}
+                      {fmtUltima ? ` · Última: ${fmtUltima}` : ""}
+                    </p>
+                  </Link>
                 </div>
               );
             })}
