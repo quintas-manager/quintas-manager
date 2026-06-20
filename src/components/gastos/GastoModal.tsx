@@ -177,6 +177,7 @@ export function GastoModal({ quintas, categorias, gasto, onClose }: Props) {
                 </span>
                 <input
                   type="number"
+                  inputMode="decimal"
                   min={0}
                   step="0.01"
                   {...register("monto", { valueAsNumber: true })}

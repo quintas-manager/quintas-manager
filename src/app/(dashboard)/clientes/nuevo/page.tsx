@@ -98,6 +98,8 @@ export default function NuevoClientePage() {
 
           <Field label="Teléfono" required error={errors.telefono?.message}>
             <input
+              type="tel"
+              inputMode="tel"
               {...register("telefono")}
               placeholder="11-1234-5678"
               className={inputCls(errors.telefono?.message)}

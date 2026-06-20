@@ -128,7 +128,7 @@ function EditGastoForm({ gasto, categorias, onCancel, onSaved }: {
           <label className="block text-xs font-medium text-gray-700 mb-1">Monto <span className="text-red-500">*</span></label>
           <div className="relative">
             <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm text-gray-400">$</span>
-            <input type="number" min={0} step="0.01" {...register("monto", { valueAsNumber: true })} className={cn(inputCls(errors.monto?.message), "pl-6")} />
+            <input type="number" inputMode="decimal" min={0} step="0.01" {...register("monto", { valueAsNumber: true })} className={cn(inputCls(errors.monto?.message), "pl-6")} />
           </div>
           {errors.monto && <p className="mt-1 text-xs text-red-500">{errors.monto.message}</p>}
         </div>

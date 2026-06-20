@@ -167,7 +167,7 @@ export function EditarClienteForm({ cliente }: { cliente: Cliente }) {
             <input {...register("apellido")} className={inputCls(errors.apellido?.message)} />
           </Field>
           <Field label="Teléfono" required error={errors.telefono?.message}>
-            <input {...register("telefono")} className={inputCls(errors.telefono?.message)} />
+            <input type="tel" inputMode="tel" {...register("telefono")} className={inputCls(errors.telefono?.message)} />
           </Field>
           <Field label="DNI" error={errors.dni?.message}>
             <input {...register("dni")} className={inputCls(errors.dni?.message)} />

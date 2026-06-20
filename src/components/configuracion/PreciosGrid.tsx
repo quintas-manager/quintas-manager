@@ -63,6 +63,7 @@ function PrecioCell({
     <div className="relative">
       <input
         type="number"
+        inputMode="decimal"
         min={0}
         value={value}
         onChange={(e) => setValue(Number(e.target.value))}

@@ -108,6 +108,7 @@ export function MonedaInput({
         </span>
         <input
           type="number"
+          inputMode="decimal"
           min="0"
           step="1"
           value={rawMonto}
@@ -125,6 +126,7 @@ export function MonedaInput({
             <span className="absolute left-2 top-1/2 -translate-y-1/2 text-xs text-gray-400">$</span>
             <input
               type="number"
+              inputMode="decimal"
               min="1"
               step="1"
               value={tc}

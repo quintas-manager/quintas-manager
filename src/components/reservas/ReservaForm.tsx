@@ -391,6 +391,7 @@ export function ReservaForm({
                   <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-xs text-gray-400">ARS $</span>
                   <input
                     type="number"
+                    inputMode="decimal"
                     min={0}
                     step={1}
                     value={cargoMascotaARS}

@@ -130,6 +130,7 @@ function QuintaCard({ quinta }: { quinta: QuintaRow }) {
             </label>
             <input
               type="number"
+              inputMode="numeric"
               {...register("capacidadAdultos", { valueAsNumber: true })}
               className={inputCls(errors.capacidadAdultos?.message)}
             />
@@ -140,6 +141,7 @@ function QuintaCard({ quinta }: { quinta: QuintaRow }) {
             </label>
             <input
               type="number"
+              inputMode="numeric"
               {...register("capacidadNinos", { valueAsNumber: true })}
               className={inputCls(errors.capacidadNinos?.message)}
             />
