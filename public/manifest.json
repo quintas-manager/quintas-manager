@@ -2,7 +2,7 @@
   "name": "Quintas Manager",
   "short_name": "Quintas Manager",
   "description": "Sistema de gestión de quintas",
-  "start_url": "/dashboard",
+  "start_url": "/calendario",
   "display": "standalone",
   "background_color": "#ffffff",
   "theme_color": "#ffffff",
