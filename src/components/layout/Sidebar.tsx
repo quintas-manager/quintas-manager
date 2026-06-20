@@ -207,7 +207,7 @@ export function DashboardShell({ userName, userRole, children }: DashboardShellP
           >
             <Menu className="h-5 w-5" />
           </button>
-          <h1 className="flex-1 text-sm font-semibold text-white lg:text-base">
+          <h1 className="flex-1 text-xl font-bold text-white lg:text-xl">
             {resolveTitle(pathname)}
           </h1>
           {/* Calendar legend — visible only on /calendario on mobile */}
@@ -235,8 +235,8 @@ export function DashboardShell({ userName, userRole, children }: DashboardShellP
           )}
           style={{
             paddingBottom: isCalendario
-              ? "calc(60px + env(safe-area-inset-bottom))"
-              : "calc(76px + env(safe-area-inset-bottom))",
+              ? "calc(68px + env(safe-area-inset-bottom))"
+              : "calc(84px + env(safe-area-inset-bottom))",
           }}
         >
           {children}
@@ -245,16 +245,16 @@ export function DashboardShell({ userName, userRole, children }: DashboardShellP
 
       {/* ── Mobile bottom navigation ─────────────────────────────── */}
       <nav className="fixed bottom-0 left-0 right-0 z-20 bg-[#1e3a5f] border-t border-[#162d4a] pb-[env(safe-area-inset-bottom)] lg:hidden">
-        <div className="flex h-[60px] items-stretch justify-around px-2">
+        <div className="flex h-[68px] items-stretch justify-around px-2">
           {/* Reservas */}
           <Link
             href="/reservas"
             className={cn(
-              "flex flex-1 flex-col items-center justify-center gap-0.5 text-[10px] font-medium transition-colors",
+              "flex flex-1 flex-col items-center justify-center gap-0.5 text-[11px] font-medium transition-colors",
               isActive("/reservas") ? "text-white" : "text-white/60 hover:text-white",
             )}
           >
-            <BookOpen className="h-5 w-5" />
+            <BookOpen className="h-6 w-6" />
             <span>Reservas</span>
           </Link>
 
@@ -262,11 +262,11 @@ export function DashboardShell({ userName, userRole, children }: DashboardShellP
           <Link
             href="/clientes"
             className={cn(
-              "flex flex-1 flex-col items-center justify-center gap-0.5 text-[10px] font-medium transition-colors",
+              "flex flex-1 flex-col items-center justify-center gap-0.5 text-[11px] font-medium transition-colors",
               isActive("/clientes") ? "text-white" : "text-white/60 hover:text-white",
             )}
           >
-            <Users className="h-5 w-5" />
+            <Users className="h-6 w-6" />
             <span>Clientes</span>
           </Link>
 
@@ -278,12 +278,12 @@ export function DashboardShell({ userName, userRole, children }: DashboardShellP
           >
             <div
               className={cn(
-                "flex h-[52px] w-[52px] items-center justify-center rounded-full shadow-lg transition-colors",
+                "flex h-[58px] w-[58px] items-center justify-center rounded-full shadow-lg transition-colors",
                 isActive("/calendario") ? "bg-[#3d6a94]" : "bg-[#4a7ba6]",
               )}
               style={{ transform: "translateY(-12px)" }}
             >
-              <CalendarDays className="h-[26px] w-[26px] text-white" />
+              <CalendarDays className="h-[28px] w-[28px] text-white" />
             </div>
           </Link>
 
@@ -291,11 +291,11 @@ export function DashboardShell({ userName, userRole, children }: DashboardShellP
           <Link
             href="/finanzas"
             className={cn(
-              "flex flex-1 flex-col items-center justify-center gap-0.5 text-[10px] font-medium transition-colors",
+              "flex flex-1 flex-col items-center justify-center gap-0.5 text-[11px] font-medium transition-colors",
               isActive("/finanzas") ? "text-white" : "text-white/60 hover:text-white",
             )}
           >
-            <BarChart3 className="h-5 w-5" />
+            <BarChart3 className="h-6 w-6" />
             <span>Finanzas</span>
           </Link>
 
@@ -303,11 +303,11 @@ export function DashboardShell({ userName, userRole, children }: DashboardShellP
           <Link
             href="/limpieza"
             className={cn(
-              "flex flex-1 flex-col items-center justify-center gap-0.5 text-[10px] font-medium transition-colors",
+              "flex flex-1 flex-col items-center justify-center gap-0.5 text-[11px] font-medium transition-colors",
               isActive("/limpieza") ? "text-white" : "text-white/60 hover:text-white",
             )}
           >
-            <Sparkles className="h-5 w-5" />
+            <Sparkles className="h-6 w-6" />
             <span>Limpieza</span>
           </Link>
         </div>
