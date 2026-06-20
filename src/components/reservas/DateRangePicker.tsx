@@ -205,11 +205,17 @@ export function DateRangePicker({
                 const mid          = cell.current && inRange(cell.iso);
                 const isToday      = cell.iso === todayIso;
 
-                // Strip spans full height of cell; clipped on start/end sides
-                // Only draw strip when there's an end bound (hover or endDate)
+                // Strip spans full height of cell.
+                // Start cell: right half (center→right edge, flat on right, connects to mid)
+                // Mid cells: full width (left→right)
+                // End cell: left half (left edge→center, flat on left, connects from mid)
                 const showStrip = cell.current && !single && !!dispEnd && (start || end || mid);
-                const stripLeft  = end && !start ? "left-0"   : "left-1/2";
-                const stripRight = start && !end  ? "right-0"  : "right-1/2";
+                const stripLeft  = !start ? "left-0"  : "left-1/2";
+                const stripRight = !end   ? "right-0" : "right-1/2";
+                // Lower opacity while hovering (preview), higher when range is confirmed
+                const stripBg = step === 1
+                  ? `${quintaColor}1A`   // ~10% — hover preview
+                  : `${quintaColor}33`;  // ~20% — confirmed range
 
                 return (
                   <div
@@ -224,7 +230,7 @@ export function DateRangePicker({
                     {showStrip && (
                       <div
                         className={cn("absolute inset-y-0.5", stripLeft, stripRight)}
-                        style={{ backgroundColor: `${quintaColor}22` }}
+                        style={{ backgroundColor: stripBg }}
                       />
                     )}
 
