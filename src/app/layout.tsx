@@ -1,22 +1,8 @@
 import type { Metadata, Viewport } from "next";
-import localFont from "next/font/local";
 import { SessionProvider } from "next-auth/react";
 import { Toaster } from "sonner";
-import { cn } from "@/lib/utils";
 import AppLoader from "@/components/AppLoader";
 import "./globals.css";
-
-const geistSans = localFont({
-  src: "./fonts/GeistVF.woff",
-  variable: "--font-geist-sans",
-  weight: "100 900",
-});
-
-const geistMono = localFont({
-  src: "./fonts/GeistMonoVF.woff",
-  variable: "--font-geist-mono",
-  weight: "100 900",
-});
 
 export const metadata: Metadata = {
   title: "Quintas Manager",
@@ -47,7 +33,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="es" className={cn(geistSans.variable, geistMono.variable)}>
+    <html lang="es">
       <body className="antialiased">
         <SessionProvider>
           <AppLoader />

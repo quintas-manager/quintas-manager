@@ -60,7 +60,17 @@ const config: Config = {
         },
       },
       fontFamily: {
-        sans: ["var(--font-sans)", "sans-serif"],
+        sans: [
+          "-apple-system",
+          "BlinkMacSystemFont",
+          '"SF Pro Display"',
+          '"SF Pro Text"',
+          "system-ui",
+          "Roboto",
+          '"Helvetica Neue"',
+          "Arial",
+          "sans-serif",
+        ],
       },
     },
   },
