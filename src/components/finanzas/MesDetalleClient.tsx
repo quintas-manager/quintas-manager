@@ -222,7 +222,7 @@ export function MesDetalleClient({ quintaId, mes, anio, mesNombre, data, categor
   };
 
   return (
-    <div className="max-w-3xl mx-auto space-y-5 pt-4 pb-6">
+    <div className="w-full max-w-3xl mx-auto space-y-5 pt-4 pb-6 overflow-x-hidden">
 
       {/* ── Header ──────────────────────────────────────────────────── */}
       <div className="flex items-center gap-3">
@@ -246,26 +246,28 @@ export function MesDetalleClient({ quintaId, mes, anio, mesNombre, data, categor
         {data.pagos.length === 0 ? (
           <p className="px-4 py-5 text-sm text-gray-400">Sin pagos registrados este mes.</p>
         ) : (
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="bg-gray-50 border-b border-gray-100">
-                <th className="px-4 py-2 text-left text-xs font-medium text-gray-500">Fecha</th>
-                <th className="px-4 py-2 text-left text-xs font-medium text-gray-500">Cliente</th>
-                <th className="px-4 py-2 text-right text-xs font-medium text-gray-500">Monto</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-50">
-              {data.pagos.map((p) => (
-                <tr key={p.id} className="hover:bg-gray-50 cursor-pointer transition-colors" onClick={() => setSelectedPago(p)}>
-                  <td className="px-4 py-3 text-gray-500 whitespace-nowrap text-xs">{fmtShort(p.fecha)}</td>
-                  <td className="px-4 py-3 font-medium text-gray-900 max-w-[120px] truncate">{p.clienteNombre}</td>
-                  <td className="px-4 py-3 text-right whitespace-nowrap">
-                    <MontoDisplay montoUSD={p.monto} moneda={p.moneda} montoARS={p.montoARS} tipoCambio={p.tipoCambio} size="sm" className="items-end" />
-                  </td>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="bg-gray-50 border-b border-gray-100">
+                  <th className="px-4 py-2 text-left text-xs font-medium text-gray-500">Fecha</th>
+                  <th className="px-4 py-2 text-left text-xs font-medium text-gray-500">Cliente</th>
+                  <th className="px-4 py-2 text-right text-xs font-medium text-gray-500">Monto</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody className="divide-y divide-gray-50">
+                {data.pagos.map((p) => (
+                  <tr key={p.id} className="hover:bg-gray-50 cursor-pointer transition-colors" onClick={() => setSelectedPago(p)}>
+                    <td className="px-4 py-3 text-gray-500 whitespace-nowrap text-xs">{fmtShort(p.fecha)}</td>
+                    <td className="px-4 py-3 font-medium text-gray-900 max-w-[120px] truncate">{p.clienteNombre}</td>
+                    <td className="px-4 py-3 text-right whitespace-nowrap">
+                      <MontoDisplay montoUSD={p.monto} moneda={p.moneda} montoARS={p.montoARS} tipoCambio={p.tipoCambio} size="sm" className="items-end" />
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         )}
         <div className="flex items-center justify-between px-4 py-3 border-t border-gray-100 bg-gray-50">
           <span className="text-sm font-semibold text-gray-900">Total ingresos</span>
@@ -281,24 +283,26 @@ export function MesDetalleClient({ quintaId, mes, anio, mesNombre, data, categor
         {data.gastos.length === 0 ? (
           <p className="px-4 py-5 text-sm text-gray-400">Sin gastos registrados este mes.</p>
         ) : (
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="bg-gray-50 border-b border-gray-100">
-                <th className="px-4 py-2 text-left text-xs font-medium text-gray-500">Fecha</th>
-                <th className="px-4 py-2 text-left text-xs font-medium text-gray-500">Descripción</th>
-                <th className="px-4 py-2 text-right text-xs font-medium text-gray-500">Monto</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-50">
-              {data.gastos.map((g) => (
-                <tr key={g.id} className="hover:bg-gray-50 cursor-pointer transition-colors" onClick={() => setSelectedGasto(g)}>
-                  <td className="px-4 py-3 text-gray-500 whitespace-nowrap text-xs">{fmtShort(g.fecha)}</td>
-                  <td className="px-4 py-3 font-medium text-gray-900 max-w-[140px] truncate">{g.descripcion}</td>
-                  <td className="px-4 py-3 text-right font-semibold text-gray-900 whitespace-nowrap">{fmt(g.monto)}</td>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="bg-gray-50 border-b border-gray-100">
+                  <th className="px-4 py-2 text-left text-xs font-medium text-gray-500">Fecha</th>
+                  <th className="px-4 py-2 text-left text-xs font-medium text-gray-500">Descripción</th>
+                  <th className="px-4 py-2 text-right text-xs font-medium text-gray-500">Monto</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody className="divide-y divide-gray-50">
+                {data.gastos.map((g) => (
+                  <tr key={g.id} className="hover:bg-gray-50 cursor-pointer transition-colors" onClick={() => setSelectedGasto(g)}>
+                    <td className="px-4 py-3 text-gray-500 whitespace-nowrap text-xs">{fmtShort(g.fecha)}</td>
+                    <td className="px-4 py-3 font-medium text-gray-900 max-w-[140px] truncate">{g.descripcion}</td>
+                    <td className="px-4 py-3 text-right font-semibold text-gray-900 whitespace-nowrap">{fmt(g.monto)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         )}
         <div className="flex items-center justify-between px-4 py-3 border-t border-gray-100 bg-gray-50">
           <span className="text-sm font-semibold text-gray-900">Total gastos</span>
@@ -314,32 +318,72 @@ export function MesDetalleClient({ quintaId, mes, anio, mesNombre, data, categor
         {data.distribuciones.length === 0 ? (
           <p className="px-4 py-5 text-sm text-gray-400">Sin distribuciones registradas este mes.</p>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="bg-gray-50 border-b border-gray-100">
-                  <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 whitespace-nowrap">Fecha</th>
-                  <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 whitespace-nowrap">Cliente</th>
-                  <th className="px-4 py-2 text-right text-xs font-medium text-gray-500 whitespace-nowrap">Reint. Matías</th>
-                  <th className="px-4 py-2 text-right text-xs font-medium text-gray-500 whitespace-nowrap">Reint. Graciela</th>
-                  <th className="px-4 py-2 text-right text-xs font-medium text-gray-500 whitespace-nowrap">Parte Matías</th>
-                  <th className="px-4 py-2 text-right text-xs font-medium text-gray-500 whitespace-nowrap">Parte Graciela</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-50">
-                {data.distribuciones.map((d) => (
-                  <tr key={d.id} className="hover:bg-gray-50 cursor-pointer transition-colors" onClick={() => setSelectedDistribucion(d)}>
-                    <td className="px-4 py-3 text-gray-500 whitespace-nowrap text-xs">{fmtShort(d.fecha)}</td>
-                    <td className="px-4 py-3 font-medium text-gray-900 max-w-[100px] truncate">{d.clienteNombre}</td>
-                    <td className="px-4 py-3 text-right text-xs text-blue-700">{d.reintegroMatias > 0 ? fmt(d.reintegroMatias) : "—"}</td>
-                    <td className="px-4 py-3 text-right text-xs text-purple-700">{d.reintegroGraciela > 0 ? fmt(d.reintegroGraciela) : "—"}</td>
-                    <td className="px-4 py-3 text-right text-xs font-semibold text-gray-900">{fmt(d.parteMatias)}</td>
-                    <td className="px-4 py-3 text-right text-xs font-semibold text-gray-900">{fmt(d.parteGraciela)}</td>
+          <>
+            {/* Mobile: cards */}
+            <div className="md:hidden divide-y divide-gray-50">
+              {data.distribuciones.map((d) => (
+                <div
+                  key={d.id}
+                  className="px-4 py-3 cursor-pointer hover:bg-gray-50 transition-colors"
+                  onClick={() => setSelectedDistribucion(d)}
+                >
+                  <div className="flex justify-between items-center mb-2">
+                    <span className="text-xs text-gray-500">{fmtShort(d.fecha)}</span>
+                    <span className="text-sm font-medium text-gray-900 truncate max-w-[160px]">{d.clienteNombre}</span>
+                  </div>
+                  <div className="grid grid-cols-2 gap-x-4 gap-y-1.5">
+                    {d.reintegroMatias > 0 && (
+                      <div>
+                        <p className="text-[10px] text-gray-400">Reint. Matías</p>
+                        <p className="text-xs font-medium text-blue-700">{fmt(d.reintegroMatias)}</p>
+                      </div>
+                    )}
+                    {d.reintegroGraciela > 0 && (
+                      <div>
+                        <p className="text-[10px] text-gray-400">Reint. Graciela</p>
+                        <p className="text-xs font-medium text-purple-700">{fmt(d.reintegroGraciela)}</p>
+                      </div>
+                    )}
+                    <div>
+                      <p className="text-[10px] text-gray-400">Parte Matías</p>
+                      <p className="text-xs font-semibold text-gray-900">{fmt(d.parteMatias)}</p>
+                    </div>
+                    <div>
+                      <p className="text-[10px] text-gray-400">Parte Graciela</p>
+                      <p className="text-xs font-semibold text-gray-900">{fmt(d.parteGraciela)}</p>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+            {/* Desktop: table */}
+            <div className="hidden md:block overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="bg-gray-50 border-b border-gray-100">
+                    <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 whitespace-nowrap">Fecha</th>
+                    <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 whitespace-nowrap">Cliente</th>
+                    <th className="px-4 py-2 text-right text-xs font-medium text-gray-500 whitespace-nowrap">Reint. Matías</th>
+                    <th className="px-4 py-2 text-right text-xs font-medium text-gray-500 whitespace-nowrap">Reint. Graciela</th>
+                    <th className="px-4 py-2 text-right text-xs font-medium text-gray-500 whitespace-nowrap">Parte Matías</th>
+                    <th className="px-4 py-2 text-right text-xs font-medium text-gray-500 whitespace-nowrap">Parte Graciela</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                </thead>
+                <tbody className="divide-y divide-gray-50">
+                  {data.distribuciones.map((d) => (
+                    <tr key={d.id} className="hover:bg-gray-50 cursor-pointer transition-colors" onClick={() => setSelectedDistribucion(d)}>
+                      <td className="px-4 py-3 text-gray-500 whitespace-nowrap text-xs">{fmtShort(d.fecha)}</td>
+                      <td className="px-4 py-3 font-medium text-gray-900 max-w-[100px] truncate">{d.clienteNombre}</td>
+                      <td className="px-4 py-3 text-right text-xs text-blue-700">{d.reintegroMatias > 0 ? fmt(d.reintegroMatias) : "—"}</td>
+                      <td className="px-4 py-3 text-right text-xs text-purple-700">{d.reintegroGraciela > 0 ? fmt(d.reintegroGraciela) : "—"}</td>
+                      <td className="px-4 py-3 text-right text-xs font-semibold text-gray-900">{fmt(d.parteMatias)}</td>
+                      <td className="px-4 py-3 text-right text-xs font-semibold text-gray-900">{fmt(d.parteGraciela)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </>
         )}
         {/* Totales */}
         <div className="border-t border-gray-100 bg-gray-50 px-4 py-3 space-y-1.5">
