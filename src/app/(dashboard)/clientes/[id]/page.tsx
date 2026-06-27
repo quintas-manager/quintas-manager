@@ -61,7 +61,7 @@ export default async function ClienteDetallePage({ params }: PageProps) {
     new Intl.NumberFormat("es-AR", { style: "currency", currency: "ARS", maximumFractionDigits: 0 }).format(n);
 
   return (
-    <div className="space-y-6 max-w-4xl">
+    <div className="space-y-6 w-full max-w-4xl overflow-x-hidden px-4">
       {/* Back + delete */}
       <div className="flex items-center justify-between">
         <Link
@@ -110,7 +110,7 @@ export default async function ClienteDetallePage({ params }: PageProps) {
             </span>
             <div>
               <p className="text-xs text-gray-500">Monto total (confirmadas)</p>
-              <p className="text-xl font-semibold text-gray-900">{fmtMoney(montoTotal)}</p>
+              <p className="text-xl font-semibold text-gray-900 break-words">{fmtMoney(montoTotal)}</p>
             </div>
           </div>
         </div>
@@ -161,61 +161,102 @@ export default async function ClienteDetallePage({ params }: PageProps) {
             Este cliente no tiene reservas.
           </p>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b border-gray-100 bg-gray-50">
-                  <th className="px-4 py-3 text-left font-medium text-gray-500">Quinta</th>
-                  <th className="px-4 py-3 text-left font-medium text-gray-500">Fechas</th>
-                  <th className="px-4 py-3 text-left font-medium text-gray-500">Tipo</th>
-                  <th className="px-4 py-3 text-left font-medium text-gray-500">Estado</th>
-                  <th className="px-4 py-3 text-right font-medium text-gray-500">Monto</th>
-                  <th className="px-4 py-3" />
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-50">
-                {cliente.reservas.map((r) => (
-                  <tr key={r.id} className="hover:bg-gray-50 transition">
-                    <td className="px-4 py-3">
-                      <div className="flex items-center gap-2">
-                        <span
-                          className="h-2.5 w-2.5 rounded-full shrink-0"
-                          style={{ backgroundColor: r.quinta.colorHex ?? "#6b7280" }}
-                        />
-                        <span className="font-medium text-gray-900">{r.quinta.nombre}</span>
-                      </div>
-                    </td>
-                    <td className="px-4 py-3 text-gray-600">
-                      {fmt(r.fechaInicio)} — {fmt(r.fechaFin)}
-                    </td>
-                    <td className="px-4 py-3 text-gray-600 capitalize">
-                      {r.tipoAlquiler.replace("_", " ").toLowerCase()}
-                    </td>
-                    <td className="px-4 py-3">
+          <>
+            {/* Mobile cards */}
+            <div className="sm:hidden divide-y divide-gray-50">
+              {cliente.reservas.map((r) => (
+                <div key={r.id} className="p-4 space-y-2">
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-2 min-w-0">
                       <span
-                        className={`rounded-full px-2 py-0.5 text-xs font-medium ${
-                          estadoBadge[r.estado] ?? "bg-gray-100 text-gray-600"
-                        }`}
-                      >
-                        {r.estado.charAt(0) + r.estado.slice(1).toLowerCase()}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3 text-right font-medium text-gray-900">
-                      {fmtMoney(Number(r.montoTotal))}
-                    </td>
-                    <td className="px-4 py-3 text-right">
-                      <Link
-                        href={`/reservas/${r.id}`}
-                        className="rounded-lg border border-gray-200 px-3 py-1.5 text-xs font-medium text-gray-600 hover:bg-gray-100 transition"
-                      >
-                        Ver
-                      </Link>
-                    </td>
+                        className="h-2.5 w-2.5 rounded-full shrink-0"
+                        style={{ backgroundColor: r.quinta.colorHex ?? "#6b7280" }}
+                      />
+                      <span className="font-medium text-gray-900 truncate">{r.quinta.nombre}</span>
+                    </div>
+                    <span
+                      className={`shrink-0 rounded-full px-2 py-0.5 text-xs font-medium ${
+                        estadoBadge[r.estado] ?? "bg-gray-100 text-gray-600"
+                      }`}
+                    >
+                      {r.estado.charAt(0) + r.estado.slice(1).toLowerCase()}
+                    </span>
+                  </div>
+                  <p className="text-xs text-gray-500">
+                    {fmt(r.fechaInicio)} — {fmt(r.fechaFin)}
+                    <span className="ml-2 capitalize text-gray-400">
+                      · {r.tipoAlquiler.replace("_", " ").toLowerCase()}
+                    </span>
+                  </p>
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="text-sm font-medium text-gray-900">{fmtMoney(Number(r.montoTotal))}</span>
+                    <Link
+                      href={`/reservas/${r.id}`}
+                      className="rounded-lg border border-gray-200 px-3 py-1.5 text-xs font-medium text-gray-600 hover:bg-gray-100 transition"
+                    >
+                      Ver
+                    </Link>
+                  </div>
+                </div>
+              ))}
+            </div>
+            {/* Desktop table */}
+            <div className="hidden sm:block overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-gray-100 bg-gray-50">
+                    <th className="px-4 py-3 text-left font-medium text-gray-500">Quinta</th>
+                    <th className="px-4 py-3 text-left font-medium text-gray-500">Fechas</th>
+                    <th className="px-4 py-3 text-left font-medium text-gray-500">Tipo</th>
+                    <th className="px-4 py-3 text-left font-medium text-gray-500">Estado</th>
+                    <th className="px-4 py-3 text-right font-medium text-gray-500">Monto</th>
+                    <th className="px-4 py-3" />
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                </thead>
+                <tbody className="divide-y divide-gray-50">
+                  {cliente.reservas.map((r) => (
+                    <tr key={r.id} className="hover:bg-gray-50 transition">
+                      <td className="px-4 py-3">
+                        <div className="flex items-center gap-2">
+                          <span
+                            className="h-2.5 w-2.5 rounded-full shrink-0"
+                            style={{ backgroundColor: r.quinta.colorHex ?? "#6b7280" }}
+                          />
+                          <span className="font-medium text-gray-900">{r.quinta.nombre}</span>
+                        </div>
+                      </td>
+                      <td className="px-4 py-3 text-gray-600">
+                        {fmt(r.fechaInicio)} — {fmt(r.fechaFin)}
+                      </td>
+                      <td className="px-4 py-3 text-gray-600 capitalize">
+                        {r.tipoAlquiler.replace("_", " ").toLowerCase()}
+                      </td>
+                      <td className="px-4 py-3">
+                        <span
+                          className={`rounded-full px-2 py-0.5 text-xs font-medium ${
+                            estadoBadge[r.estado] ?? "bg-gray-100 text-gray-600"
+                          }`}
+                        >
+                          {r.estado.charAt(0) + r.estado.slice(1).toLowerCase()}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 text-right font-medium text-gray-900">
+                        {fmtMoney(Number(r.montoTotal))}
+                      </td>
+                      <td className="px-4 py-3 text-right">
+                        <Link
+                          href={`/reservas/${r.id}`}
+                          className="rounded-lg border border-gray-200 px-3 py-1.5 text-xs font-medium text-gray-600 hover:bg-gray-100 transition"
+                        >
+                          Ver
+                        </Link>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </>
         )}
       </div>
     </div>

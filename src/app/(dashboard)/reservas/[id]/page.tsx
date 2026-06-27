@@ -32,8 +32,8 @@ const formatMonto = formatUSD;
 function InfoRow({ label, value }: { label: string; value: React.ReactNode }) {
   return (
     <div className="grid grid-cols-2 py-3 border-b border-gray-50 last:border-0">
-      <dt className="text-sm text-gray-500">{label}</dt>
-      <dd className="text-sm font-medium text-gray-900">{value}</dd>
+      <dt className="text-sm text-gray-500 shrink-0">{label}</dt>
+      <dd className="text-sm font-medium text-gray-900 break-words min-w-0">{value}</dd>
     </div>
   );
 }
@@ -62,9 +62,9 @@ export default async function ReservaDetailPage({ params }: { params: { id: stri
   const saldoPendiente = Number(reserva.montoTotal) - totalPagado;
 
   return (
-    <div className="max-w-2xl mx-auto space-y-5">
+    <div className="w-full max-w-2xl mx-auto space-y-5 overflow-x-hidden px-4">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-start justify-between gap-2">
         <div className="flex items-center gap-3">
           <Link
             href="/reservas"
@@ -73,11 +73,11 @@ export default async function ReservaDetailPage({ params }: { params: { id: stri
             <ChevronLeft className="h-5 w-5" />
           </Link>
           <div>
-            <div className="flex items-center gap-2">
-              <h2 className="text-lg font-semibold text-gray-900">
+            <div className="flex flex-wrap items-center gap-2">
+              <h2 className="text-lg font-semibold text-gray-900 break-words">
                 {reserva.cliente.nombre} {reserva.cliente.apellido}
               </h2>
-              <span className={cn("inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium", estado.cls)}>
+              <span className={cn("inline-flex shrink-0 rounded-full px-2.5 py-0.5 text-xs font-medium", estado.cls)}>
                 {estado.label}
               </span>
             </div>
@@ -348,7 +348,7 @@ export default async function ReservaDetailPage({ params }: { params: { id: stri
             {reserva.pagos.map((pago) => (
               <div
                 key={pago.id}
-                className="flex items-center justify-between rounded-lg bg-gray-50 px-4 py-3"
+                className="flex flex-wrap items-center justify-between gap-2 rounded-lg bg-gray-50 px-4 py-3"
               >
                 <div>
                   <MontoDisplay

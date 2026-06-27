@@ -35,7 +35,7 @@ export default async function FinanzasQuintaPage({
   const anios = Array.from(byAnio.keys()).sort((a, b) => b - a);
 
   return (
-    <div className="max-w-3xl mx-auto space-y-6 pt-6">
+    <div className="w-full max-w-3xl mx-auto space-y-6 pt-6 overflow-x-hidden px-4">
       {/* Header */}
       <div className="flex items-center gap-3">
         <Link
@@ -99,7 +99,7 @@ export default async function FinanzasQuintaPage({
                         {MESES[m.mes]} {m.anio}
                       </span>
                     </div>
-                    <div className="flex items-center gap-4 mt-1 text-xs text-gray-500">
+                    <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mt-1 text-xs text-gray-500">
                       <span>Ingresos: <span className="text-green-600 font-medium">{fmt(m.totalIngresos)}</span></span>
                       <span>Gastos: <span className="text-red-600 font-medium">{fmt(m.totalGastos)}</span></span>
                     </div>
@@ -114,7 +114,7 @@ export default async function FinanzasQuintaPage({
                         {!esPositivo && !esNegativo && <Minus className="h-3.5 w-3.5 text-gray-400" />}
                         <span
                           className={cn(
-                            "text-sm font-semibold",
+                            "text-sm font-semibold break-words",
                             esPositivo ? "text-green-600" : esNegativo ? "text-red-600" : "text-gray-500"
                           )}
                         >
